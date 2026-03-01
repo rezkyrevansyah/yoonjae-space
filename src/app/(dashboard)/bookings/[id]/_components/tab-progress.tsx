@@ -1,0 +1,448 @@
+"use client";
+
+import { useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { BOOKING_STATUS_LABEL, PRINT_ORDER_STATUS_LABEL } from "@/lib/constants";
+import type { BookingDetail } from "./booking-detail-client";
+import type { CurrentUser, BookingStatus, PrintOrderStatus } from "@/lib/types/database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2,
+  Circle,
+  XCircle,
+  Printer,
+  Link as LinkIcon,
+  Loader2,
+} from "lucide-react";
+
+const BOOKING_FLOW: BookingStatus[] = [
+  "BOOKED",
+  "PAID",
+  "SHOOT_DONE",
+  "PHOTOS_DELIVERED",
+  "ADDON_UNPAID",
+  "CLOSED",
+];
+
+const PRINT_FLOW: PrintOrderStatus[] = [
+  "SELECTION",
+  "VENDOR",
+  "PRINTING",
+  "RECEIVE",
+  "PACKING",
+  "SHIPPED",
+  "DONE",
+];
+
+interface Props {
+  booking: BookingDetail;
+  currentUser: CurrentUser;
+  onUpdate: (updated: Partial<BookingDetail>) => void;
+}
+
+export function TabProgress({ booking, currentUser, onUpdate }: Props) {
+  const supabase = createClient();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [driveLink, setDriveLink] = useState(booking.google_drive_link ?? "");
+  const [showDriveForm, setShowDriveForm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const currentStatusIdx = BOOKING_FLOW.indexOf(booking.status);
+  const currentPrintIdx = booking.print_order_status
+    ? PRINT_FLOW.indexOf(booking.print_order_status)
+    : -1;
+  const isCanceled = booking.status === "CANCELED";
+
+  async function updateStatus(newStatus: BookingStatus) {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: newStatus })
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Status booking ${booking.booking_number}: ${BOOKING_STATUS_LABEL[booking.status]} → ${BOOKING_STATUS_LABEL[newStatus]}`,
+      });
+
+      onUpdate({ status: newStatus });
+      toast({ title: "Status diperbarui", description: BOOKING_STATUS_LABEL[newStatus] });
+    } catch {
+      toast({ title: "Error", description: "Gagal memperbarui status", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeliver() {
+    const rawLink = driveLink.trim();
+    if (!rawLink) {
+      toast({ title: "Error", description: "Isi Google Drive link terlebih dahulu", variant: "destructive" });
+      return;
+    }
+    const normalizedLink = /^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`;
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "PHOTOS_DELIVERED", google_drive_link: normalizedLink })
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Foto dikirim untuk booking ${booking.booking_number}`,
+      });
+
+      onUpdate({ status: "PHOTOS_DELIVERED", google_drive_link: normalizedLink });
+      setShowDriveForm(false);
+      toast({ title: "Foto berhasil dikirim!", description: "Status → Photos Delivered" });
+    } catch {
+      toast({ title: "Error", description: "Gagal deliver foto", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updatePrintStatus(newStatus: PrintOrderStatus) {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ print_order_status: newStatus })
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Print order ${booking.booking_number}: ${booking.print_order_status ?? "START"} → ${PRINT_ORDER_STATUS_LABEL[newStatus]}`,
+      });
+
+      onUpdate({ print_order_status: newStatus });
+      toast({ title: "Print status diperbarui", description: PRINT_ORDER_STATUS_LABEL[newStatus] });
+    } catch {
+      toast({ title: "Error", description: "Gagal memperbarui print status", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startPrint() {
+    await updatePrintStatus("SELECTION");
+  }
+
+  return (
+    <div className="space-y-6 pt-4">
+      {/* Booking Status Stepper */}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <h3 className="font-semibold text-gray-800">Status Booking</h3>
+
+        {/* Stepper */}
+        <div className="relative">
+          {/* Line */}
+          <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+          <div
+            className="absolute top-4 left-4 h-0.5 bg-maroon-600 transition-all"
+            style={{
+              width: isCanceled
+                ? "0%"
+                : `${(currentStatusIdx / (BOOKING_FLOW.length - 1)) * 100}%`,
+            }}
+          />
+
+          <div className="relative flex justify-between">
+            {BOOKING_FLOW.map((status, idx) => {
+              const isPast = idx < currentStatusIdx;
+              const isCurrent = idx === currentStatusIdx && !isCanceled;
+              return (
+                <div key={status} className="flex flex-col items-center gap-1">
+                  <div
+                    className={cn(
+                      "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
+                      isPast || isCurrent
+                        ? "border-maroon-600"
+                        : "border-gray-300"
+                    )}
+                  >
+                    {isPast ? (
+                      <CheckCircle2 className="h-5 w-5 text-maroon-600" />
+                    ) : isCurrent ? (
+                      <Circle className="h-3 w-3 fill-maroon-600 text-maroon-600" />
+                    ) : (
+                      <Circle className="h-3 w-3 text-gray-300" />
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-xs text-center leading-tight max-w-[60px]",
+                    isCurrent ? "text-maroon-700 font-semibold" : isPast ? "text-maroon-500" : "text-gray-400"
+                  )}>
+                    {BOOKING_STATUS_LABEL[status]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {isCanceled && (
+          <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-red-700">
+            <XCircle className="h-4 w-4" />
+            <span className="text-sm font-medium">Booking ini telah dibatalkan</span>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        {!isCanceled && (
+          <div className="space-y-3">
+            {/* SHOOT_DONE → PHOTOS_DELIVERED: need drive link */}
+            {booking.status === "SHOOT_DONE" && (
+              <>
+                {!showDriveForm ? (
+                  <Button
+                    className="w-full gap-2 bg-maroon-700 hover:bg-maroon-600 text-white"
+                    onClick={() => setShowDriveForm(true)}
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Input Link Foto & Deliver
+                  </Button>
+                ) : (
+                  <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+                    <Label>Google Drive Link</Label>
+                    <Input
+                      value={driveLink}
+                      onChange={(e) => setDriveLink(e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDriveForm(false)}
+                        className="flex-1"
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-maroon-700 hover:bg-maroon-600 text-white"
+                        onClick={handleDeliver}
+                        disabled={loading}
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Deliver Foto"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Next / Back buttons for other statuses */}
+            {booking.status !== "SHOOT_DONE" && (
+              <div className="flex gap-2">
+                {currentStatusIdx > 0 && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-1"
+                    onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx - 1])}
+                    disabled={loading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    {BOOKING_STATUS_LABEL[BOOKING_FLOW[currentStatusIdx - 1]]}
+                  </Button>
+                )}
+                {currentStatusIdx < BOOKING_FLOW.length - 1 && (
+                  <Button
+                    className="flex-1 gap-1 bg-maroon-700 hover:bg-maroon-600 text-white"
+                    onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx + 1])}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        {BOOKING_STATUS_LABEL[BOOKING_FLOW[currentStatusIdx + 1]]}
+                        <ChevronRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Cancel */}
+            {booking.status !== "CLOSED" && booking.status !== "CANCELED" && (
+              <Button
+                variant="ghost"
+                className="w-full text-red-500 hover:bg-red-50"
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={loading}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Batalkan Booking
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan Booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Booking <span className="font-mono font-medium">{booking.booking_number}</span> akan
+              dibatalkan. Status akan berubah menjadi{" "}
+              <span className="font-medium text-red-600">Canceled</span>. Tindakan ini dapat
+              dikembalikan dengan mengubah status secara manual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Tidak, Kembali</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                setShowCancelConfirm(false);
+                await updateStatus("CANCELED");
+              }}
+              disabled={loading}
+            >
+              Ya, Batalkan Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Print Order */}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+          <Printer className="h-4 w-4 text-maroon-700" />
+          Print Order
+        </h3>
+
+        {!booking.print_order_status ? (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-500">Belum ada print order untuk booking ini.</p>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={startPrint}
+              disabled={loading}
+            >
+              <Printer className="h-4 w-4" />
+              Mulai Print Order
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Print stepper */}
+            <div className="relative">
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+              <div
+                className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all"
+                style={{
+                  width: `${(currentPrintIdx / (PRINT_FLOW.length - 1)) * 100}%`,
+                }}
+              />
+              <div className="relative flex justify-between">
+                {PRINT_FLOW.map((status, idx) => {
+                  const isPast = idx < currentPrintIdx;
+                  const isCurrent = idx === currentPrintIdx;
+                  return (
+                    <div key={status} className="flex flex-col items-center gap-1">
+                      <div
+                        className={cn(
+                          "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
+                          isPast || isCurrent ? "border-blue-500" : "border-gray-300"
+                        )}
+                      >
+                        {isPast ? (
+                          <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                        ) : isCurrent ? (
+                          <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
+                        ) : (
+                          <Circle className="h-3 w-3 text-gray-300" />
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-xs text-center leading-tight max-w-[50px]",
+                        isCurrent ? "text-blue-700 font-semibold" : isPast ? "text-blue-400" : "text-gray-400"
+                      )}>
+                        {PRINT_ORDER_STATUS_LABEL[status]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Print nav */}
+            <div className="flex gap-2">
+              {currentPrintIdx > 0 && (
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-1"
+                  onClick={() => updatePrintStatus(PRINT_FLOW[currentPrintIdx - 1])}
+                  disabled={loading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {PRINT_ORDER_STATUS_LABEL[PRINT_FLOW[currentPrintIdx - 1]]}
+                </Button>
+              )}
+              {currentPrintIdx < PRINT_FLOW.length - 1 && (
+                <Button
+                  className="flex-1 gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => updatePrintStatus(PRINT_FLOW[currentPrintIdx + 1])}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      {PRINT_ORDER_STATUS_LABEL[PRINT_FLOW[currentPrintIdx + 1]]}
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

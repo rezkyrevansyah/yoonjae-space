@@ -1,0 +1,599 @@
+Berikut dokumen yang sudah dirapikan:
+
+---
+
+# Yoonjaespace Studio Management
+
+Yoonjaespace adalah studio foto yang membutuhkan dashboard untuk mengelola operasional studionya, mencakup manajemen booking dan berbagai fitur lainnya yang akan dijelaskan di bawah.
+
+---
+
+## Halaman yang Tersedia
+
+- Login Page
+- Dashboard
+- Bookings *(termasuk: Create New Booking, Detail Booking, Customer Page, Invoice)*
+- Calendar *(termasuk: MUA Page — kalender khusus yang dapat diakses oleh MUA/vendor)*
+- Customers
+- Reminders
+- Finance
+- Vendors
+- Commissions
+- Activities
+- User Management
+- Role Management
+- Settings
+
+---
+
+## Use Case
+
+**Settings Page:**
+
+Halaman Settings memiliki beberapa tab sebagai berikut.
+
+---
+
+**Tab General**
+
+User dapat mengatur:
+- **Open Time & Close Time** — jam buka dan tutup Yoonjaespace Studio
+- **Tanggal Libur Studio** — user dapat memilih tanggal libur dalam bentuk single date maupun range date
+- **Default Payment Status** — pilihan Paid atau Unpaid
+  - Jika dipilih *Paid*, status booking akan otomatis menjadi PAID setelah booking dibuat
+  - Jika dipilih *Unpaid*, status booking akan dimulai dari BOOKED
+- **Time Slot Interval** — interval waktu dalam menit (bebas diinputkan, misalnya 5, 10, atau 15 menit)
+
+Semua pengaturan dapat disimpan melalui button **Save Changes**.
+
+---
+
+**Tab Reminder Message Template**
+
+User dapat mengustomisasi template pesan WhatsApp yang digunakan di halaman Reminders. Tersedia tiga template:
+- **Reminder Message** — pesan pengingat untuk customer
+- **Thank You Message** — pesan ucapan terima kasih
+- **Thank You for Payment Message** — pesan konfirmasi pembayaran
+
+Setiap template dilengkapi dengan **available variables** (misalnya nama klien, tanggal, waktu) sehingga admin tidak perlu mengubah pesan secara hardcode.
+
+---
+
+**Tab Studio Info**
+
+User dapat mengatur informasi studio yang akan tampil secara konsisten di seluruh halaman (sidebar, invoice, dan customer page):
+- **Logo Studio** — upload logo yang akan selaras di sidebar, invoice, dan customer page
+- **Foto Tampak Depan Studio** — upload foto yang akan tampil di customer page
+- **Informasi Studio** — nama studio, alamat, Google Maps URL, nomor WhatsApp, email, Instagram
+- **Footer Text** — teks footer untuk customer page dan invoice
+
+---
+
+**Tab Packages**
+
+User dapat melakukan CRUD untuk paket foto. Saat menambahkan paket baru, modal berisi:
+- Package Name & Description
+- Price
+- Duration (dalam menit)
+- Include All Photos (checkbox)
+- Need Extra Time Before Session (checkbox) — jika dicentang, akan muncul form input durasi tambahan dalam menit
+- Active / Inactive (checkbox)
+
+Tersedia button **Create** dan **Cancel**.
+
+---
+
+**Tab Backgrounds**
+
+User dapat melakukan CRUD untuk pilihan background. Saat menambahkan background baru, modal berisi:
+- Background Name & Description
+- Available for Use (checkbox) — dapat diubah kembali saat edit
+
+Tersedia button **Create** dan **Cancel**.
+
+---
+
+**Tab Add-ons**
+
+User dapat melakukan CRUD untuk add-on. Saat menambahkan add-on baru, modal berisi:
+- Addon Name
+- Price
+- Need Extra Time Before Session (checkbox) — jika dicentang, akan muncul form input durasi dalam menit
+- Active / Inactive (checkbox)
+
+Tersedia button **Create**.
+
+---
+
+**Tab Vouchers**
+
+User dapat melakukan CRUD untuk voucher. Saat menambahkan voucher baru, modal berisi:
+- Voucher Code
+- Discount Type — persentase atau fixed amount
+- Discount Value — nilai diskon sesuai tipe yang dipilih
+- Valid From & Valid Until
+- Minimum Purchase
+- Active / Inactive (checkbox)
+
+Tersedia button **Create**.
+
+---
+
+**Tab Custom Fields**
+
+User dapat melakukan CRUD untuk field tambahan yang bersifat dinamis. Saat menambahkan custom field baru, modal berisi:
+- Field Label
+- Field Type — pilihan: Text, Select, Checkbox, Number, atau URL/Link
+- Active / Inactive (checkbox)
+
+Jika sebuah custom field diaktifkan, field tersebut akan muncul sebagai bagian dari section **Additional Information** pada halaman Create New Booking.
+
+Untuk informasi custom fields yang nanti akan muncul di create New Booking itu, jika sudah diisi. Ini akan tampil di detail booking, tapi tidak tampil di invoice, di detail booking saja.
+
+ada juga tab leads dan photo for, yang memiliki konsep CRUD yang sama.
+
+---
+
+### Login Page
+- User dapat melihat logo Yoonjaespace
+- User dapat melihat form input email dan password
+- User dapat melihat button Login
+- User dapat login dengan menginputkan email dan password
+
+---
+
+### Sidebar
+- User dapat melihat logo Yoonjaespace
+- User dapat melihat 12 menu navigasi
+- User dapat melihat button Logout
+
+---
+
+### Dashboard Page
+- User dapat melihat **Quick Menu**: button Buat Booking Baru, Lihat Booking, Lihat Kalender, dan Lihat Reminder
+- User dapat melihat **Statistik Bulan Ini**: Total Bookings, Estimasi Revenue, dan Belum Lunas
+- User dapat melihat **Action Items**: Waiting Selection, At Vendor, Need Packaging, Need Shipping
+- User dapat melihat **Jadwal Hari Ini**
+
+---
+
+### Booking Page
+- User dapat melihat button Buat Booking
+- User dapat melihat tabel daftar booking dengan kolom: Booking ID, Customer, Booking Date, Time, Package, Status, Handled By, Created At, Total, dan Action (Lihat Detail & Delete)
+- User dapat melakukan pencarian dan filter berdasarkan status dan rentang tanggal (mm/dd/yy)
+- User dapat menentukan jumlah list yang ditampilkan per halaman
+- User dapat melihat pagination (muncul otomatis jika list melebihi 10 data)
+
+**Status Booking:**
+BOOKED → PAID → SHOOT DONE → PHOTOS DELIVERED → ADDON UNPAID → CLOSED → CANCELED
+
+---
+
+### Create New Booking Page
+
+User memilih tipe booking terlebih dahulu: **Booking Baru** atau **Booking Lama**.
+
+**Booking Baru:**
+
+User dapat menginputkan data customer baru:
+- Nama lengkap, WhatsApp, email, Instagram, alamat, domisili, dan leads (sumber)
+- Leads berupa dropdown dinamis yang isinya dapat di-CRUD melalui halaman Settings
+
+User dapat memilih sesi:
+- Tanggal sesi — jika tanggal yang dipilih adalah hari libur toko (yang sudah diinputkan di Settings), sistem akan menampilkan alert bahwa toko tutup
+- Waktu mulai — ditampilkan dalam bentuk clicked button (bukan dropdown), menyesuaikan jam buka dan tutup toko yang diatur di Settings. Default interval waktu adalah 15 menit dan dapat diubah di Settings
+
+User dapat mengisi detail booking:
+- Jumlah orang
+- Paket (dropdown dinamis, dapat di-CRUD di Settings)
+- Warna backdrop (multi-select, dapat memilih lebih dari satu, dinamis via Settings)
+- Photo for (dropdown, dinamis via Settings)
+- Notes
+- Behind the Scenes (checkbox, bisa dicentang atau tidak)
+
+User dapat melihat estimasi waktu:
+- Waktu mulai dan waktu selesai — waktu selesai terisi otomatis berdasarkan durasi paket yang sudah ditentukan saat CRUD di Settings
+
+User dapat memilih Add-ons:
+- Add-ons bersifat dinamis dan dapat di-CRUD di Settings
+
+User dapat menggunakan diskon:
+- Input voucher code (dapat di-CRUD di Settings) atau manual discount
+
+User dapat memilih Staff in Charge:
+- Default-nya adalah akun yang sedang login
+
+User dapat melihat Ringkasan Harga:
+- Nama paket, nama add-on, nama voucher, subtotal, dan total
+
+---
+
+### Detail Booking Page
+
+Di bagian atas halaman, user dapat melihat:
+- Button Back
+- Button Customer Page
+- Nomor WhatsApp customer
+- Button Invoice
+- Button Delete
+
+Halaman ini memiliki 3 tab: **Overview**, **Progress**, dan **Pricing**.
+
+---
+
+#### Tab Overview
+
+User dapat melihat informasi lengkap booking:
+- Nama, nomor telepon, email, dan Instagram customer
+- Status booking
+- Tanggal dan jam sesi, durasi
+- Paket, jumlah orang, photo for, background, add-ons terpilih
+- Status Behind the Scenes (ada/tidak)
+- Informasi siapa yang menginputkan data booking tersebut
+
+---
+
+#### Tab Progress
+
+User dapat melihat dan mengelola status progress booking melalui button **Next** (maju ke status berikutnya) dan **Back** (kembali ke status sebelumnya).
+
+**Status Progress Booking:**
+BOOKED → PAID → SHOOT DONE → PHOTOS DELIVERED → ADDON UNPAID → CLOSED → CANCELED
+
+Ketika status mencapai **Shoot Done**, akan muncul form untuk menginputkan link Google Drive beserta button **"Deliver"**. Saat button Deliver diklik, status akan maju ke Photos Delivered, dan link Google Drive tersebut akan dapat diakses oleh customer melalui button "View Your Photos" di Customer Page.
+
+Selain status booking, terdapat juga **Print Order** yang diakses oleh fotografer dan vendor. Saat button **"Start Print"** diklik, akan muncul timeline status print tersendiri:
+
+**Status Print Order:**
+Selection → Vendor → Printing → Receive → Packing → Shipped → Done
+
+Status print order ini juga dapat dikelola menggunakan button Next dan Back, dan akan tampil secara real-time di Customer Page sehingga customer dapat memantau status cetakan fotonya.
+
+---
+
+#### Tab Pricing
+
+User dapat mengelola add-ons tambahan yang diminta customer di luar paket awal (misalnya saat sesi foto berlangsung):
+- Menambah atau menghapus add-ons
+- Menandai add-ons sebagai **Lunas** atau **Belum Lunas**
+  - Jika add-ons ditandai **Belum Lunas**, status booking di Tab Progress akan berubah menjadi **ADDON UNPAID**
+  - Jika add-ons ditandai **Lunas**, status akan mengikuti progress terakhir yang diupdate
+
+User juga dapat melihat ringkasan harga keseluruhan booking, mencakup harga paket awal serta add-ons yang ditambahkan setelah create booking.
+
+---
+
+### Customer Page
+
+Pada halaman Customer Page, customer dapat melihat:
+- Nama dan logo studio
+- Sapaan "Hai, [nama customer]" beserta ID booking yang sudah diformat rapi
+- **Status Timeline** — menampilkan dua status terakhir (baik status progress booking maupun status print order) yang dapat di-expand atau di-collapse agar tampilan tidak terlalu panjang
+- Button **"View Your Photos"** — muncul setelah status mencapai Photos Delivered, berisi link Google Drive yang sudah diinputkan di Tab Progress
+
+Di bawahnya terdapat:
+- **Invoice** — dengan opsi download yang akan membuka halaman invoice di tab baru
+- **Booking Details** — tanggal, waktu, paket, nama customer, dan info status print order terkini
+- **Informasi Studio** — nama/lokasi studio, foto studio (diinputkan di Settings), alamat studio (selaras dengan halaman invoice), jam buka (selaras dengan Settings), serta button Instagram, WhatsApp, dan Buka di Google Maps (selaras dengan data yang diinputkan di Settings)
+- Pesan terima kasih
+- Button **"Book Again"** — mengarahkan langsung ke WhatsApp Yoonjaespace
+
+---
+
+**Invoice Page:**
+
+---
+
+**Tombol & Aksi**
+
+Di bagian atas halaman terdapat beberapa button:
+- **Back to Booking** — mengarahkan kembali ke halaman Detail Booking
+- **Copy Link** — menyalin link invoice
+- **Share to WhatsApp** — mengirim link invoice langsung ke WhatsApp customer yang terdaftar di booking tersebut
+- **Download / Print** — mengonversi tampilan invoice (HTML) menjadi format print dengan ukuran default A4
+
+---
+
+**Tampilan Invoice**
+
+Invoice dirancang dengan tampilan yang estetik dan memuat informasi berikut:
+
+**Header:**
+- Logo Yoonjaespace Studio
+- Nama studio & alamat
+- Nomor telepon
+
+**Info Invoice:**
+- Invoice Number
+- Invoice Date
+- Booking Date
+- Booking Ref *(diambil dari ID Booking)*
+- Status *(mengikuti status terkini di halaman Detail Booking)*
+
+**Bill To:**
+- Nama customer
+- Nomor telepon
+- Email
+
+**Rincian Item:**
+- Daftar paket dan add-ons yang disertakan
+- Jika ada add-on yang belum lunas, akan ditampilkan label "Belum Lunas" pada item tersebut; jika sudah lunas, label tidak ditampilkan
+- Quantity, harga satuan, dan subtotal per item
+- Total keseluruhan
+
+**Footer:**
+- Authorized Signature — menampilkan nama *Yoonjaespace Studio* tanpa gambar tanda tangan
+
+---
+
+**Calendar Page:**
+
+Halaman kalender memiliki tiga mode tampilan: **Day**, **Week**, dan **Month** — serupa dengan tampilan Google Calendar. Default tampilan adalah Day.
+
+---
+
+**Tampilan Day**
+
+Menampilkan jadwal booking dalam satu hari beserta jam sesi. Setiap booking ditampilkan dalam bentuk card yang berisi:
+- Jam sesi & durasi
+- Nama customer
+- Paket
+- Status booking (Booked, Paid, Photos Delivered, dll.)
+
+Saat card diklik, akan muncul **popup detail booking** yang berisi:
+- Nama customer & status booking
+- Tanggal, jam sesi, dan durasi
+- Paket, jumlah orang, photo for, background, add-ons, dan status Behind the Scenes
+
+Di dalam popup ini, user juga dapat **mengupdate status progress** booking tanpa harus masuk ke halaman detail booking. Tersedia dua button: **Tutup** dan **Lihat Detail Lengkap** — button Lihat Detail Lengkap akan mengarahkan ke halaman Detail Booking.
+
+---
+
+**Tampilan Week**
+
+Menampilkan jadwal dari Senin sampai Minggu. Isi card sama seperti tampilan Day: jam, durasi, nama customer, dan paket.
+
+---
+
+**Tampilan Month**
+
+Menampilkan jadwal dalam satu bulan. Isi card lebih ringkas, hanya menampilkan: jam, durasi, dan nama customer.
+
+---
+
+**Fitur Tambahan di Halaman Calendar**
+
+Terdapat dua button tambahan di halaman ini:
+
+**Button New Booking** — mengarahkan langsung ke halaman Create New Booking.
+
+**Button MUA Page** — mengarahkan ke halaman kalender khusus MUA. Halaman ini bersifat terpisah dari kalender admin/staff dan dapat dibagikan linknya langsung ke MUA (vendor). Halaman MUA hanya menampilkan jadwal booking yang menyertakan add-on MUA, dalam bentuk card yang berisi:
+- Nama customer & ID booking
+- Paket
+- Jam MUA mulai & jam sesi mulai
+- Status booking
+
+Halaman MUA bersifat *view only* — tidak ada opsi untuk melihat detail lebih lanjut.
+
+**Customers Page:** (sidebar)
+
+Halaman Customers menampilkan daftar seluruh customer yang datanya masuk secara otomatis setiap kali booking baru berhasil dibuat. Data customer diidentifikasi berdasarkan nomor telepon, sehingga riwayat booking dari customer yang sama dapat ditracking secara akurat.
+
+Tabel daftar customer memuat kolom berikut:
+- Nama customer
+- Nomor telepon
+- Email
+- Total Bookings — jumlah booking yang pernah dilakukan
+- Total Spend — total pengeluaran customer
+- Last Visit — tanggal kunjungan terakhir
+- Action — Lihat Detail, Edit, dan Delete
+
+---
+
+**Fitur Tambahan**
+
+**Export Data** — data customer dapat diekspor dalam format CSV atau Excel.
+
+**Add Client** — user dapat menambahkan data customer secara manual melalui form yang berisi: nama lengkap, nomor WhatsApp, email, Instagram, alamat, domisili, leads, dan catatan tambahan.
+
+**Customer Detail Page:**
+
+Halaman ini menampilkan informasi lengkap seorang customer, meliputi:
+- Nama customer & Client ID
+- Nomor telepon, email, Instagram, dan alamat
+- Leads (sumber)
+- Total Bookings, Total Spend, dan Last Visit
+
+Di bawahnya terdapat section **Booking History** berupa tabel yang mencatat seluruh riwayat booking customer tersebut. Setiap Booking ID dapat diklik untuk melihat detail booking-nya, selama data booking tersebut masih tersedia di database dan belum dihapus.
+
+**Catatan: Validasi Nomor Telepon Customer**
+
+Nomor telepon bersifat unik dan digunakan sebagai identifikasi customer. Oleh karena itu, baik saat **Create New Booking** maupun **Add New Customer** dari halaman Customers, sistem tidak mengizinkan input nomor telepon yang sudah terdaftar. Jika nomor telepon yang diinputkan sudah ada di database, sistem akan menampilkan alert bahwa nomor telepon tersebut sudah digunakan.
+
+---
+
+**Reminders Page:**
+
+Halaman Reminders menampilkan daftar customer yang perlu dihubungi, dikelompokkan dalam tiga tab: **Today**, **This Week**, dan **This Month**.
+
+Setiap tab menampilkan tabel dengan kolom berikut:
+- Nama customer & nomor telepon
+- Tanggal & jam sesi
+- Paket
+- Status booking
+- Hours Left — sisa waktu sebelum sesi berlangsung
+
+---
+
+**Action per Customer**
+
+Setiap baris memiliki tiga button aksi yang masing-masing akan membuka WhatsApp customer dengan template pesan yang sudah diatur di halaman Settings:
+- **Reminder** — mengingatkan customer mengenai sesi yang akan datang
+- **Thank You for Payment** — mengucapkan terima kasih atas pembayaran yang telah dilakukan
+- **Say Thank You** — mengucapkan terima kasih setelah sesi selesai
+
+Selain itu, terdapat button **Tandai Sudah Di-remind** (berupa tombol centang atau serupa) yang berfungsi memberi tanda bahwa customer tersebut sudah dihubungi. Tanda ini akan tampil di tabel sehingga memudahkan staff untuk memantau mana saja customer yang sudah dan belum di-remind.
+
+---
+
+**Finance Page:**
+
+Halaman Finance menampilkan ringkasan keuangan studio dengan filter dropdown bulan di bagian atas. Default tampilan adalah bulan berjalan, namun dapat diubah ke bulan lainnya.
+
+---
+
+**Summary Dashboard**
+
+Menampilkan metrik keuangan utama:
+- Income
+- Expense
+- Gross Profit
+- Income from Bookings
+
+---
+
+**Income from Bookings**
+
+Menampilkan tabel rincian pemasukan yang berasal dari booking, sehingga dapat ditelusuri sumber income per transaksi.
+
+---
+
+**Expenses**
+
+Menampilkan tabel daftar pengeluaran dengan kolom: tanggal, deskripsi, kategori, vendor, jumlah, dan action (edit & delete).
+
+User dapat menambahkan pengeluaran baru melalui button **Add New Expense** yang membuka form berisi:
+- Date
+- Description
+- Amount
+- Category — free text
+- Vendor — opsional, berupa dropdown yang menampilkan daftar vendor dari halaman Vendors
+- Notes — opsional
+
+Tersedia button **Save** dan **Cancel**.
+
+---
+
+**Top 5 Most Popular Packages**
+
+Menampilkan lima paket foto terpopuler beserta informasi revenue yang dihasilkan dari masing-masing paket.
+
+---
+
+**Export**
+
+Data finance dapat diekspor dalam format Excel.
+
+---
+
+**Vendors Page:**
+
+Halaman Vendors berfungsi sebagai manajemen data vendor studio. User dapat melakukan CRUD (Create, Read, Update, Delete) untuk setiap vendor.
+
+---
+
+**Tambah Vendor**
+
+User dapat menambahkan vendor baru melalui modal yang berisi:
+- Nama vendor
+- Kategori — free text
+- Nomor telepon
+- Email
+- Alamat
+- Catatan
+- Active / Inactive (checkbox)
+
+---
+
+**Tampilan Daftar Vendor**
+
+Setiap vendor ditampilkan dalam bentuk card yang berisi:
+- Nama vendor & kategori
+- Nomor telepon & alamat
+- Total transaksi — jumlah transaksi yang melibatkan vendor tersebut, terdeteksi otomatis dari data pengeluaran di halaman Finance
+- Total nilai yang telah diterima vendor
+
+Setiap card juga memiliki opsi **Lihat Detail** untuk melihat lengkap informasi vendor yang telah diinputkan, serta opsi edit dan delete.
+
+---
+
+**Commissions Page:**
+
+Halaman Commissions digunakan untuk memantau dan mengelola komisi staff. User dapat memilih **bulan dan tahun** untuk melihat data komisi pada periode tertentu.
+
+**Periode komisi** dihitung dari tanggal **26 bulan berjalan** hingga tanggal **25 bulan berikutnya**.
+
+---
+
+**Summary Dashboard**
+
+Menampilkan ringkasan komisi secara keseluruhan:
+- Total komisi yang sudah dibayarkan
+- Total komisi yang belum dibayarkan
+
+---
+
+**Card per Staff**
+
+Setiap staff ditampilkan dalam bentuk card yang berisi:
+- Nama & akun staff
+- Jumlah booking yang sudah ditangani
+- Total komisi yang didapatkan
+- Input nominal komisi
+- Booking History — daftar booking yang ditangani staff tersebut, setiap item dapat diklik untuk mengarahkan ke halaman Detail Booking
+- Checkbox **Sudah Dibayarkan** — jika dicentang, data komisi akan otomatis terupdate di halaman Finance
+- jika sudah dissave, komisi yang sttusnya sudah paid, akan masuk juga datanya ke halaman finance sebagai expenses
+
+---
+
+**Activities Page:**
+
+Halaman Activities berfungsi sebagai log aktivitas seluruh aksi yang terjadi di dalam sistem, serupa dengan activity log pada admin panel umumnya.
+
+Setiap aktivitas yang tercatat mencakup informasi: nama user, role, aksi yang dilakukan (misalnya create booking, pergantian status, update settings, delete data, dan sebagainya), serta waktu kejadiannya. Dengan halaman ini, admin dapat memantau seluruh perubahan yang terjadi di sistem secara transparan dan tertelusur.
+
+---
+
+**User Management Page:**
+
+Halaman User Management digunakan untuk mengelola akun pengguna sistem. User dapat melakukan CRUD, dengan satu pengecualian: **akun dengan role Owner yang pertama kali dibuat tidak dapat dihapus**, karena merupakan akun utama pemilik studio. Akun Owner yang ditambahkan setelahnya tetap dapat dihapus.
+
+---
+
+**Daftar User**
+
+Menampilkan tabel dengan kolom: nama, email, role, status (aktif/tidak), tanggal dibuat, dan action (lihat detail & edit).
+
+---
+
+**Tambah User**
+
+User dapat menambahkan akun baru melalui button **Add User** yang membuka form berisi:
+- Nama
+- Email
+- Nomor telepon
+- Password & konfirmasi password
+- Role — berupa dropdown yang menampilkan daftar role dari halaman Role Management
+- Active / Inactive (checkbox)
+
+---
+
+**Role Management Page:**
+
+Halaman Role Management digunakan untuk mengelola role beserta hak aksesnya. User dapat melakukan CRUD, di mana setiap role ditampilkan dalam bentuk card.
+
+**Default:** Sistem hanya memiliki satu role bawaan yaitu **Owner**, yang memiliki akses penuh ke seluruh menu. Role Owner tidak dapat dihapus, dan role-role lainnya dibuat oleh Owner sesuai kebutuhan.
+
+---
+
+**Tambah Role**
+
+Saat menambahkan role baru, form berisi:
+- Nama role
+- Deskripsi role
+- Hak akses menu — berupa checkbox untuk menentukan menu sidebar mana saja yang dapat diakses oleh role tersebut
+
+Hak akses yang sudah dikonfigurasi di sini akan otomatis berlaku pada setiap user yang ditetapkan dengan role tersebut di halaman User Management.
+
+---
+

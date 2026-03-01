@@ -1,0 +1,52 @@
+import { redirect, notFound } from "next/navigation";
+import { createClient } from "@/utils/supabase/server";
+import { getCurrentUser } from "@/lib/get-current-user";
+import { BookingDetailClient } from "./_components/booking-detail-client";
+
+export const metadata = { title: "Detail Booking — Yoonjaespace" };
+
+export default async function BookingDetailPage({ params }: { params: { id: string } }) {
+  // getCurrentUser uses React.cache() — no duplicate DB hit vs layout.tsx
+  const [currentUser, supabase] = await Promise.all([
+    getCurrentUser(),
+    createClient(),
+  ]);
+
+  if (!currentUser) redirect("/login");
+
+  const [{ data: booking }, { data: addons }] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select(`
+        id, booking_number, booking_date, start_time, end_time, status, print_order_status,
+        google_drive_link, person_count, notes, behind_the_scenes, subtotal, total,
+        voucher_id, manual_discount, staff_id, created_by, created_at,
+        customers(id, name, phone, email, instagram, address, domicile),
+        packages(id, name, price, duration_minutes),
+        photo_for:photo_for(id, name),
+        vouchers(id, code, discount_type, discount_value),
+        staff:users!bookings_staff_id_fkey(id, name),
+        creator:users!bookings_created_by_fkey(id, name),
+        booking_backgrounds(background_id, backgrounds(id, name)),
+        booking_addons(addon_id, price, is_paid, is_extra, addons(id, name, need_extra_time, extra_time_minutes)),
+        booking_custom_fields(custom_field_id, value, custom_fields(id, label, field_type, options))
+      `)
+      .eq("id", params.id)
+      .single(),
+    supabase
+      .from("addons")
+      .select("id, name, price, need_extra_time, extra_time_minutes, is_active")
+      .eq("is_active", true)
+      .order("name"),
+  ]);
+
+  if (!booking) notFound();
+
+  return (
+    <BookingDetailClient
+      currentUser={currentUser}
+      booking={booking as never}
+      availableAddons={(addons ?? []) as never}
+    />
+  );
+}
