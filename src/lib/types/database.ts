@@ -94,6 +94,7 @@ export interface Addon {
   price: number;
   need_extra_time: boolean;
   extra_time_minutes: number;
+  extra_time_position: 'before' | 'after';
   is_active: boolean;
   created_at: string;
   updated_at: string;

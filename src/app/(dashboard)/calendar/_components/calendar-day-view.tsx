@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, MapPin, User } from "lucide-react";
+import { Clock, MapPin, User, AlertTriangle } from "lucide-react";
 import { BOOKING_STATUS_LABEL } from "@/lib/constants";
 import { formatTime } from "@/lib/utils";
 import type { CalendarBooking } from "./calendar-client";
@@ -49,11 +49,46 @@ const STATUS_DOT: Record<string, string> = {
   CANCELED:          "bg-red-400",
 };
 
+// Returns the effective start time in minutes (accounting for "before" addons)
+function getEffectiveStart(b: CalendarBooking): number {
+  let start = timeToMinutes(b.start_time);
+  for (const ba of b.booking_addons) {
+    if (ba.addons?.need_extra_time && ba.addons.extra_time_position === "before") {
+      start -= ba.addons.extra_time_minutes;
+    }
+  }
+  return start;
+}
+
+// Returns set of booking IDs that are involved in a time conflict
+function getConflictIds(bookings: CalendarBooking[]): Set<string> {
+  const conflictIds = new Set<string>();
+  for (let i = 0; i < bookings.length; i++) {
+    for (let j = i + 1; j < bookings.length; j++) {
+      const a = bookings[i];
+      const b = bookings[j];
+      const aStart = getEffectiveStart(a);
+      const aEnd = timeToMinutes(a.end_time);
+      const bStart = getEffectiveStart(b);
+      const bEnd = timeToMinutes(b.end_time);
+      // Overlap check: A starts before B ends AND A ends after B starts
+      if (aStart < bEnd && aEnd > bStart) {
+        conflictIds.add(a.id);
+        conflictIds.add(b.id);
+      }
+    }
+  }
+  return conflictIds;
+}
+
 export function CalendarDayView({ date, bookings, onSelectBooking }: Props) {
   const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   const dayBookings = bookings
     .filter(b => b.booking_date === dateStr)
     .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+
+  const conflictIds = getConflictIds(dayBookings);
+  const hasConflict = conflictIds.size > 0;
 
   const dayName = date.toLocaleDateString("id-ID", { weekday: "long" });
   const dayFull = date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
@@ -69,6 +104,19 @@ export function CalendarDayView({ date, bookings, onSelectBooking }: Props) {
             : `${dayBookings.length} Booking${dayBookings.length > 1 ? "s" : ""}`}
         </p>
       </div>
+
+      {/* Conflict banner */}
+      {hasConflict && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-300 px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Ada Jadwal Bertabrakan</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Beberapa booking memiliki waktu efektif yang overlap — kemungkinan karena add-on MUA atau add-on lain yang menambah waktu sebelum sesi. Pastikan koordinasi ruangan sudah oke.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Empty state */}
       {dayBookings.length === 0 && (
@@ -86,26 +134,51 @@ export function CalendarDayView({ date, bookings, onSelectBooking }: Props) {
           const style = STATUS_STYLE[b.status] ?? STATUS_STYLE.PENDING;
           const dot = STATUS_DOT[b.status] ?? "bg-gray-400";
           const duration = getDurationLabel(b.start_time, b.end_time);
+          const isConflict = conflictIds.has(b.id);
+
+          // Which "before" addons cause earlier arrival
+          const beforeAddons = b.booking_addons.filter(
+            ba => ba.addons?.need_extra_time && ba.addons.extra_time_position === "before"
+          );
+          const effectiveStart = getEffectiveStart(b);
+          const effectiveStartStr = `${String(Math.floor(effectiveStart / 60)).padStart(2, "0")}:${String(effectiveStart % 60).padStart(2, "0")}`;
 
           return (
             <button
               key={b.id}
               onClick={() => onSelectBooking(b)}
-              className={`w-full text-left rounded-2xl border p-4 transition-all hover:shadow-md active:scale-[0.99] ${style.bg} ${style.border}`}
+              className={`w-full text-left rounded-2xl border p-4 transition-all hover:shadow-md active:scale-[0.99] ${
+                isConflict
+                  ? "bg-amber-50 border-amber-300"
+                  : `${style.bg} ${style.border}`
+              }`}
             >
+              {/* Conflict label */}
+              {isConflict && (
+                <div className="flex items-center gap-1.5 mb-3 pb-2.5 border-b border-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-amber-700">Jadwal Bertabrakan</span>
+                  {beforeAddons.length > 0 && (
+                    <span className="text-xs text-amber-600 ml-1">
+                      — customer tiba ~{formatTime(effectiveStartStr)} karena {beforeAddons.map(ba => ba.addons!.name).join(", ")}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-start justify-between gap-3">
                 {/* Left: time block */}
                 <div className="flex-shrink-0 text-center min-w-[52px]">
-                  <p className={`text-base font-bold leading-none ${style.text}`}>
+                  <p className={`text-base font-bold leading-none ${isConflict ? "text-amber-800" : style.text}`}>
                     {formatTime(b.start_time)}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">{formatTime(b.end_time)}</p>
-                  <p className={`text-xs font-medium mt-1 ${style.text}`}>{duration}</p>
+                  <p className={`text-xs font-medium mt-1 ${isConflict ? "text-amber-700" : style.text}`}>{duration}</p>
                 </div>
 
                 {/* Divider */}
                 <div className="flex flex-col items-center self-stretch">
-                  <div className={`w-2.5 h-2.5 rounded-full mt-0.5 ${dot}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full mt-0.5 ${isConflict ? "bg-amber-400" : dot}`} />
                   <div className="w-px flex-1 bg-gray-200 my-1" />
                 </div>
 

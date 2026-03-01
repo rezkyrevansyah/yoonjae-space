@@ -109,23 +109,22 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
   return (
     <>
       {/* Print-hidden action bar */}
-      <div className="print:hidden bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="print:hidden bg-gray-100 border-b border-gray-200 px-4 py-3">
+        {/* Row 1: Back + actions */}
+        <div className="flex items-center gap-2 flex-wrap">
           {currentUser && (
             <Link
               href={`/bookings/${booking.id}`}
-              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors mr-auto"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Kembali</span>
+              <span>Kembali</span>
             </Link>
           )}
-        </div>
 
-        <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 text-sm px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 text-sm px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
             {copied ? (
               <><Check className="h-4 w-4 text-green-500" /><span>Tersalin</span></>
@@ -139,7 +138,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-green-500 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors"
+              className="flex items-center gap-1.5 bg-green-500 text-white text-sm px-3 py-2 rounded-lg hover:bg-green-600 transition-colors"
             >
               <MessageCircle className="h-4 w-4" />
               <span>Share WA</span>
@@ -148,7 +147,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 bg-[#8B1A1A] text-white text-sm px-3 py-1.5 rounded-lg hover:bg-[#B22222] transition-colors"
+            className="flex items-center gap-1.5 bg-[#8B1A1A] text-white text-sm px-3 py-2 rounded-lg hover:bg-[#B22222] transition-colors"
           >
             <Printer className="h-4 w-4" />
             <span>Print / Download</span>
@@ -156,12 +155,12 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
         </div>
       </div>
 
-      {/* Invoice paper */}
-      <div className="bg-gray-50 min-h-screen py-8 px-4 print:bg-white print:p-0 print:m-0">
+      {/* Invoice paper — horizontal scroll on small screens */}
+      <div className="bg-gray-50 min-h-screen py-8 print:bg-white print:p-0 print:m-0 overflow-x-auto">
         <div
           ref={printRef}
-          className="bg-white max-w-2xl mx-auto shadow-md print:shadow-none print:max-w-none"
-          style={{ minHeight: "297mm" }}
+          className="bg-white mx-auto shadow-md print:shadow-none print:max-w-none"
+          style={{ minWidth: "600px", maxWidth: "672px", minHeight: "297mm" }}
         >
           {/* ---- Header ---- */}
           <div className="border-b-2 border-[#8B1A1A] p-8 pb-6">

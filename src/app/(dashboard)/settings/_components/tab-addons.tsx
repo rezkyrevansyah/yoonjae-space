@@ -30,21 +30,21 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", is_active: true });
+  const [form, setForm] = useState({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", extra_time_position: "after" as "before" | "after", is_active: true });
 
   useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
-    const { data } = await supabase.from("addons").select("id, name, price, need_extra_time, extra_time_minutes, is_active, created_at, updated_at").order("name");
+    const { data } = await supabase.from("addons").select("id, name, price, need_extra_time, extra_time_minutes, extra_time_position, is_active, created_at, updated_at").order("name");
     if (data) setItems(data);
     setLoading(false);
   }
 
-  function openAdd() { setEditingId(null); setForm({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", is_active: true }); setModalOpen(true); }
+  function openAdd() { setEditingId(null); setForm({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", extra_time_position: "after", is_active: true }); setModalOpen(true); }
   function openEdit(item: Addon) {
     setEditingId(item.id);
-    setForm({ name: item.name, price: String(item.price), need_extra_time: item.need_extra_time, extra_time_minutes: String(item.extra_time_minutes), is_active: item.is_active });
+    setForm({ name: item.name, price: String(item.price), need_extra_time: item.need_extra_time, extra_time_minutes: String(item.extra_time_minutes), extra_time_position: item.extra_time_position ?? "after", is_active: item.is_active });
     setModalOpen(true);
   }
 
@@ -56,6 +56,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       price: parseInt(form.price.replace(/\D/g, ""), 10),
       need_extra_time: form.need_extra_time,
       extra_time_minutes: form.need_extra_time ? parseInt(form.extra_time_minutes, 10) : 0,
+      extra_time_position: form.need_extra_time ? form.extra_time_position : "after",
       is_active: form.is_active,
     };
     try {
@@ -107,7 +108,12 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
                 <p className="text-sm font-medium">{item.name}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-sm font-semibold text-maroon-700">{formatRupiah(item.price)}</span>
-                  {item.need_extra_time && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />+{item.extra_time_minutes} mnt</span>}
+                  {item.need_extra_time && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {item.extra_time_position === "before" ? "−" : "+"}{item.extra_time_minutes} mnt {item.extra_time_position === "before" ? "(sebelum sesi)" : "(setelah sesi)"}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -140,9 +146,38 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
                 <Label htmlFor="addon-extra" className="cursor-pointer">Need Extra Time</Label>
               </div>
               {form.need_extra_time && (
-                <div className="pl-6">
-                  <Input type="number" min={15} value={form.extra_time_minutes} onChange={(e) => setForm({ ...form, extra_time_minutes: e.target.value })} className="w-32" />
-                  <p className="text-xs text-muted-foreground mt-1">menit tambahan</p>
+                <div className="pl-6 space-y-3">
+                  <div>
+                    <Input type="number" min={15} value={form.extra_time_minutes} onChange={(e) => setForm({ ...form, extra_time_minutes: e.target.value })} className="w-32" />
+                    <p className="text-xs text-muted-foreground mt-1">menit tambahan</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-gray-700">Posisi waktu tambahan</p>
+                    <div className="flex gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="extra_time_position"
+                          value="before"
+                          checked={form.extra_time_position === "before"}
+                          onChange={() => setForm({ ...form, extra_time_position: "before" })}
+                          className="accent-[#8B1A1A]"
+                        />
+                        <span className="text-xs text-gray-700">Sebelum sesi</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="extra_time_position"
+                          value="after"
+                          checked={form.extra_time_position === "after"}
+                          onChange={() => setForm({ ...form, extra_time_position: "after" })}
+                          className="accent-[#8B1A1A]"
+                        />
+                        <span className="text-xs text-gray-700">Setelah sesi</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

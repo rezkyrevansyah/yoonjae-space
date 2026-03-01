@@ -211,20 +211,27 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          className="w-full sm:w-40"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          placeholder="Dari tanggal"
-        />
-        <Input
-          type="date"
-          className="w-full sm:w-40"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          placeholder="Sampai tanggal"
-        />
+        {/* Date range — side by side on mobile, individual on desktop */}
+        <div className="flex gap-2 sm:contents">
+          <div className="flex-1 sm:flex-none flex flex-col gap-0.5">
+            <label className="text-xs text-gray-500 sm:hidden px-0.5">Dari</label>
+            <Input
+              type="date"
+              className="w-full sm:w-40"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
+          <div className="flex-1 sm:flex-none flex flex-col gap-0.5">
+            <label className="text-xs text-gray-500 sm:hidden px-0.5">Sampai</label>
+            <Input
+              type="date"
+              className="w-full sm:w-40"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Table — desktop */}

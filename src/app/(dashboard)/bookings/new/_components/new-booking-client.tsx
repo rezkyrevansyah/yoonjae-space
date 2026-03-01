@@ -18,6 +18,7 @@ import type {
   SettingsGeneral,
   StudioHoliday,
 } from "@/lib/types/database";
+import type { ExistingBooking } from "./step-session";
 import { StepCustomerType } from "./step-customer-type";
 import { StepCustomerData } from "./step-customer-data";
 import { StepSession } from "./step-session";
@@ -163,6 +164,7 @@ export function NewBookingClient({
   });
 
   const [addonData, setAddonData] = useState<AddonFormData>({ addon_ids: [] });
+  const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
 
   const [discountData, setDiscountData] = useState<DiscountFormData>({
     discount_type: "none",
@@ -183,16 +185,30 @@ export function NewBookingClient({
   const selectedPackage = packages.find((p) => p.id === detailData.package_id);
   const selectedAddons = addons.filter((a) => addonData.addon_ids.includes(a.id));
 
+  function computeActualStartTime(): string {
+    if (!sessionData.start_time) return "";
+    const [h, m] = sessionData.start_time.split(":").map(Number);
+    let startMinutes = h * 60 + m;
+    selectedAddons.forEach((a) => {
+      if (a.need_extra_time && a.extra_time_position === "before") startMinutes -= a.extra_time_minutes;
+    });
+    const sh = Math.floor(startMinutes / 60);
+    const sm = startMinutes % 60;
+    return `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")}`;
+  }
+
   function computeEndTime(): string {
     if (!sessionData.start_time || !selectedPackage) return "";
     const [h, m] = sessionData.start_time.split(":").map(Number);
-    let totalMinutes = h * 60 + m + selectedPackage.duration_minutes;
-    if (selectedPackage.need_extra_time) totalMinutes += selectedPackage.extra_time_minutes;
+    let endMinutes = h * 60 + m + selectedPackage.duration_minutes;
+    if (selectedPackage.need_extra_time) endMinutes += selectedPackage.extra_time_minutes;
     selectedAddons.forEach((a) => {
-      if (a.need_extra_time) totalMinutes += a.extra_time_minutes;
+      if (!a.need_extra_time) return;
+      if (a.extra_time_position === "after") endMinutes += a.extra_time_minutes;
+      // "before" shifts start earlier but end stays the same relative to chosen start
     });
-    const endH = Math.floor(totalMinutes / 60);
-    const endM = totalMinutes % 60;
+    const endH = Math.floor(endMinutes / 60);
+    const endM = endMinutes % 60;
     return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
   }
 
@@ -223,8 +239,36 @@ export function NewBookingClient({
   }
 
   const pricing = computePricing();
+  const actualStartTime = computeActualStartTime();
   const endTime = computeEndTime();
   const totalDuration = computeTotalDuration();
+
+  function computeConflictingBookings() {
+    if (!actualStartTime || !endTime || !existingBookings.length) return [];
+    const [ah, am] = actualStartTime.split(":").map(Number);
+    const newEffStart = ah * 60 + am;
+    const [eh, em] = endTime.split(":").map(Number);
+    const newEnd = eh * 60 + em;
+    return existingBookings
+      .filter((b) => {
+        const [sh, sm] = b.start_time.split(":").map(Number);
+        let bEffStart = sh * 60 + sm;
+        b.booking_addons.forEach((ba) => {
+          if (ba.addons?.need_extra_time && ba.addons.extra_time_position === "before")
+            bEffStart -= ba.addons.extra_time_minutes;
+        });
+        const [exh, exm] = b.end_time.split(":").map(Number);
+        const bEnd = exh * 60 + exm;
+        return newEffStart < bEnd && newEnd > bEffStart;
+      })
+      .map((b) => ({
+        customerName: b.customers?.name ?? "Customer lain",
+        startTime: b.start_time,
+        endTime: b.end_time,
+      }));
+  }
+
+  const conflictingBookings = computeConflictingBookings();
 
   async function handleSubmit() {
     setSubmitting(true);
@@ -265,7 +309,7 @@ export function NewBookingClient({
           booking_number: bookingNumber,
           customer_id: customerId,
           booking_date: sessionData.booking_date,
-          start_time: sessionData.start_time,
+          start_time: actualStartTime || sessionData.start_time,
           end_time: endTime,
           package_id: detailData.package_id,
           photo_for_id: detailData.photo_for_id || null,
@@ -447,6 +491,7 @@ export function NewBookingClient({
             onChange={setSessionData}
             settingsGeneral={settingsGeneral}
             holidays={holidays}
+            onExistingBookingsLoaded={setExistingBookings}
           />
         )}
         {step === 4 && (
@@ -463,8 +508,10 @@ export function NewBookingClient({
             sessionData={sessionData}
             selectedPackage={selectedPackage}
             selectedAddons={selectedAddons}
+            actualStartTime={actualStartTime}
             endTime={endTime}
             totalDuration={totalDuration}
+            conflictingBookings={conflictingBookings}
           />
         )}
         {step === 6 && (

@@ -32,7 +32,7 @@ export interface CalendarBooking {
   packages: { name: string; duration_minutes: number } | null;
   photo_for: { name: string } | null;
   booking_backgrounds: { backgrounds: { name: string } | null }[];
-  booking_addons: { addons: { name: string } | null; price: number; is_paid: boolean; is_extra: boolean }[];
+  booking_addons: { addons: { name: string; need_extra_time: boolean; extra_time_minutes: number; extra_time_position: 'before' | 'after' } | null; price: number; is_paid: boolean; is_extra: boolean }[];
 }
 
 type ViewMode = "day" | "week" | "month";
@@ -116,7 +116,7 @@ export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
          packages(name, duration_minutes),
          photo_for:photo_for(name),
          booking_backgrounds(backgrounds(name)),
-         booking_addons(price, is_paid, is_extra, addons(name))`
+         booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position))`
       : `id, booking_number, booking_date, start_time, end_time, status,
          person_count, behind_the_scenes,
          customers(name, phone),
@@ -134,7 +134,8 @@ export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
 
     setLoading(false);
     if (error) {
-      toast({ title: "Error", description: "Gagal memuat jadwal", variant: "destructive" });
+      console.error("Calendar fetch error:", error);
+      toast({ title: "Error", description: `Gagal memuat jadwal: ${error.message}`, variant: "destructive" });
       return;
     }
     // Normalize: fill empty arrays for week/month (only day view fetches nested arrays)
