@@ -46,23 +46,43 @@ export default async function DashboardPage() {
   const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
-  const PRINT_ACTIVE = ["SELECTION", "VENDOR", "PACKING", "SHIPPED"];
 
-  // Parallel fetch all data
+  // Parallel fetch — 7 independent queries at once
   const [
-    { data: allMonthBookings },
+    { count: totalBookings },
+    { data: revenueRows },
+    { count: belumLunas },
     { data: todayBookings },
-    { data: printOrders },
+    { count: countSelection },
+    { count: countVendor },
+    { count: countPacking },
+    { count: countShipped },
     { data: studioInfo },
   ] = await Promise.all([
-    // All bookings this month (for stats)
+    // 1. Total bookings this month (count only)
     supabase
       .from("bookings")
-      .select("id, status, total, print_order_status")
+      .select("id", { count: "exact", head: true })
       .gte("booking_date", monthStart)
       .lte("booking_date", monthEnd),
 
-    // Today's schedule
+    // 2. Revenue: only paid bookings, only total column needed
+    supabase
+      .from("bookings")
+      .select("total")
+      .gte("booking_date", monthStart)
+      .lte("booking_date", monthEnd)
+      .in("status", PAID_STATUSES),
+
+    // 3. Belum lunas count (BOOKED status)
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .gte("booking_date", monthStart)
+      .lte("booking_date", monthEnd)
+      .eq("status", "BOOKED"),
+
+    // 4. Today's schedule
     supabase
       .from("bookings")
       .select("id, booking_number, start_time, end_time, status, customers(name), packages(name)")
@@ -70,13 +90,28 @@ export default async function DashboardPage() {
       .not("status", "in", '("CANCELED")')
       .order("start_time"),
 
-    // Print orders with active status
+    // 5-8. Print order counts — each is a separate count query (DB does the counting)
     supabase
       .from("bookings")
-      .select("id, print_order_status")
-      .in("print_order_status", PRINT_ACTIVE),
+      .select("id", { count: "exact", head: true })
+      .eq("print_order_status", "SELECTION"),
 
-    // Studio name for greeting
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("print_order_status", "VENDOR"),
+
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("print_order_status", "PACKING"),
+
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("print_order_status", "SHIPPED"),
+
+    // 9. Studio name for greeting
     supabase
       .from("settings_studio_info")
       .select("studio_name")
@@ -84,25 +119,14 @@ export default async function DashboardPage() {
       .maybeSingle(),
   ]);
 
-  // Compute stats
-  const totalBookings = allMonthBookings?.length ?? 0;
-  const estimasiRevenue = (allMonthBookings ?? [])
-    .filter(b => PAID_STATUSES.includes(b.status))
-    .reduce((sum, b) => sum + (b.total ?? 0), 0);
-  const belumLunas = (allMonthBookings ?? [])
-    .filter(b => b.status === "BOOKED").length;
+  const estimasiRevenue = (revenueRows ?? []).reduce((sum, b) => sum + (b.total ?? 0), 0);
 
-  // Print order counts
   const printCounts = {
-    SELECTION: 0,
-    VENDOR: 0,
-    PACKING: 0,
-    SHIPPED: 0,
+    SELECTION: countSelection ?? 0,
+    VENDOR: countVendor ?? 0,
+    PACKING: countPacking ?? 0,
+    SHIPPED: countShipped ?? 0,
   };
-  for (const b of (printOrders ?? [])) {
-    const s = b.print_order_status as keyof typeof printCounts;
-    if (s in printCounts) printCounts[s]++;
-  }
 
   const greeting = getGreeting();
   const studioName = studioInfo?.studio_name ?? "Studio";
@@ -141,7 +165,7 @@ export default async function DashboardPage() {
             icon={<Users className="w-5 h-5 text-blue-600" />}
             iconBg="bg-blue-50"
             label="Total Booking"
-            value={String(totalBookings)}
+            value={String(totalBookings ?? 0)}
             sub="bulan ini"
           />
           <StatCard
@@ -156,8 +180,8 @@ export default async function DashboardPage() {
             icon={<AlertCircle className="w-5 h-5 text-orange-500" />}
             iconBg="bg-orange-50"
             label="Belum Lunas"
-            value={String(belumLunas)}
-            valueColor={belumLunas > 0 ? "text-orange-600" : "text-gray-900"}
+            value={String(belumLunas ?? 0)}
+            valueColor={(belumLunas ?? 0) > 0 ? "text-orange-600" : "text-gray-900"}
             sub="booking status BOOKED"
           />
         </div>

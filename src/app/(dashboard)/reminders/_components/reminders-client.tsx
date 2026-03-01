@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -120,41 +120,58 @@ export function RemindersClient({ currentUser, templates, studioName }: Props) {
     fetchBookings(tab);
   }, [tab, fetchBookings]);
 
-  async function markReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment") {
-    const { error } = await supabase.from("booking_reminders").insert({
-      booking_id: booking.id,
-      type,
-      sent_by: currentUser.id,
-    });
-
-    if (error) {
-      toast({ title: "Error", description: "Gagal menandai reminder", variant: "destructive" });
-      return;
+  // O(1) Map lookup: bookingId → Set of sent types (from DB)
+  const dbMarkedMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const b of bookings) {
+      if (b.booking_reminders.length > 0) {
+        map.set(b.id, new Set(b.booking_reminders.map(r => r.type)));
+      }
     }
+    return map;
+  }, [bookings]);
 
-    // Optimistic update
+  async function markReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment") {
+    // Optimistic update immediately (before await)
     setMarkedIds(prev => ({
       ...prev,
       [booking.id]: [...(prev[booking.id] ?? []), type],
     }));
 
-    await supabase.from("activity_log").insert({
-      user_id: currentUser.id,
-      user_name: currentUser.name,
-      user_role: currentUser.role_name,
-      action: "CREATE",
-      entity: "booking_reminders",
-      entity_id: booking.id,
-      description: `Reminder (${type}) ditandai untuk booking ${booking.booking_number}`,
-    });
+    // Fire both writes in parallel
+    const [{ error }] = await Promise.all([
+      supabase.from("booking_reminders").insert({
+        booking_id: booking.id,
+        type,
+        sent_by: currentUser.id,
+      }),
+      supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "CREATE",
+        entity: "booking_reminders",
+        entity_id: booking.id,
+        description: `Reminder (${type}) ditandai untuk booking ${booking.booking_number}`,
+      }),
+    ]);
+
+    if (error) {
+      // Rollback optimistic update
+      setMarkedIds(prev => ({
+        ...prev,
+        [booking.id]: (prev[booking.id] ?? []).filter(t => t !== type),
+      }));
+      toast({ title: "Error", description: "Gagal menandai reminder", variant: "destructive" });
+      return;
+    }
 
     toast({ title: "Ditandai sudah di-remind ✓" });
   }
 
   function isMarked(bookingId: string, type: string): boolean {
-    // Check both DB data and optimistic session marks
-    const booking = bookings.find(b => b.id === bookingId);
-    const dbMarked = booking?.booking_reminders.some(r => r.type === type) ?? false;
+    // O(1) Map + Set lookup instead of O(n) .find()
+    const dbMarked = dbMarkedMap.get(bookingId)?.has(type) ?? false;
     const sessionMarked = markedIds[bookingId]?.includes(type) ?? false;
     return dbMarked || sessionMarked;
   }

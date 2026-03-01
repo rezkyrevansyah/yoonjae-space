@@ -107,17 +107,25 @@ export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
       to = toDateStr(endOfMonth(date));
     }
 
+    // Day view: fetch full data including backgrounds/addons for popup
+    // Week/Month view: fetch lightweight data (no nested arrays) — popup lazy-loads detail
+    const selectFields = mode === "day"
+      ? `id, booking_number, booking_date, start_time, end_time, status,
+         person_count, behind_the_scenes,
+         customers(name, phone),
+         packages(name, duration_minutes),
+         photo_for:photo_for(name),
+         booking_backgrounds(backgrounds(name)),
+         booking_addons(price, is_paid, is_extra, addons(name))`
+      : `id, booking_number, booking_date, start_time, end_time, status,
+         person_count, behind_the_scenes,
+         customers(name, phone),
+         packages(name, duration_minutes),
+         photo_for:photo_for(name)`;
+
     const { data, error } = await supabase
       .from("bookings")
-      .select(`
-        id, booking_number, booking_date, start_time, end_time, status,
-        person_count, behind_the_scenes,
-        customers(name, phone),
-        packages(name, duration_minutes),
-        photo_for:photo_for(name),
-        booking_backgrounds(backgrounds(name)),
-        booking_addons(price, is_paid, is_extra, addons(name))
-      `)
+      .select(selectFields)
       .gte("booking_date", from)
       .lte("booking_date", to)
       .neq("status", "CANCELED")
@@ -129,7 +137,15 @@ export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
       toast({ title: "Error", description: "Gagal memuat jadwal", variant: "destructive" });
       return;
     }
-    setBookings((data ?? []) as unknown as CalendarBooking[]);
+    // Normalize: fill empty arrays for week/month (only day view fetches nested arrays)
+    setBookings((data ?? []).map(b => {
+      const raw = b as unknown as CalendarBooking;
+      return {
+        ...raw,
+        booking_backgrounds: raw.booking_backgrounds ?? [],
+        booking_addons: raw.booking_addons ?? [],
+      };
+    }));
   }, [toast]);
 
   useEffect(() => {
