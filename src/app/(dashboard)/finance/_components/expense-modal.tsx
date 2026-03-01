@@ -78,7 +78,7 @@ export function ExpenseModal({ open, expense, vendors, onClose, onSave }: Props)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.description.trim() || form.amount <= 0) return;
+    if (form.amount <= 0) return;
     setSaving(true);
     try {
       await onSave(form);
@@ -131,14 +131,13 @@ export function ExpenseModal({ open, expense, vendors, onClose, onSave }: Props)
           {/* Description */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1.5">
-              Deskripsi <span className="text-red-500">*</span>
+              Deskripsi
             </label>
             <input
               type="text"
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Contoh: Beli kertas foto, listrik, dll"
-              required
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
             />
           </div>
@@ -223,7 +222,7 @@ export function ExpenseModal({ open, expense, vendors, onClose, onSave }: Props)
             </button>
             <button
               type="submit"
-              disabled={saving || !form.description.trim() || form.amount <= 0}
+              disabled={saving || form.amount <= 0}
               className="flex-1 bg-[#8B1A1A] text-white text-sm font-medium rounded-xl py-2.5 hover:bg-[#B22222] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? "Menyimpan..." : "Simpan"}
