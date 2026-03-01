@@ -129,12 +129,12 @@ export function CustomerDetailClient({ currentUser, customer, leads }: Props) {
       .from("customers")
       .update({
         name: editForm.name.trim(),
-        email: editForm.email.trim() || null,
-        instagram: editForm.instagram.trim() || null,
-        address: editForm.address.trim() || null,
-        domicile: editForm.domicile.trim() || null,
+        email: editForm.email.trim() || "",
+        instagram: editForm.instagram.trim() || "",
+        address: editForm.address.trim() || "",
+        domicile: editForm.domicile.trim() || "",
         lead_id: editForm.lead_id && editForm.lead_id !== "none" ? editForm.lead_id : null,
-        notes: editForm.notes.trim() || null,
+        notes: editForm.notes.trim() || "",
       })
       .eq("id", customer.id);
 

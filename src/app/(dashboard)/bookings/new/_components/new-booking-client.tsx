@@ -106,6 +106,18 @@ interface Props {
   users: { id: string; name: string }[];
 }
 
+function friendlyError(msg: string): string {
+  if (msg.includes("customers_phone_key") || msg.includes("unique constraint") && msg.includes("phone"))
+    return "Nomor WhatsApp ini sudah terdaftar di sistem. Gunakan fitur 'Customer Lama' untuk memilih customer yang sudah ada.";
+  if (msg.includes("not-null constraint") || msg.includes("null value in column"))
+    return "Ada data yang wajib diisi tapi masih kosong. Periksa kembali formulir dan coba lagi.";
+  if (msg.includes("foreign key constraint"))
+    return "Data referensi tidak ditemukan. Pastikan paket, background, dan pilihan lainnya masih aktif.";
+  if (msg.includes("generate_booking_number"))
+    return "Gagal membuat nomor booking. Coba lagi dalam beberapa saat.";
+  return msg;
+}
+
 export function NewBookingClient({
   currentUser,
   packages,
@@ -225,22 +237,22 @@ export function NewBookingClient({
           .insert({
             name: customerData.name,
             phone: customerData.phone,
-            email: customerData.email || null,
-            instagram: customerData.instagram || null,
-            address: customerData.address || null,
-            domicile: customerData.domicile || null,
+            email: customerData.email || "",
+            instagram: customerData.instagram || "",
+            address: customerData.address || "",
+            domicile: customerData.domicile || "",
             lead_id: customerData.lead_id || null,
           })
           .select("id")
           .single();
-        if (custErr) throw new Error("Gagal insert customer: " + custErr.message);
+        if (custErr) throw new Error(custErr.message);
         customerId = newCustomer.id;
       }
 
       // 2. Generate booking number
       const { data: bookingNumberData, error: bnErr } = await supabase
         .rpc("generate_booking_number");
-      if (bnErr) throw new Error("Gagal generate booking number: " + bnErr.message);
+      if (bnErr) throw new Error("generate_booking_number: " + bnErr.message);
       const bookingNumber = bookingNumberData as string;
 
       // 3. Determine initial status
@@ -270,7 +282,7 @@ export function NewBookingClient({
         })
         .select("id")
         .single();
-      if (bookErr) throw new Error("Gagal insert booking: " + bookErr.message);
+      if (bookErr) throw new Error(bookErr.message);
       const bookingId = booking.id;
 
       // 5. Insert booking_backgrounds
@@ -340,8 +352,8 @@ export function NewBookingClient({
       toast({ title: "Booking berhasil dibuat!", description: bookingNumber });
       router.push(`/bookings/${bookingId}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
-      toast({ title: "Error", description: msg, variant: "destructive" });
+      const raw = err instanceof Error ? err.message : "Terjadi kesalahan";
+      toast({ title: "Error", description: friendlyError(raw), variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

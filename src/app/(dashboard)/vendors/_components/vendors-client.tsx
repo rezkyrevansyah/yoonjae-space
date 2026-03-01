@@ -113,11 +113,11 @@ export function VendorsClient({ currentUser }: Props) {
     if (editingVendor) {
       await supabase.from("vendors").update({
         name: data.name,
-        category: data.category || null,
-        phone: data.phone || null,
-        email: data.email || null,
-        address: data.address || null,
-        notes: data.notes || null,
+        category: data.category || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        address: data.address || "",
+        notes: data.notes || "",
         is_active: data.is_active,
       }).eq("id", editingVendor.id);
 
@@ -133,11 +133,11 @@ export function VendorsClient({ currentUser }: Props) {
     } else {
       const { data: inserted } = await supabase.from("vendors").insert({
         name: data.name,
-        category: data.category || null,
-        phone: data.phone || null,
-        email: data.email || null,
-        address: data.address || null,
-        notes: data.notes || null,
+        category: data.category || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        address: data.address || "",
+        notes: data.notes || "",
         is_active: data.is_active,
       }).select("id").single();
 

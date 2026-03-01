@@ -170,9 +170,9 @@ export function FinanceClient({ currentUser, vendors }: Props) {
           date: data.date,
           description: data.description,
           amount: data.amount,
-          category: data.category || null,
+          category: data.category || "",
           vendor_id: data.vendor_id,
-          notes: data.notes || null,
+          notes: data.notes || "",
         })
         .eq("id", editingExpense.id);
 
@@ -192,9 +192,9 @@ export function FinanceClient({ currentUser, vendors }: Props) {
           date: data.date,
           description: data.description,
           amount: data.amount,
-          category: data.category || null,
+          category: data.category || "",
           vendor_id: data.vendor_id,
-          notes: data.notes || null,
+          notes: data.notes || "",
           source: "manual",
         })
         .select("id")

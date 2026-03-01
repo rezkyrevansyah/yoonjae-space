@@ -195,12 +195,12 @@ export function CustomersClient({ currentUser, leads }: Props) {
       .insert({
         name: form.name.trim(),
         phone: form.phone.trim(),
-        email: form.email.trim() || null,
-        instagram: form.instagram.trim() || null,
-        address: form.address.trim() || null,
-        domicile: form.domicile.trim() || null,
+        email: form.email.trim() || "",
+        instagram: form.instagram.trim() || "",
+        address: form.address.trim() || "",
+        domicile: form.domicile.trim() || "",
         lead_id: form.lead_id || null,
-        notes: form.notes.trim() || null,
+        notes: form.notes.trim() || "",
       })
       .select("id")
       .single();
