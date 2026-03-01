@@ -258,7 +258,7 @@ export function NewBookingClient({
           package_id: detailData.package_id,
           photo_for_id: detailData.photo_for_id || null,
           person_count: detailData.person_count,
-          notes: detailData.notes || null,
+          notes: detailData.notes || "",
           behind_the_scenes: detailData.behind_the_scenes,
           status: initialStatus,
           voucher_id: discountData.discount_type === "voucher" ? discountData.voucher_id : null,
