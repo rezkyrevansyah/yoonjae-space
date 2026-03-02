@@ -49,6 +49,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   CalendarCheck,
 } from "lucide-react";
 
@@ -87,6 +89,7 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [sortAsc, setSortAsc] = useState(true);
 
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -105,7 +108,8 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
            staff:users!bookings_staff_id_fkey(name)`,
           { count: "exact" }
         )
-        .order("created_at", { ascending: false });
+        .order("booking_date", { ascending: sortAsc })
+        .order("start_time", { ascending: sortAsc });
 
       if (statusFilter !== ALL_STATUSES) {
         query = query.eq("status", statusFilter);
@@ -132,16 +136,16 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, dateFrom, dateTo, search, page, pageSize, toast]);
+  }, [statusFilter, dateFrom, dateTo, search, page, pageSize, sortAsc, toast]);
 
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-  // Reset page when filters change
+  // Reset page when filters or sort change
   useEffect(() => {
     setPage(0);
-  }, [search, statusFilter, dateFrom, dateTo, pageSize]);
+  }, [search, statusFilter, dateFrom, dateTo, pageSize, sortAsc]);
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -241,7 +245,19 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
             <TableRow className="bg-gray-50">
               <TableHead>Booking ID</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Tanggal</TableHead>
+              <TableHead>
+                <button
+                  onClick={() => setSortAsc((v) => !v)}
+                  className="flex items-center gap-1 hover:text-gray-900 transition-colors"
+                >
+                  Tanggal
+                  {sortAsc ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </TableHead>
               <TableHead>Waktu</TableHead>
               <TableHead>Paket</TableHead>
               <TableHead>Status</TableHead>
