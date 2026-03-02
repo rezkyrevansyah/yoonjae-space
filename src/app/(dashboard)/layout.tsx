@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 
@@ -9,19 +9,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // getCurrentUser uses React.cache() — result is deduplicated per request
-  // so pages that also call getCurrentUser() won't trigger a second DB query
+  // getCurrentUser uses React.cache() — deduplicated per request
+  // getCachedStudioInfo uses unstable_cache — shared across requests (TTL 1hr)
   const [currentUser, studioInfo] = await Promise.all([
     getCurrentUser(),
-    (async () => {
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from("settings_studio_info")
-        .select("logo_url, studio_name")
-        .eq("lock", true)
-        .maybeSingle();
-      return data;
-    })(),
+    getCachedStudioInfo(),
   ]);
 
   if (!currentUser) {

@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2, Crown } from "lucide-react";
 import type { CurrentUser, Role } from "@/lib/types/database";
+import { invalidateActiveUsers } from "@/lib/cache-invalidation";
 
 export interface UserRow {
   id: string;
@@ -120,7 +121,7 @@ export function UserManagementClient({ currentUser, initialUsers, roles }: UserM
       const roleObj = roles.find((r) => r.id === addForm.role_id);
       if (roleObj) newUser.roles = { id: roleObj.id, name: roleObj.name };
       setUsers((prev) => [...prev, newUser]);
-
+      await invalidateActiveUsers();
       toast({ title: "Berhasil", description: `User "${addForm.name}" dibuat.` });
       setModalOpen(false);
     } catch (err: unknown) {
@@ -162,6 +163,7 @@ export function UserManagementClient({ currentUser, initialUsers, roles }: UserM
         description: `Updated user: ${editForm.name}`,
       });
 
+      await invalidateActiveUsers();
       toast({ title: "Berhasil", description: `User "${editForm.name}" diperbarui.` });
       setEditModalOpen(false);
     } catch (err: unknown) {
@@ -184,6 +186,7 @@ export function UserManagementClient({ currentUser, initialUsers, roles }: UserM
 
       const deleted = users.find((u) => u.id === id);
       setUsers((prev) => prev.filter((u) => u.id !== id));
+      await invalidateActiveUsers();
       toast({ title: "Berhasil", description: `User "${deleted?.name}" dihapus.` });
     } catch (err: unknown) {
       toast({ title: "Gagal", description: (err as Error).message, variant: "destructive" });

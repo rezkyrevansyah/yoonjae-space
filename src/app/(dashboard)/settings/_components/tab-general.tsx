@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Trash2, Plus, CalendarDays } from "lucide-react";
 import type { CurrentUser, StudioHoliday } from "@/lib/types/database";
+import { invalidateSettingsGeneral, invalidateHolidays } from "@/lib/cache-invalidation";
 
 interface TabGeneralProps {
   currentUser: CurrentUser;
@@ -71,6 +72,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
       const { error } = await supabase.from("settings_general").upsert(payload, { onConflict: "lock" });
       if (error) throw error;
 
+      await invalidateSettingsGeneral();
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
@@ -111,6 +113,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
     setHolidayEnd("");
     setAddingHoliday(false);
 
+    await invalidateHolidays();
     await supabase.from("activity_log").insert({
       user_id: currentUser.id,
       user_name: currentUser.name,
@@ -143,6 +146,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
         entity_id: id,
         description: `Deleted holiday: ${label}`,
       });
+      await invalidateHolidays();
       toast({ title: "Berhasil", description: `Libur "${label}" dihapus.` });
     }
     setDeletingId(null);

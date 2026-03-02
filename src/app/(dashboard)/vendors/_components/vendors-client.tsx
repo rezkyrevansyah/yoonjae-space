@@ -5,6 +5,7 @@ import { Plus, Store, Phone, MapPin, Receipt, DollarSign, Pencil, Trash2, Eye } 
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah } from "@/lib/utils";
 import type { CurrentUser } from "@/lib/types/database";
+import { invalidateActiveVendors } from "@/lib/cache-invalidation";
 import { VendorModal } from "./vendor-modal";
 import { VendorDetailModal } from "./vendor-detail-modal";
 
@@ -89,6 +90,7 @@ export function VendorsClient({ currentUser }: Props) {
     if (!confirm(`Hapus vendor "${v.name}"? Riwayat pengeluaran yang terkait tidak akan terhapus.`)) return;
 
     await supabase.from("vendors").delete().eq("id", v.id);
+    await invalidateActiveVendors();
     await supabase.from("activity_log").insert({
       user_id: currentUser.id,
       user_name: currentUser.name,
@@ -152,6 +154,7 @@ export function VendorsClient({ currentUser }: Props) {
       });
     }
 
+    await invalidateActiveVendors();
     setModalOpen(false);
     fetchVendors();
   }

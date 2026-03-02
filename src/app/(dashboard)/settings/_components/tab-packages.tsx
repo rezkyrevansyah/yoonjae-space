@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2, Clock, Images } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import type { CurrentUser, Package } from "@/lib/types/database";
+import { invalidatePackages } from "@/lib/cache-invalidation";
 
 interface TabPackagesProps {
   currentUser: CurrentUser;
@@ -94,12 +95,14 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
         const { error } = await supabase.from("packages").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId);
         if (error) throw error;
         setPackages((prev) => prev.map((p) => p.id === editingId ? { ...p, ...payload, updated_at: new Date().toISOString() } : p));
+        await invalidatePackages();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "update_package", entity: "packages", entity_id: editingId, description: `Updated package: ${form.name}` });
         toast({ title: "Berhasil", description: `Paket "${form.name}" diperbarui.` });
       } else {
         const { data, error } = await supabase.from("packages").insert(payload).select().single();
         if (error) throw error;
         setPackages((prev) => [...prev, data]);
+        await invalidatePackages();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "create_package", entity: "packages", entity_id: data.id, description: `Created package: ${form.name}` });
         toast({ title: "Berhasil", description: `Paket "${form.name}" ditambahkan.` });
       }
@@ -119,6 +122,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       toast({ title: "Gagal hapus", variant: "destructive" });
       fetchPackages();
     } else {
+      await invalidatePackages();
       await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "delete_package", entity: "packages", entity_id: id, description: `Deleted package: ${pkg?.name}` });
       toast({ title: "Berhasil", description: `Paket dihapus.` });
     }

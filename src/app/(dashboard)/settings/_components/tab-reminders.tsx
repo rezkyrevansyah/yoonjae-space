@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { CurrentUser } from "@/lib/types/database";
+import { invalidateReminderTemplates } from "@/lib/cache-invalidation";
 
 interface TabRemindersProps {
   currentUser: CurrentUser;
@@ -98,6 +99,7 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
       );
       if (error) throw error;
 
+      await invalidateReminderTemplates();
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,

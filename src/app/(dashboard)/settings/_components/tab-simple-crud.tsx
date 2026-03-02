@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import type { CurrentUser } from "@/lib/types/database";
+import { invalidateLeads, invalidatePhotoFor } from "@/lib/cache-invalidation";
 
 interface SimpleItem {
   id: string;
@@ -61,12 +62,14 @@ export function TabSimpleCrud({ currentUser, tableName, entityLabel, addLabel }:
         const { error } = await supabase.from(tableName).update(payload).eq("id", editingId);
         if (error) throw error;
         setItems((prev) => prev.map((i) => i.id === editingId ? { ...i, ...payload } : i));
+        if (tableName === "leads") await invalidateLeads(); else await invalidatePhotoFor();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: `update_${tableName}`, entity: tableName, entity_id: editingId, description: `Updated ${entityLabel}: ${form.name}` });
         toast({ title: "Berhasil", description: `${entityLabel} "${form.name}" diperbarui.` });
       } else {
         const { data, error } = await supabase.from(tableName).insert(payload).select().single();
         if (error) throw error;
         setItems((prev) => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
+        if (tableName === "leads") await invalidateLeads(); else await invalidatePhotoFor();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: `create_${tableName}`, entity: tableName, entity_id: data.id, description: `Created ${entityLabel}: ${form.name}` });
         toast({ title: "Berhasil", description: `${entityLabel} "${form.name}" ditambahkan.` });
       }
@@ -81,6 +84,7 @@ export function TabSimpleCrud({ currentUser, tableName, entityLabel, addLabel }:
     const { error } = await supabase.from(tableName).delete().eq("id", id);
     if (error) { toast({ title: "Gagal hapus", variant: "destructive" }); fetchItems(); }
     else {
+      if (tableName === "leads") await invalidateLeads(); else await invalidatePhotoFor();
       await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: `delete_${tableName}`, entity: tableName, entity_id: id, description: `Deleted ${entityLabel}: ${item?.name}` });
       toast({ title: "Berhasil", description: `${entityLabel} dihapus.` });
     }

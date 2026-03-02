@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2, X } from "lucide-react";
 import type { CurrentUser, CustomField, FieldType } from "@/lib/types/database";
+import { invalidateCustomFields } from "@/lib/cache-invalidation";
 
 interface TabCustomFieldsProps {
   currentUser: CurrentUser;
@@ -92,12 +93,14 @@ export function TabCustomFields({ currentUser }: TabCustomFieldsProps) {
         const { error } = await supabase.from("custom_fields").update(payload).eq("id", editingId);
         if (error) throw error;
         setItems((prev) => prev.map((i) => i.id === editingId ? { ...i, ...payload } : i));
+        await invalidateCustomFields();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "update_custom_field", entity: "custom_fields", entity_id: editingId, description: `Updated custom field: ${form.label}` });
         toast({ title: "Berhasil", description: `Custom field "${form.label}" diperbarui.` });
       } else {
         const { data, error } = await supabase.from("custom_fields").insert(payload).select().single();
         if (error) throw error;
         setItems((prev) => [...prev, data]);
+        await invalidateCustomFields();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "create_custom_field", entity: "custom_fields", entity_id: data.id, description: `Created custom field: ${form.label}` });
         toast({ title: "Berhasil", description: `Custom field "${form.label}" ditambahkan.` });
       }
@@ -112,6 +115,7 @@ export function TabCustomFields({ currentUser }: TabCustomFieldsProps) {
     const { error } = await supabase.from("custom_fields").delete().eq("id", id);
     if (error) { toast({ title: "Gagal hapus", variant: "destructive" }); fetchItems(); }
     else {
+      await invalidateCustomFields();
       await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "delete_custom_field", entity: "custom_fields", entity_id: id, description: `Deleted custom field: ${item?.label}` });
       toast({ title: "Berhasil", description: "Custom field dihapus." });
     }

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2, Clock } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import type { CurrentUser, Addon } from "@/lib/types/database";
+import { invalidateAddons } from "@/lib/cache-invalidation";
 
 interface TabAddonsProps {
   currentUser: CurrentUser;
@@ -64,12 +65,14 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
         const { error } = await supabase.from("addons").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId);
         if (error) throw error;
         setItems((prev) => prev.map((i) => i.id === editingId ? { ...i, ...payload } : i));
+        await invalidateAddons();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "update_addon", entity: "addons", entity_id: editingId, description: `Updated addon: ${form.name}` });
         toast({ title: "Berhasil", description: `Add-on "${form.name}" diperbarui.` });
       } else {
         const { data, error } = await supabase.from("addons").insert(payload).select().single();
         if (error) throw error;
         setItems((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+        await invalidateAddons();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "create_addon", entity: "addons", entity_id: data.id, description: `Created addon: ${form.name}` });
         toast({ title: "Berhasil", description: `Add-on "${form.name}" ditambahkan.` });
       }
@@ -84,6 +87,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
     const { error } = await supabase.from("addons").delete().eq("id", id);
     if (error) { toast({ title: "Gagal hapus", variant: "destructive" }); fetchItems(); }
     else {
+      await invalidateAddons();
       await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "delete_addon", entity: "addons", entity_id: id, description: `Deleted addon: ${item?.name}` });
       toast({ title: "Berhasil", description: "Add-on dihapus." });
     }

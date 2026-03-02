@@ -1,23 +1,17 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedSettingsGeneral } from "@/lib/cached-queries";
 import { CalendarClient } from "./_components/calendar-client";
 
 export const metadata = { title: "Calendar — Yoonjaespace" };
 
 export default async function CalendarPage() {
-  const [currentUser, supabase] = await Promise.all([
+  const [currentUser, settings] = await Promise.all([
     getCurrentUser(),
-    createClient(),
+    getCachedSettingsGeneral(),
   ]);
 
   if (!currentUser) redirect("/login");
-
-  const { data: settings } = await supabase
-    .from("settings_general")
-    .select("open_time, close_time")
-    .eq("lock", true)
-    .maybeSingle();
 
   return (
     <CalendarClient

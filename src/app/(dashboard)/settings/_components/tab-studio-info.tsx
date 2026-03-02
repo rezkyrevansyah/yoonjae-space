@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, ImageIcon } from "lucide-react";
 import type { CurrentUser } from "@/lib/types/database";
+import { invalidateStudioInfo } from "@/lib/cache-invalidation";
 
 interface TabStudioInfoProps {
   currentUser: CurrentUser;
@@ -123,6 +124,7 @@ export function TabStudioInfo({ currentUser }: TabStudioInfoProps) {
       );
       if (error) throw error;
 
+      await invalidateStudioInfo();
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,

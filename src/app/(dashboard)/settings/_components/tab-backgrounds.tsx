@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import type { CurrentUser, Background } from "@/lib/types/database";
+import { invalidateBackgrounds } from "@/lib/cache-invalidation";
 
 interface TabBackgroundsProps {
   currentUser: CurrentUser;
@@ -52,12 +53,14 @@ export function TabBackgrounds({ currentUser }: TabBackgroundsProps) {
         const { error } = await supabase.from("backgrounds").update(payload).eq("id", editingId);
         if (error) throw error;
         setItems((prev) => prev.map((i) => i.id === editingId ? { ...i, ...payload } : i));
+        await invalidateBackgrounds();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "update_background", entity: "backgrounds", entity_id: editingId, description: `Updated background: ${form.name}` });
         toast({ title: "Berhasil", description: `Background "${form.name}" diperbarui.` });
       } else {
         const { data, error } = await supabase.from("backgrounds").insert(payload).select().single();
         if (error) throw error;
         setItems((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+        await invalidateBackgrounds();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "create_background", entity: "backgrounds", entity_id: data.id, description: `Created background: ${form.name}` });
         toast({ title: "Berhasil", description: `Background "${form.name}" ditambahkan.` });
       }
@@ -72,6 +75,7 @@ export function TabBackgrounds({ currentUser }: TabBackgroundsProps) {
     const { error } = await supabase.from("backgrounds").delete().eq("id", id);
     if (error) { toast({ title: "Gagal hapus", variant: "destructive" }); fetch(); }
     else {
+      await invalidateBackgrounds();
       await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "delete_background", entity: "backgrounds", entity_id: id, description: `Deleted background: ${item?.name}` });
       toast({ title: "Berhasil", description: "Background dihapus." });
     }

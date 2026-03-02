@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Pencil, Loader2, Shield, ShieldCheck } from "lucide-react";
 import { MENU_ITEMS } from "@/lib/constants";
 import type { CurrentUser, Role } from "@/lib/types/database";
+import { invalidateRoles } from "@/lib/cache-invalidation";
 
 interface RoleManagementClientProps {
   currentUser: CurrentUser;
@@ -84,6 +85,7 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
         setRoles((prev) =>
           prev.map((r) => r.id === editingId ? { ...r, ...payload } : r)
         );
+        await invalidateRoles();
         await supabase.from("activity_log").insert({
           user_id: currentUser.id,
           user_name: currentUser.name,
@@ -104,6 +106,7 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
         if (error) throw error;
 
         setRoles((prev) => [...prev, data as Role]);
+        await invalidateRoles();
         await supabase.from("activity_log").insert({
           user_id: currentUser.id,
           user_name: currentUser.name,
@@ -154,6 +157,7 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
       toast({ title: "Gagal hapus", variant: "destructive" });
       setRoles(initialRoles);
     } else {
+      await invalidateRoles();
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,

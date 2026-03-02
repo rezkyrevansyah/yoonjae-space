@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { formatRupiah, formatTime } from "@/lib/utils";
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
     { count: countVendor },
     { count: countPacking },
     { count: countShipped },
-    { data: studioInfo },
+    studioInfo,
   ] = await Promise.all([
     // 1. Total bookings this month (count only)
     supabase
@@ -111,12 +112,8 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("print_order_status", "SHIPPED"),
 
-    // 9. Studio name for greeting
-    supabase
-      .from("settings_studio_info")
-      .select("studio_name")
-      .eq("lock", true)
-      .maybeSingle(),
+    // 9. Studio name for greeting — cached (TTL 1hr)
+    getCachedStudioInfo(),
   ]);
 
   const estimasiRevenue = (revenueRows ?? []).reduce((sum, b) => sum + (b.total ?? 0), 0);

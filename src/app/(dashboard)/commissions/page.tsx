@@ -1,24 +1,17 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedActiveUsers } from "@/lib/cached-queries";
 import { CommissionsClient } from "./_components/commissions-client";
 
 export const metadata = { title: "Commissions — Yoonjaespace" };
 
 export default async function CommissionsPage() {
-  const [currentUser, supabase] = await Promise.all([
+  const [currentUser, staffUsers] = await Promise.all([
     getCurrentUser(),
-    createClient(),
+    getCachedActiveUsers(),
   ]);
 
   if (!currentUser) redirect("/login");
-
-  // Fetch all active staff users
-  const { data: staffUsers } = await supabase
-    .from("users")
-    .select("id, name, email")
-    .eq("is_active", true)
-    .order("name");
 
   return (
     <CommissionsClient
