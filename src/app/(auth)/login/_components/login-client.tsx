@@ -59,11 +59,12 @@ export function LoginClient({ logoUrl, studioName }: LoginClientProps) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast({ title: "Login gagal", description: error.message, variant: "destructive" });
+        setLoading(false);
       } else {
         router.push("/dashboard");
-        router.refresh();
+        // loading tetap true sampai navigasi selesai (komponen unmount)
       }
-    } finally {
+    } catch {
       setLoading(false);
     }
   }
