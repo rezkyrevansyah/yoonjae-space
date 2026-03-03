@@ -83,6 +83,7 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
   const [total, setTotal] = useState(0);
 
   // Filters
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [dateFrom, setDateFrom] = useState("");
@@ -137,6 +138,12 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
       setLoading(false);
     }
   }, [statusFilter, dateFrom, dateTo, search, page, pageSize, sortAsc, toast]);
+
+  // Debounce search input — 300ms delay before committing to query
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => {
     fetchBookings();
@@ -200,8 +207,8 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
           <Input
             placeholder="Cari nama customer / booking ID..."
             className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
