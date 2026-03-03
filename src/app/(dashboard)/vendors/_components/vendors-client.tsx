@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Store, Phone, MapPin, Receipt, DollarSign, Pencil, Trash2, Eye } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { invalidateActiveVendors } from "@/lib/cache-invalidation";
 import { VendorModal } from "./vendor-modal";
 import { VendorDetailModal } from "./vendor-detail-modal";
 
-interface VendorWithStats {
+export interface VendorWithStats {
   id: string;
   name: string;
   category: string | null;
@@ -25,13 +25,15 @@ interface VendorWithStats {
 
 interface Props {
   currentUser: CurrentUser;
+  initialVendors: VendorWithStats[];
 }
 
 const supabase = createClient();
 
-export function VendorsClient({ currentUser }: Props) {
-  const [vendors, setVendors] = useState<VendorWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
+export function VendorsClient({ currentUser, initialVendors }: Props) {
+  const isInitialMount = useRef(true);
+  const [vendors, setVendors] = useState<VendorWithStats[]>(initialVendors);
+  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<VendorWithStats | null>(null);
   const [detailVendor, setDetailVendor] = useState<VendorWithStats | null>(null);
@@ -74,7 +76,13 @@ export function VendorsClient({ currentUser }: Props) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchVendors(); }, [fetchVendors]);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchVendors();
+  }, [fetchVendors]);
 
   function handleAdd() {
     setEditingVendor(null);

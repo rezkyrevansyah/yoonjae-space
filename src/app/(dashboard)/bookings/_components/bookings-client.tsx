@@ -71,16 +71,21 @@ interface BookingRow {
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 const ALL_STATUSES = "ALL";
 
-export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
+interface Props {
+  currentUser: CurrentUser;
+  initialData: { bookings: BookingRow[]; total: number };
+}
+
+export function BookingsClient({ currentUser, initialData }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   // Stable ref for currentUser to avoid adding it to useCallback deps
   const currentUserRef = useRef(currentUser);
   currentUserRef.current = currentUser;
 
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [bookings, setBookings] = useState<BookingRow[]>(initialData.bookings);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(initialData.total);
 
   // Filters
   const [searchInput, setSearchInput] = useState("");
@@ -139,6 +144,9 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
     }
   }, [statusFilter, dateFrom, dateTo, search, page, pageSize, sortAsc, toast]);
 
+  // Track whether we've moved past the initial default state
+  const isInitialMount = useRef(true);
+
   // Debounce search input — 300ms delay before committing to query
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -146,6 +154,11 @@ export function BookingsClient({ currentUser }: { currentUser: CurrentUser }) {
   }, [searchInput]);
 
   useEffect(() => {
+    // Skip the very first fetch — initial data already provided by server
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     fetchBookings();
   }, [fetchBookings]);
 

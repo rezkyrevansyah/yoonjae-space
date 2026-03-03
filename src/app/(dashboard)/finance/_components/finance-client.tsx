@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, ChevronDown } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah, formatDate } from "@/lib/utils";
@@ -16,7 +16,7 @@ interface Vendor {
   name: string;
 }
 
-interface IncomeBooking {
+export interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
@@ -26,7 +26,7 @@ interface IncomeBooking {
   packages: { name: string } | null;
 }
 
-interface PackageStat {
+export interface PackageStat {
   package_id: string;
   package_name: string;
   booking_count: number;
@@ -36,6 +36,13 @@ interface PackageStat {
 interface Props {
   currentUser: CurrentUser;
   vendors: Vendor[];
+  initialData: {
+    incomeBookings: IncomeBooking[];
+    expenses: Expense[];
+    packageStats: PackageStat[];
+    month: number;
+    year: number;
+  };
 }
 
 const supabase = createClient();
@@ -47,15 +54,17 @@ const MONTHS = [
 
 const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
 
-export function FinanceClient({ currentUser, vendors }: Props) {
+export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(initialData.month);
+  const [selectedYear, setSelectedYear] = useState(initialData.year);
 
-  const [incomeBookings, setIncomeBookings] = useState<IncomeBooking[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [packageStats, setPackageStats] = useState<PackageStat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [incomeBookings, setIncomeBookings] = useState<IncomeBooking[]>(initialData.incomeBookings);
+  const [expenses, setExpenses] = useState<Expense[]>(initialData.expenses);
+  const [packageStats, setPackageStats] = useState<PackageStat[]>(initialData.packageStats);
+  const [loading, setLoading] = useState(false);
+
+  const isInitialMount = useRef(true);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -119,6 +128,10 @@ export function FinanceClient({ currentUser, vendors }: Props) {
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     fetchData();
   }, [fetchData]);
 

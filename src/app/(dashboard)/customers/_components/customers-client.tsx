@@ -71,6 +71,7 @@ export interface CustomerRow {
 interface Props {
   currentUser: CurrentUser;
   leads: { id: string; name: string }[];
+  initialData: { customers: CustomerRow[]; total: number };
 }
 
 interface AddForm {
@@ -87,10 +88,11 @@ interface AddForm {
 const PAGE_SIZE = 25;
 const supabase = createClient();
 
-export function CustomersClient({ currentUser, leads }: Props) {
+export function CustomersClient({ currentUser, leads, initialData }: Props) {
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<CustomerRow[]>([]);
-  const [total, setTotal] = useState(0);
+  const isInitialMount = useRef(true);
+  const [customers, setCustomers] = useState<CustomerRow[]>(initialData.customers);
+  const [total, setTotal] = useState(initialData.total);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -163,6 +165,10 @@ export function CustomersClient({ currentUser, leads }: Props) {
   }, [toast]);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     const t = setTimeout(() => fetchCustomers(search, page), 300);
     return () => clearTimeout(t);
   }, [search, page, fetchCustomers]);

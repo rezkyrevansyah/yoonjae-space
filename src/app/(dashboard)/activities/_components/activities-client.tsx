@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, ChevronDown, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import type { ActivityLog } from "@/lib/types/database";
@@ -48,10 +48,14 @@ function absoluteTime(isoStr: string): string {
   });
 }
 
-export function ActivitiesClient() {
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+interface Props {
+  initialData: { logs: ActivityLog[]; total: number };
+}
+
+export function ActivitiesClient({ initialData }: Props) {
+  const [logs, setLogs] = useState<ActivityLog[]>(initialData.logs);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(initialData.total);
   const [page, setPage] = useState(0);
 
   // Filters
@@ -61,6 +65,8 @@ export function ActivitiesClient() {
   const [filterAction, setFilterAction] = useState("");
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const isInitialMount = useRef(true);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -83,7 +89,13 @@ export function ActivitiesClient() {
     setLoading(false);
   }, [page, search, filterEntity, filterAction]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchLogs();
+  }, [fetchLogs]);
 
   // Reset page when filters change
   useEffect(() => { setPage(0); }, [search, filterEntity, filterAction]);

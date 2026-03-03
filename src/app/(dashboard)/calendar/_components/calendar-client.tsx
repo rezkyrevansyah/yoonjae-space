@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,8 @@ interface Props {
   currentUser: CurrentUser;
   openTime: string;
   closeTime: string;
+  initialBookings: CalendarBooking[];
+  initialDateStr: string;
 }
 
 const supabase = createClient();
@@ -81,12 +83,13 @@ function formatNavLabel(d: Date, mode: ViewMode): string {
   return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 }
 
-export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
+export function CalendarClient({ currentUser, openTime, closeTime, initialBookings, initialDateStr }: Props) {
   const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("day");
   const [cursor, setCursor] = useState<Date>(new Date());
-  const [bookings, setBookings] = useState<CalendarBooking[]>([]);
+  const [bookings, setBookings] = useState<CalendarBooking[]>(initialBookings);
   const [loading, setLoading] = useState(false);
+  const isInitialMount = useRef(true);
   const [selectedBooking, setSelectedBooking] = useState<CalendarBooking | null>(null);
 
   const fetchBookings = useCallback(async (mode: ViewMode, date: Date) => {
@@ -150,8 +153,14 @@ export function CalendarClient({ currentUser, openTime, closeTime }: Props) {
   }, [toast]);
 
   useEffect(() => {
+    // Skip initial mount — server already fetched day view for today
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Only skip if current view is "day" and cursor matches server date
+      if (view === "day" && toDateStr(cursor) === initialDateStr) return;
+    }
     fetchBookings(view, cursor);
-  }, [view, cursor, fetchBookings]);
+  }, [view, cursor, fetchBookings, initialDateStr]);
 
   function navigate(dir: -1 | 1) {
     setCursor(prev => {

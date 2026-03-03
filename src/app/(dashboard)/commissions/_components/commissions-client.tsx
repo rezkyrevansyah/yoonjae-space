@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronDown, ChevronUp, CheckSquare, Square, Save,
   User, CalendarDays, Banknote, ExternalLink
@@ -41,9 +41,20 @@ interface StaffCommission {
   saving: boolean;
 }
 
+export interface InitialCommissionData {
+  month: number;
+  year: number;
+  bookings: {
+    id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null;
+    customers: { name: string } | null; packages: { name: string } | null;
+  }[];
+  existingCommissions: { id: string; staff_id: string; total_amount: number; status: "unpaid" | "paid" }[];
+}
+
 interface Props {
   currentUser: CurrentUser;
   staffUsers: StaffUser[];
+  initialData: InitialCommissionData;
 }
 
 const supabase = createClient();
@@ -64,12 +75,49 @@ function getPeriodRange(month: number, year: number): { start: string; end: stri
   return { start, end, label };
 }
 
-export function CommissionsClient({ currentUser, staffUsers }: Props) {
+function buildStaffCards(
+  staffUsers: StaffUser[],
+  bookings: InitialCommissionData["bookings"],
+  existingCommissions: InitialCommissionData["existingCommissions"]
+): StaffCommission[] {
+  const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
+  for (const c of existingCommissions) {
+    commissionMap.set(c.staff_id, { id: c.id, amount: c.total_amount, status: c.status });
+  }
+  const bookingsByStaff = new Map<string, BookingItem[]>();
+  for (const b of bookings) {
+    const staffId = b.staff_id ?? "__unassigned__";
+    const existing = bookingsByStaff.get(staffId) ?? [];
+    existing.push(b as BookingItem);
+    bookingsByStaff.set(staffId, existing);
+  }
+  return staffUsers.map(s => {
+    const staffBookings = bookingsByStaff.get(s.id) ?? [];
+    const existing = commissionMap.get(s.id);
+    return {
+      staffId: s.id, staffName: s.name, staffEmail: s.email,
+      bookings: staffBookings,
+      commissionId: existing?.id ?? null,
+      savedAmount: existing?.amount ?? 0,
+      savedStatus: existing?.status ?? "unpaid",
+      amount: existing ? String(existing.amount) : "",
+      isPaid: existing?.status === "paid",
+      expanded: false,
+      saving: false,
+    };
+  });
+}
+
+export function CommissionsClient({ currentUser, staffUsers, initialData }: Props) {
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [staffCards, setStaffCards] = useState<StaffCommission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(initialData.month);
+  const [selectedYear, setSelectedYear] = useState(initialData.year);
+  const [staffCards, setStaffCards] = useState<StaffCommission[]>(() =>
+    buildStaffCards(staffUsers, initialData.bookings, initialData.existingCommissions)
+  );
+  const [loading, setLoading] = useState(false);
+
+  const isInitialMount = useRef(true);
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const period = getPeriodRange(selectedMonth, selectedYear);
@@ -131,7 +179,13 @@ export function CommissionsClient({ currentUser, staffUsers }: Props) {
     setLoading(false);
   }, [selectedMonth, selectedYear, period.start, period.end, staffUsers]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchData();
+  }, [fetchData]);
 
   function updateCard(staffId: string, patch: Partial<StaffCommission>) {
     setStaffCards(prev => prev.map(c => c.staffId === staffId ? { ...c, ...patch } : c));

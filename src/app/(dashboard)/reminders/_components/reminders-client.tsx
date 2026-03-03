@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime } from "@/lib/utils";
@@ -9,7 +9,7 @@ import type { BookingStatus, CurrentUser } from "@/lib/types/database";
 import { Bell, MessageCircle, Heart, CheckCircle, Clock } from "lucide-react";
 
 // ---- Types ----
-interface ReminderBooking {
+export interface ReminderBooking {
   id: string;
   booking_number: string;
   booking_date: string;
@@ -31,6 +31,7 @@ interface Props {
   currentUser: CurrentUser;
   templates: Templates;
   studioName: string;
+  initialBookings: ReminderBooking[];
 }
 
 type TabType = "today" | "week" | "month";
@@ -82,13 +83,15 @@ function waLink(phone: string, message: string): string {
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
-export function RemindersClient({ currentUser, templates, studioName }: Props) {
+export function RemindersClient({ currentUser, templates, studioName, initialBookings }: Props) {
   const { toast } = useToast();
   const [tab, setTab] = useState<TabType>("today");
-  const [bookings, setBookings] = useState<ReminderBooking[]>([]);
+  const [bookings, setBookings] = useState<ReminderBooking[]>(initialBookings);
   const [loading, setLoading] = useState(false);
   // Track which bookings have been marked reminded this session (optimistic)
   const [markedIds, setMarkedIds] = useState<Record<string, string[]>>({});
+
+  const isInitialMount = useRef(true);
 
   const fetchBookings = useCallback(async (t: TabType) => {
     setLoading(true);
@@ -117,6 +120,11 @@ export function RemindersClient({ currentUser, templates, studioName }: Props) {
   }, [toast]);
 
   useEffect(() => {
+    // Skip initial mount — data already provided for "today" tab
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     fetchBookings(tab);
   }, [tab, fetchBookings]);
 

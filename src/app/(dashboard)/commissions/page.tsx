@@ -1,22 +1,59 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { getCachedActiveUsers } from "@/lib/cached-queries";
-import { CommissionsClient } from "./_components/commissions-client";
+import { createClient } from "@/utils/supabase/server";
+import { CommissionsClient, type InitialCommissionData } from "./_components/commissions-client";
 
 export const metadata = { title: "Commissions — Yoonjaespace" };
 
+function getPeriodRange(month: number, year: number) {
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const start = `${prevYear}-${String(prevMonth + 1).padStart(2, "0")}-26`;
+  const end = `${year}-${String(month + 1).padStart(2, "0")}-25`;
+  return { start, end };
+}
+
+const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
+
 export default async function CommissionsPage() {
-  const [currentUser, staffUsers] = await Promise.all([
+  const supabase = await createClient();
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const period = getPeriodRange(month, year);
+
+  const [currentUser, staffUsers, bookingsResult, commissionsResult] = await Promise.all([
     getCurrentUser(),
     getCachedActiveUsers(),
+    supabase
+      .from("bookings")
+      .select("id, booking_number, booking_date, total, staff_id, customers(name), packages(name)")
+      .gte("booking_date", period.start)
+      .lte("booking_date", period.end)
+      .in("status", PAID_STATUSES)
+      .order("booking_date"),
+    supabase
+      .from("commissions")
+      .select("id, staff_id, total_amount, status")
+      .eq("period_start", period.start)
+      .eq("period_end", period.end),
   ]);
 
   if (!currentUser) redirect("/login");
+
+  const initialData: InitialCommissionData = {
+    month,
+    year,
+    bookings: (bookingsResult.data ?? []) as unknown as InitialCommissionData["bookings"],
+    existingCommissions: (commissionsResult.data ?? []) as unknown as InitialCommissionData["existingCommissions"],
+  };
 
   return (
     <CommissionsClient
       currentUser={currentUser}
       staffUsers={staffUsers ?? []}
+      initialData={initialData}
     />
   );
 }
