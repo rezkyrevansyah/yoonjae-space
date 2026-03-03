@@ -46,10 +46,11 @@ export function VendorsClient({ currentUser }: Props) {
 
     if (!vendorData) { setLoading(false); return; }
 
-    // Fetch expense aggregates per vendor
+    // Fetch expense aggregates per vendor (only expenses linked to a vendor)
     const { data: expenseData } = await supabase
       .from("expenses")
-      .select("vendor_id, amount");
+      .select("vendor_id, amount")
+      .not("vendor_id", "is", null);
 
     const statsMap = new Map<string, { count: number; total: number }>();
     for (const e of (expenseData ?? [])) {

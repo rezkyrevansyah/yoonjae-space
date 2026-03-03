@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   // Parallel fetch — 7 independent queries at once
   const [
     { count: totalBookings },
-    { data: revenueRows },
+    { data: revenueAgg },
     { count: belumLunas },
     { data: todayBookings },
     { count: countSelection },
@@ -67,13 +67,14 @@ export default async function DashboardPage() {
       .gte("booking_date", monthStart)
       .lte("booking_date", monthEnd),
 
-    // 2. Revenue: only paid bookings, only total column needed
+    // 2. Revenue: aggregate SUM in DB — returns one row with { sum: number }
     supabase
       .from("bookings")
-      .select("total")
+      .select("total.sum()")
       .gte("booking_date", monthStart)
       .lte("booking_date", monthEnd)
-      .in("status", PAID_STATUSES),
+      .in("status", PAID_STATUSES)
+      .single(),
 
     // 3. Belum lunas count (BOOKED status)
     supabase
@@ -116,7 +117,7 @@ export default async function DashboardPage() {
     getCachedStudioInfo(),
   ]);
 
-  const estimasiRevenue = (revenueRows ?? []).reduce((sum, b) => sum + (b.total ?? 0), 0);
+  const estimasiRevenue = (revenueAgg as { sum: number } | null)?.sum ?? 0;
 
   const printCounts = {
     SELECTION: countSelection ?? 0,
