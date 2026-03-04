@@ -85,7 +85,7 @@ export function TabCustomFields({ currentUser }: TabCustomFieldsProps) {
     const payload = {
       label: form.label,
       field_type: form.field_type,
-      options: form.field_type === "select" ? options : null,
+      options: form.field_type === "select" ? options : [],
       is_active: form.is_active,
     };
     try {
