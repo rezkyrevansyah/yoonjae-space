@@ -233,7 +233,9 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             {BOOKING_FLOW.map((status, idx) => {
               const isPast = idx < currentStatusIdx;
               const isCurrent = idx === currentStatusIdx && !isCanceled;
-              const savedDate = statusDates[status];
+              const savedDate = statusDates[status]
+                ?? (status === "BOOKED" ? booking.created_at.slice(0, 10) : undefined)
+                ?? (status === "PAID" ? booking.booking_date : undefined);
               return (
                 <div key={status} className="flex flex-col items-center gap-1">
                   <div
