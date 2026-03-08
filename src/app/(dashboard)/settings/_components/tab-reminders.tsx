@@ -21,6 +21,8 @@ const VARIABLES = [
   "{booking_time}",
   "{package_name}",
   "{studio_name}",
+  "{customer_page}",
+  "{notes}",
 ];
 
 export function TabReminders({ currentUser }: TabRemindersProps) {

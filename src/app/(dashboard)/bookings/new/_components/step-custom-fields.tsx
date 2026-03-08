@@ -78,12 +78,13 @@ export function StepCustomFields({ customFields, values, onChange }: Props) {
               </div>
             )}
             {cf.field_type === "select" && cf.options && (
-              <Select value={values[cf.id] ?? ""} onValueChange={(v) => set(cf.id, v)}>
+              <Select value={values[cf.id] || "__none__"} onValueChange={(v) => set(cf.id, v === "__none__" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih opsi..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {cf.options.map((opt) => (
+                  <SelectItem value="__none__">—</SelectItem>
+                  {cf.options.filter(Boolean).map((opt) => (
                     <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                   ))}
                 </SelectContent>

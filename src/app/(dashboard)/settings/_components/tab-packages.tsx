@@ -81,7 +81,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
 
     const payload = {
       name: form.name,
-      description: form.description || null,
+      description: form.description || "",
       price: parseInt(form.price.replace(/\D/g, ""), 10),
       duration_minutes: parseInt(form.duration_minutes, 10),
       include_all_photos: form.include_all_photos,

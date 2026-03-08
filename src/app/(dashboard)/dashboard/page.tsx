@@ -16,17 +16,17 @@ export const metadata = { title: "Dashboard — Yoonjaespace" };
 
 // ── Helpers ────────────────────────────────────────────────
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
+function getGreeting(wibNow: Date): string {
+  const hour = wibNow.getUTCHours(); // getUTCHours because date is already offset to WIB
   if (hour < 11) return "Selamat pagi";
   if (hour < 15) return "Selamat siang";
   return "Selamat sore";
 }
 
 function toLocalDateStr(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -40,18 +40,19 @@ export default async function DashboardPage() {
 
   if (!currentUser) redirect("/login");
 
-  const now = new Date();
+  // WIB = UTC+7 — server runs in UTC, offset manually for correct date/time in Indonesia
+  const now = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
   const today = toLocalDateStr(now);
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+  const monthEnd = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
 
   // Parallel fetch — 7 independent queries at once
   const [
     { count: totalBookings },
-    { data: revenueAgg },
+    { data: revenueRows },
     { count: belumLunas },
     { data: todayBookings },
     { count: countSelection },
@@ -67,14 +68,13 @@ export default async function DashboardPage() {
       .gte("booking_date", monthStart)
       .lte("booking_date", monthEnd),
 
-    // 2. Revenue: aggregate SUM in DB — returns one row with { sum: number }
+    // 2. Revenue: fetch all totals then sum in JS (more reliable than aggregate syntax)
     supabase
       .from("bookings")
-      .select("total.sum()")
+      .select("total")
       .gte("booking_date", monthStart)
       .lte("booking_date", monthEnd)
-      .in("status", PAID_STATUSES)
-      .single(),
+      .in("status", PAID_STATUSES),
 
     // 3. Belum lunas count (BOOKED status)
     supabase
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
     getCachedStudioInfo(),
   ]);
 
-  const estimasiRevenue = (revenueAgg as { sum: number } | null)?.sum ?? 0;
+  const estimasiRevenue = (revenueRows ?? []).reduce((sum, r) => sum + ((r as { total: number }).total ?? 0), 0);
 
   const printCounts = {
     SELECTION: countSelection ?? 0,
@@ -126,10 +126,11 @@ export default async function DashboardPage() {
     SHIPPED: countShipped ?? 0,
   };
 
-  const greeting = getGreeting();
+  const greeting = getGreeting(now);
   const studioName = studioInfo?.studio_name ?? "Studio";
-  const todayLabel = new Date(today + "T00:00:00").toLocaleDateString("id-ID", {
+  const todayLabel = new Date(today + "T00:00:00Z").toLocaleDateString("id-ID", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 
   return (

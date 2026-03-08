@@ -44,21 +44,26 @@ export function StepDetail({ detailData, onChange, packages, backgrounds, photoF
         <Input
           type="number"
           min={1}
-          value={detailData.person_count}
-          onChange={(e) => onChange({ ...detailData, person_count: Number(e.target.value) })}
+          value={detailData.person_count || ""}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            onChange({ ...detailData, person_count: isNaN(v) ? 0 : v });
+          }}
         />
       </div>
 
       <div>
         <Label>Paket <span className="text-red-500">*</span></Label>
         <Select
-          value={detailData.package_id}
-          onValueChange={(v) => onChange({ ...detailData, package_id: v })}
+          value={detailData.package_id || "__none__"}
+          onValueChange={(v) => onChange({ ...detailData, package_id: v === "__none__" ? "" : v })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Pilih paket" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__none__" disabled>— Pilih paket —</SelectItem>
             {packages.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name} — {formatRupiah(p.price)} ({p.duration_minutes} mnt)
@@ -92,13 +97,14 @@ export function StepDetail({ detailData, onChange, packages, backgrounds, photoF
       <div>
         <Label>Photo For</Label>
         <Select
-          value={detailData.photo_for_id}
-          onValueChange={(v) => onChange({ ...detailData, photo_for_id: v })}
+          value={detailData.photo_for_id || "__none__"}
+          onValueChange={(v) => onChange({ ...detailData, photo_for_id: v === "__none__" ? "" : v })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Pilih tujuan foto" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__none__">—</SelectItem>
             {photoFors.map((pf) => (
               <SelectItem key={pf.id} value={pf.id}>{pf.name}</SelectItem>
             ))}

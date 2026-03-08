@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatRupiah } from "@/lib/utils";
 import type { BookingDetail, BookingAddonRow, AvailableAddon } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
-import { Plus, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 
 interface Props {
   booking: BookingDetail;
@@ -31,9 +31,10 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const { toast } = useToast();
 
   const [addons, setAddons] = useState<BookingAddonRow[]>(booking.booking_addons);
-  const [selectedAddonId, setSelectedAddonId] = useState("");
+  const [selectedAddonId, setSelectedAddonId] = useState("__none__");
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const originalAddons = useMemo(() => addons.filter((a) => !a.is_extra), [addons]);
   const extraAddons = useMemo(() => addons.filter((a) => a.is_extra), [addons]);
@@ -64,7 +65,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const total = Math.max(0, packagePrice + originalAddonsTotal - discount) + extraAddonsTotal;
 
   async function addExtraAddon() {
-    if (!selectedAddonId) return;
+    if (!selectedAddonId || selectedAddonId === "__none__") return;
     const addon = availableAddons.find((a) => a.id === selectedAddonId);
     if (!addon) return;
 
@@ -78,6 +79,16 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         is_extra: true,
       });
       if (error) throw error;
+
+      // Sync bookings.total with the new extra addon included
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) + addon.price;
+      const newTotal = Math.max(0, packagePrice + originalAddonsTotal - discount) + newExtraTotal;
+      const { error: updateErr } = await supabase
+        .from("bookings")
+        .update({ total: newTotal })
+        .eq("id", booking.id);
+      if (updateErr) throw updateErr;
+      onUpdate({ total: newTotal });
 
       const newAddon: BookingAddonRow = {
         addon_id: addon.id,
@@ -95,7 +106,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       const updated = [...addons, newAddon];
       setAddons(updated);
       onUpdate({ booking_addons: updated });
-      setSelectedAddonId("");
+      setSelectedAddonId("__none__");
 
       // Check if we need ADDON_UNPAID status
       await checkAndUpdateStatus(updated);
@@ -115,6 +126,52 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       toast({ title: "Error", description: "Gagal menambahkan add-on", variant: "destructive" });
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function removeExtraAddon(addonId: string) {
+    setRemovingId(addonId);
+    try {
+      const addonName = addons.find((a) => a.addon_id === addonId)?.addons?.name ?? addonId;
+      const removedPrice = addons.find((a) => a.addon_id === addonId && a.is_extra)?.price ?? 0;
+      const { error } = await supabase
+        .from("booking_addons")
+        .delete()
+        .eq("booking_id", booking.id)
+        .eq("addon_id", addonId)
+        .eq("is_extra", true);
+      if (error) throw error;
+
+      // Sync bookings.total with the addon removed
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) - removedPrice;
+      const newTotal = Math.max(0, packagePrice + originalAddonsTotal - discount) + newExtraTotal;
+      const { error: updateErr } = await supabase
+        .from("bookings")
+        .update({ total: newTotal })
+        .eq("id", booking.id);
+      if (updateErr) throw updateErr;
+      onUpdate({ total: newTotal });
+
+      const updated = addons.filter((a) => !(a.addon_id === addonId && a.is_extra));
+      setAddons(updated);
+      onUpdate({ booking_addons: updated });
+      await checkAndUpdateStatus(updated);
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "DELETE",
+        entity: "booking_addons",
+        entity_id: booking.id,
+        description: `Menghapus extra add-on ${addonName} dari booking ${booking.booking_number}`,
+      });
+
+      toast({ title: "Add-on dihapus", description: addonName });
+    } catch {
+      toast({ title: "Error", description: "Gagal menghapus add-on", variant: "destructive" });
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -249,6 +306,17 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                     )}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeExtraAddon(a.addon_id)}
+                    disabled={removingId === a.addon_id}
+                    className="h-8 px-2 text-red-400 hover:text-red-600 hover:bg-red-50"
+                  >
+                    {removingId === a.addon_id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
                 </div>
               </div>
             ))}
@@ -263,6 +331,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 <SelectValue placeholder="Tambah add-on extra..." />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__" disabled>Pilih add-on...</SelectItem>
                 {availableToAdd.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
                     {a.name} — {formatRupiah(a.price)}
@@ -273,7 +342,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
             <Button
               variant="outline"
               onClick={addExtraAddon}
-              disabled={!selectedAddonId || adding}
+              disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
               className="gap-1"
             >
               {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

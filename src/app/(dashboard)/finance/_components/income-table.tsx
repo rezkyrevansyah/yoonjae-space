@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
+
+type IncomeSortField = "booking_date" | "total";
 
 interface IncomeBooking {
   id: string;
@@ -22,7 +25,29 @@ interface Props {
 }
 
 export function IncomeTable({ bookings, loading }: Props) {
+  const [sortField, setSortField] = useState<IncomeSortField>("booking_date");
+  const [sortAsc, setSortAsc] = useState(false);
+
   const total = bookings.reduce((sum, b) => sum + b.total, 0);
+
+  const sorted = [...bookings].sort((a, b) => {
+    if (sortField === "booking_date") {
+      return sortAsc
+        ? a.booking_date.localeCompare(b.booking_date)
+        : b.booking_date.localeCompare(a.booking_date);
+    }
+    return sortAsc ? a.total - b.total : b.total - a.total;
+  });
+
+  function handleSort(field: IncomeSortField) {
+    if (sortField === field) setSortAsc(v => !v);
+    else { setSortField(field); setSortAsc(false); }
+  }
+
+  function SortIcon({ field }: { field: IncomeSortField }) {
+    if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 text-gray-300" />;
+    return sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -50,15 +75,31 @@ export function IncomeTable({ bookings, loading }: Props) {
                 <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                   <th className="px-4 py-2.5 text-left font-medium">Booking ID</th>
                   <th className="px-4 py-2.5 text-left font-medium">Customer</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Tanggal</th>
+                  <th
+                    className="px-4 py-2.5 text-left font-medium cursor-pointer select-none hover:text-gray-700"
+                    onClick={() => handleSort("booking_date")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Tanggal
+                      <SortIcon field="booking_date" />
+                    </span>
+                  </th>
                   <th className="px-4 py-2.5 text-left font-medium">Paket</th>
                   <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Total</th>
+                  <th
+                    className="px-4 py-2.5 text-right font-medium cursor-pointer select-none hover:text-gray-700"
+                    onClick={() => handleSort("total")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 w-full">
+                      Total
+                      <SortIcon field="total" />
+                    </span>
+                  </th>
                   <th className="px-4 py-2.5 w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {bookings.map((b) => (
+                {sorted.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">
                       {b.booking_number}
@@ -108,7 +149,7 @@ export function IncomeTable({ bookings, loading }: Props) {
 
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-50">
-            {bookings.map((b) => (
+            {sorted.map((b) => (
               <Link
                 key={b.id}
                 href={`/bookings/${b.id}`}

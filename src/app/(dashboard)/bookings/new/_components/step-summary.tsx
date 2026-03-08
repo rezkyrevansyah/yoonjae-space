@@ -9,8 +9,9 @@ import type {
   AddonFormData,
   DiscountFormData,
   StaffFormData,
+  CustomFieldValues,
 } from "./new-booking-client";
-import type { Package, Addon, Background, PhotoFor } from "@/lib/types/database";
+import type { Package, Addon, Background, PhotoFor, CustomField } from "@/lib/types/database";
 import { User, Calendar, Package as PackageIcon, Tag, UserCheck } from "lucide-react";
 
 interface Props {
@@ -34,6 +35,8 @@ interface Props {
   };
   endTime: string;
   totalDuration: number;
+  customFields: CustomField[];
+  customFieldValues: CustomFieldValues;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -59,6 +62,8 @@ export function StepSummary({
   pricing,
   endTime,
   totalDuration,
+  customFields,
+  customFieldValues,
 }: Props) {
   const selectedBgs = backgrounds.filter((b) => detailData.background_ids.includes(b.id));
   const selectedPhotoFor = photoFors.find((p) => p.id === detailData.photo_for_id);
@@ -112,6 +117,42 @@ export function StepSummary({
           {detailData.behind_the_scenes && <Row label="BTS" value="Ya" />}
         </div>
       </section>
+
+      {/* Notes */}
+      {detailData.notes && (
+        <section>
+          <div className="flex items-center gap-2 font-medium text-gray-700 text-sm mb-2">
+            <Calendar className="h-4 w-4 text-maroon-700" />
+            Notes
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3">
+            <p className="text-sm text-gray-900 whitespace-pre-wrap">{detailData.notes}</p>
+          </div>
+        </section>
+      )}
+
+      {/* Custom Fields */}
+      {customFields.length > 0 && Object.values(customFieldValues).some(v => v) && (
+        <section>
+          <div className="flex items-center gap-2 font-medium text-gray-700 text-sm mb-2">
+            <Tag className="h-4 w-4 text-maroon-700" />
+            Informasi Tambahan
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 space-y-0.5">
+            {customFields.map((cf) => {
+              const val = customFieldValues[cf.id];
+              if (!val) return null;
+              return (
+                <Row
+                  key={cf.id}
+                  label={cf.label}
+                  value={val === "true" ? "Ya" : val === "false" ? "Tidak" : val}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Package & add-ons */}
       <section>

@@ -559,6 +559,8 @@ export function NewBookingClient({
             pricing={pricing}
             endTime={endTime}
             totalDuration={totalDuration}
+            customFields={customFields}
+            customFieldValues={customFieldValues}
           />
         )}
       </div>

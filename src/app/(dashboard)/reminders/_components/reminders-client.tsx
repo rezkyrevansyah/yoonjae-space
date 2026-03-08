@@ -16,6 +16,7 @@ export interface ReminderBooking {
   start_time: string;
   end_time: string;
   status: BookingStatus;
+  notes: string | null;
   customers: { name: string; phone: string } | null;
   packages: { name: string } | null;
   booking_reminders: { type: string; sent_at: string }[];
@@ -68,14 +69,16 @@ function hoursLeft(bookingDate: string, startTime: string): string {
 
 function replaceVars(
   template: string,
-  vars: { customer_name: string; booking_date: string; booking_time: string; package_name: string; studio_name: string }
+  vars: { customer_name: string; booking_date: string; booking_time: string; package_name: string; studio_name: string; customer_page: string; notes: string }
 ): string {
   return template
     .replace(/\{customer_name\}/g, vars.customer_name)
     .replace(/\{booking_date\}/g, vars.booking_date)
     .replace(/\{booking_time\}/g, vars.booking_time)
     .replace(/\{package_name\}/g, vars.package_name)
-    .replace(/\{studio_name\}/g, vars.studio_name);
+    .replace(/\{studio_name\}/g, vars.studio_name)
+    .replace(/\{customer_page\}/g, vars.customer_page)
+    .replace(/\{notes\}/g, vars.notes);
 }
 
 function waLink(phone: string, message: string): string {
@@ -100,7 +103,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
     const { data, error } = await supabase
       .from("bookings")
       .select(`
-        id, booking_number, booking_date, start_time, end_time, status,
+        id, booking_number, booking_date, start_time, end_time, status, notes,
         customers(name, phone),
         packages(name),
         booking_reminders(type, sent_at)
@@ -186,12 +189,15 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
 
   function buildWaLink(booking: ReminderBooking, templateText: string | null): string | null {
     if (!templateText || !booking.customers?.phone) return null;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
     const vars = {
       customer_name: booking.customers.name,
       booking_date: formatDate(booking.booking_date),
       booking_time: formatTime(booking.start_time),
       package_name: booking.packages?.name ?? "",
       studio_name: studioName,
+      customer_page: `${appUrl}/customer/${booking.id}`,
+      notes: booking.notes ?? "",
     };
     return waLink(booking.customers.phone, replaceVars(templateText, vars));
   }

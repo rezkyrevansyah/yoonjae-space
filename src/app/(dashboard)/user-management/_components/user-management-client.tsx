@@ -395,11 +395,12 @@ export function UserManagementClient({ currentUser, initialUsers, roles }: UserM
             </div>
             <div className="space-y-2">
               <Label>Role <span className="text-red-500">*</span></Label>
-              <Select value={addForm.role_id} onValueChange={(v) => setAddForm({ ...addForm, role_id: v })}>
+              <Select value={addForm.role_id || "__none__"} onValueChange={(v) => setAddForm({ ...addForm, role_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih role..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">— Pilih role —</SelectItem>
                   {roles.map((r) => (
                     <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                   ))}
@@ -452,11 +453,12 @@ export function UserManagementClient({ currentUser, initialUsers, roles }: UserM
             </div>
             <div className="space-y-2">
               <Label>Role <span className="text-red-500">*</span></Label>
-              <Select value={editForm.role_id} onValueChange={(v) => setEditForm({ ...editForm, role_id: v })}>
+              <Select value={editForm.role_id || "__none__"} onValueChange={(v) => setEditForm({ ...editForm, role_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">— Pilih role —</SelectItem>
                   {roles.map((r) => (
                     <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                   ))}

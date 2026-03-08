@@ -34,6 +34,7 @@ export interface SettingsGeneral {
   close_time: string;
   default_payment_status: "paid" | "unpaid";
   time_slot_interval: number;
+  commission_cutoff_day: number; // day of month (1-28), default 26
   created_at: string;
   updated_at: string;
 }
@@ -204,12 +205,14 @@ export interface Booking {
   behind_the_scenes: boolean;
   status: BookingStatus;
   print_order_status: PrintOrderStatus | null;
+  is_rescheduled: boolean;
   google_drive_link: string | null;
   voucher_id: string | null;
   manual_discount: number;
   subtotal: number;
   total: number;
   staff_id: string | null;
+  commission_amount: number; // per-booking commission in Rp
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -292,6 +295,14 @@ export interface BookingReminder {
   sent_at: string;
   sent_by: string | null;
   users?: Pick<User, "id" | "name">;
+}
+
+export interface BookingStatusDate {
+  id: string;
+  booking_id: string;
+  status_type: string;
+  status_date: string;
+  created_at: string;
 }
 
 export interface ActivityLog {

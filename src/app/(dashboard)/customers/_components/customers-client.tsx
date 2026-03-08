@@ -43,6 +43,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -85,6 +87,8 @@ interface AddForm {
   notes: string;
 }
 
+type CustomerSortField = "name" | "total_bookings" | "total_spend" | "last_visit";
+
 const PAGE_SIZE = 25;
 const supabase = createClient();
 
@@ -96,6 +100,8 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sortField, setSortField] = useState<CustomerSortField>("name");
+  const [sortAsc, setSortAsc] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CustomerRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -107,19 +113,20 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     address: "", domicile: "", lead_id: "", notes: "",
   });
 
-  const fetchCustomers = useCallback(async (searchVal: string, pageVal: number) => {
+  const fetchCustomers = useCallback(async (searchVal: string, pageVal: number, sf: CustomerSortField, sa: boolean) => {
     setLoading(true);
     const from = pageVal * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Fetch customers with aggregated booking data
+    // Fetch all matching customers (without pagination) then sort client-side for non-name fields
+    // For name sort we can use DB order; for computed fields (bookings/spend/last_visit) we sort in JS
     let query = supabase
       .from("customers")
       .select(`
         id, name, phone, email, instagram, address, domicile, lead_id, notes, created_at,
         bookings(total, booking_date)
       `, { count: "exact" })
-      .order("name");
+      .order("name", { ascending: true });
 
     if (searchVal.trim()) {
       query = query.or(`name.ilike.%${searchVal}%,phone.ilike.%${searchVal}%`);
@@ -160,6 +167,20 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
       };
     });
 
+    // Client-side sort for computed fields
+    rows.sort((a, b) => {
+      let av: string | number | null;
+      let bv: string | number | null;
+      if (sf === "name") { av = a.name; bv = b.name; }
+      else if (sf === "total_bookings") { av = a.total_bookings; bv = b.total_bookings; }
+      else if (sf === "total_spend") { av = a.total_spend; bv = b.total_spend; }
+      else { av = a.last_visit ?? ""; bv = b.last_visit ?? ""; }
+      if (!av && av !== 0) return 1;
+      if (!bv && bv !== 0) return -1;
+      if (typeof av === "number") return sa ? av - (bv as number) : (bv as number) - av;
+      return sa ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+    });
+
     setCustomers(rows);
     setTotal(count ?? 0);
   }, [toast]);
@@ -169,9 +190,9 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
       isInitialMount.current = false;
       return;
     }
-    const t = setTimeout(() => fetchCustomers(search, page), 300);
+    const t = setTimeout(() => fetchCustomers(search, page, sortField, sortAsc), 300);
     return () => clearTimeout(t);
-  }, [search, page, fetchCustomers]);
+  }, [search, page, sortField, sortAsc, fetchCustomers]);
 
   // Phone uniqueness check
   function handlePhoneChange(val: string) {
@@ -231,7 +252,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     setShowAdd(false);
     setForm({ name: "", phone: "", email: "", instagram: "", address: "", domicile: "", lead_id: "", notes: "" });
     toast({ title: "Customer ditambahkan!" });
-    fetchCustomers(search, page);
+    fetchCustomers(search, page, sortField, sortAsc);
   }
 
   async function handleDelete(c: CustomerRow) {
@@ -267,7 +288,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
 
     toast({ title: "Customer dihapus" });
     setDeleteTarget(null);
-    fetchCustomers(search, page);
+    fetchCustomers(search, page, sortField, sortAsc);
   }
 
   const exportFilename = `customers-${new Date().toISOString().split("T")[0]}`;
@@ -357,12 +378,12 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Nama</th>
+              <SortHeader field="name" label="Nama" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="left" />
               <th className="text-left px-4 py-3 font-medium text-gray-600">Phone</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Bookings</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Total Spend</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Last Visit</th>
+              <SortHeader field="total_bookings" label="Bookings" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="right" />
+              <SortHeader field="total_spend" label="Total Spend" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="right" />
+              <SortHeader field="last_visit" label="Last Visit" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="left" />
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -550,7 +571,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
 
               <div className="space-y-1.5">
                 <Label>Leads</Label>
-                <Select value={form.lead_id} onValueChange={v => setForm(f => ({ ...f, lead_id: v }))}>
+                <Select value={form.lead_id || "none"} onValueChange={v => setForm(f => ({ ...f, lead_id: v === "none" ? "" : v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih leads" />
                   </SelectTrigger>
@@ -611,5 +632,35 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function SortHeader({
+  field, label, sortField, sortAsc, setSortField, setSortAsc, align,
+}: {
+  field: CustomerSortField;
+  label: string;
+  sortField: CustomerSortField;
+  sortAsc: boolean;
+  setSortField: (f: CustomerSortField) => void;
+  setSortAsc: (fn: (v: boolean) => boolean) => void;
+  align: "left" | "right";
+}) {
+  const active = sortField === field;
+  return (
+    <th
+      className={`px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900 text-${align}`}
+      onClick={() => {
+        if (active) setSortAsc(v => !v);
+        else { setSortField(field); setSortAsc(() => true); }
+      }}
+    >
+      <span className={`inline-flex items-center gap-1 ${align === "right" ? "justify-end w-full" : ""}`}>
+        {label}
+        {active
+          ? (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+          : <ChevronsUpDown className="h-3 w-3 text-gray-300" />}
+      </span>
+    </th>
   );
 }

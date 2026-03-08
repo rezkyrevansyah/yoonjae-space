@@ -28,6 +28,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
   const [closeTime, setCloseTime] = useState("20:00");
   const [interval, setInterval] = useState(60);
   const [defaultStatus, setDefaultStatus] = useState<"paid" | "unpaid">("paid");
+  const [cutoffDay, setCutoffDay] = useState("26");
 
   // Holidays
   const [holidays, setHolidays] = useState<StudioHoliday[]>([]);
@@ -44,7 +45,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
   async function fetchData() {
     setLoading(true);
     const [generalRes, holidaysRes] = await Promise.all([
-      supabase.from("settings_general").select("open_time, close_time, time_slot_interval, default_payment_status").eq("lock", true).maybeSingle(),
+      supabase.from("settings_general").select("open_time, close_time, time_slot_interval, default_payment_status, commission_cutoff_day").eq("lock", true).maybeSingle(),
       supabase.from("studio_holidays").select("id, start_date, end_date, label, created_at").order("start_date"),
     ]);
 
@@ -53,6 +54,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
       setCloseTime(generalRes.data.close_time);
       setInterval(generalRes.data.time_slot_interval);
       setDefaultStatus(generalRes.data.default_payment_status as "paid" | "unpaid");
+      if (generalRes.data.commission_cutoff_day) setCutoffDay(String(generalRes.data.commission_cutoff_day));
     }
     if (holidaysRes.data) setHolidays(holidaysRes.data);
     setLoading(false);
@@ -67,6 +69,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
         close_time: closeTime,
         time_slot_interval: interval,
         default_payment_status: defaultStatus,
+        commission_cutoff_day: Math.min(28, Math.max(1, Number(cutoffDay) || 26)),
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase.from("settings_general").upsert(payload, { onConflict: "lock" });
@@ -198,6 +201,23 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
               onChange={(e) => setInterval(Number(e.target.value))}
               className="max-w-[160px]"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tanggal Cutoff Komisi</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={cutoffDay}
+                onChange={(e) => setCutoffDay(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                placeholder="26"
+                className="max-w-[100px]"
+              />
+              <span className="text-sm text-muted-foreground">
+                Periode: tgl {Number(cutoffDay) || "?"} bulan lalu – tgl {(Number(cutoffDay) - 1) || "?"} bulan ini
+              </span>
+            </div>
           </div>
 
           <div className="space-y-2">

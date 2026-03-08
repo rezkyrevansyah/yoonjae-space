@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { InvoiceClient } from "./_components/invoice-client";
 
 export default async function InvoicePage({ params }: { params: { bookingId: string } }) {
@@ -9,7 +10,7 @@ export default async function InvoicePage({ params }: { params: { bookingId: str
     getCurrentUser(),
   ]);
 
-  const [{ data: booking }, { data: studioInfo }] = await Promise.all([
+  const [{ data: booking }, studioInfo] = await Promise.all([
     supabase
       .from("bookings")
       .select(`
@@ -23,11 +24,7 @@ export default async function InvoicePage({ params }: { params: { bookingId: str
       `)
       .eq("id", params.bookingId)
       .single(),
-    supabase
-      .from("settings_studio_info")
-      .select("studio_name, logo_url, address, whatsapp_number, footer_text")
-      .eq("lock", true)
-      .maybeSingle(),
+    getCachedStudioInfo(),
   ]);
 
   if (!booking) notFound();

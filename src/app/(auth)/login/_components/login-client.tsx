@@ -29,6 +29,8 @@ function StudioLogo({ logoUrl, studioName }: { logoUrl: string | null; studioNam
           height={72}
           className="rounded-full object-cover w-18 h-18"
           onError={() => setImgError(true)}
+          priority
+          sizes="72px"
         />
       </div>
     );

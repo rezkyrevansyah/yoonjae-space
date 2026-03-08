@@ -32,7 +32,7 @@ const _getCachedStudioInfo = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("settings_studio_info")
-      .select("logo_url, studio_name, whatsapp_number")
+      .select("logo_url, studio_name, whatsapp_number, address, footer_text, front_photo_url, instagram, google_maps_url")
       .eq("lock", true)
       .maybeSingle();
     return data ?? null;

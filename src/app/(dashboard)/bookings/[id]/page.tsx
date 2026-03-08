@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUser } from "@/lib/get-current-user";
+import { getCachedPackages, getCachedBackgrounds, getCachedPhotoFor, getCachedActiveUsers, getCachedCustomFields, getCachedAddons } from "@/lib/cached-queries";
 import { BookingDetailClient } from "./_components/booking-detail-client";
 
 export const metadata = { title: "Detail Booking — Yoonjaespace" };
@@ -14,7 +15,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
   if (!currentUser) redirect("/login");
 
-  const [{ data: booking }, { data: addons }] = await Promise.all([
+  const [{ data: booking }, addons, packages, backgrounds, photoFors, users, customFields] = await Promise.all([
     supabase
       .from("bookings")
       .select(`
@@ -33,11 +34,12 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
       `)
       .eq("id", params.id)
       .single(),
-    supabase
-      .from("addons")
-      .select("id, name, price, need_extra_time, extra_time_minutes, is_active")
-      .eq("is_active", true)
-      .order("name"),
+    getCachedAddons(),
+    getCachedPackages(),
+    getCachedBackgrounds(),
+    getCachedPhotoFor(),
+    getCachedActiveUsers(),
+    getCachedCustomFields(),
   ]);
 
   if (!booking) notFound();
@@ -46,7 +48,12 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
     <BookingDetailClient
       currentUser={currentUser}
       booking={booking as never}
-      availableAddons={(addons ?? []) as never}
+      availableAddons={addons as never}
+      packages={packages}
+      backgrounds={backgrounds}
+      photoFors={photoFors}
+      users={users}
+      customFields={customFields as never}
     />
   );
 }

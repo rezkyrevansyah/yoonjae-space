@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronDown, ChevronUp, CheckSquare, Square, Save,
-  User, CalendarDays, Banknote, ExternalLink
+  User, CalendarDays, ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
@@ -21,6 +21,7 @@ interface BookingItem {
   booking_number: string;
   booking_date: string;
   total: number;
+  commissionAmount: number; // per-booking commission in Rp
   customers: { name: string } | null;
   packages: { name: string } | null;
 }
@@ -35,7 +36,6 @@ interface StaffCommission {
   savedAmount: number;
   savedStatus: "unpaid" | "paid";
   // local editing state
-  amount: string; // input string
   isPaid: boolean;
   expanded: boolean;
   saving: boolean;
@@ -44,8 +44,10 @@ interface StaffCommission {
 export interface InitialCommissionData {
   month: number;
   year: number;
+  cutoffDay: number;
   bookings: {
     id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null;
+    commission_amount: number;
     customers: { name: string } | null; packages: { name: string } | null;
   }[];
   existingCommissions: { id: string; staff_id: string; total_amount: number; status: "unpaid" | "paid" }[];
@@ -64,14 +66,13 @@ const MONTHS = [
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
 
-// Commission period: 26th of prev month → 25th of current month
-function getPeriodRange(month: number, year: number): { start: string; end: string; label: string } {
-  // period_start = 26th of previous month
+function getPeriodRange(month: number, year: number, cutoffDay: number): { start: string; end: string; label: string } {
   const prevMonth = month === 0 ? 11 : month - 1;
   const prevYear = month === 0 ? year - 1 : year;
-  const start = `${prevYear}-${String(prevMonth + 1).padStart(2, "0")}-26`;
-  const end = `${year}-${String(month + 1).padStart(2, "0")}-25`;
-  const label = `26 ${MONTHS[prevMonth]} ${prevYear} – 25 ${MONTHS[month]} ${year}`;
+  const endDay = cutoffDay - 1;
+  const start = `${prevYear}-${String(prevMonth + 1).padStart(2, "0")}-${String(cutoffDay).padStart(2, "0")}`;
+  const end = `${year}-${String(month + 1).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+  const label = `${cutoffDay} ${MONTHS[prevMonth]} ${prevYear} – ${endDay} ${MONTHS[month]} ${year}`;
   return { start, end, label };
 }
 
@@ -88,7 +89,15 @@ function buildStaffCards(
   for (const b of bookings) {
     const staffId = b.staff_id ?? "__unassigned__";
     const existing = bookingsByStaff.get(staffId) ?? [];
-    existing.push(b as BookingItem);
+    existing.push({
+      id: b.id,
+      booking_number: b.booking_number,
+      booking_date: b.booking_date,
+      total: b.total,
+      commissionAmount: b.commission_amount ?? 0,
+      customers: b.customers,
+      packages: b.packages,
+    });
     bookingsByStaff.set(staffId, existing);
   }
   return staffUsers.map(s => {
@@ -100,7 +109,6 @@ function buildStaffCards(
       commissionId: existing?.id ?? null,
       savedAmount: existing?.amount ?? 0,
       savedStatus: existing?.status ?? "unpaid",
-      amount: existing ? String(existing.amount) : "",
       isPaid: existing?.status === "paid",
       expanded: false,
       saving: false,
@@ -112,6 +120,7 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(initialData.month);
   const [selectedYear, setSelectedYear] = useState(initialData.year);
+  const [cutoffDay] = useState(initialData.cutoffDay);
   const [staffCards, setStaffCards] = useState<StaffCommission[]>(() =>
     buildStaffCards(staffUsers, initialData.bookings, initialData.existingCommissions)
   );
@@ -120,22 +129,20 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
   const isInitialMount = useRef(true);
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
-  const period = getPeriodRange(selectedMonth, selectedYear);
+  const period = getPeriodRange(selectedMonth, selectedYear, cutoffDay);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    // Fetch bookings in period (PAID+ statuses)
     const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
     const { data: bookings } = await supabase
       .from("bookings")
-      .select("id, booking_number, booking_date, total, staff_id, customers(name), packages(name)")
+      .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(name)")
       .gte("booking_date", period.start)
       .lte("booking_date", period.end)
       .in("status", paidStatuses)
       .order("booking_date");
 
-    // Fetch existing commissions for this period
     const { data: existingCommissions } = await supabase
       .from("commissions")
       .select("id, staff_id, total_amount, status")
@@ -147,13 +154,20 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
       commissionMap.set(c.staff_id, { id: c.id, amount: c.total_amount, status: c.status });
     }
 
-    // Group bookings by staff
     const bookingsByStaff = new Map<string, BookingItem[]>();
     for (const b of (bookings ?? [])) {
-      const booking = b as unknown as BookingItem & { staff_id: string | null };
-      const staffId = booking.staff_id ?? "__unassigned__";
+      const raw = b as unknown as { id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null; commission_amount: number; customers: { name: string } | null; packages: { name: string } | null };
+      const staffId = raw.staff_id ?? "__unassigned__";
       const existing = bookingsByStaff.get(staffId) ?? [];
-      existing.push(booking);
+      existing.push({
+        id: raw.id,
+        booking_number: raw.booking_number,
+        booking_date: raw.booking_date,
+        total: raw.total,
+        commissionAmount: raw.commission_amount ?? 0,
+        customers: raw.customers,
+        packages: raw.packages,
+      });
       bookingsByStaff.set(staffId, existing);
     }
 
@@ -168,7 +182,6 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         commissionId: existing?.id ?? null,
         savedAmount: existing?.amount ?? 0,
         savedStatus: existing?.status ?? "unpaid",
-        amount: existing ? String(existing.amount) : "",
         isPaid: existing?.status === "paid",
         expanded: false,
         saving: false,
@@ -191,26 +204,35 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
     setStaffCards(prev => prev.map(c => c.staffId === staffId ? { ...c, ...patch } : c));
   }
 
+  function updateBookingCommission(staffId: string, bookingId: string, rawValue: string) {
+    const amount = Number(rawValue.replace(/\D/g, "")) || 0;
+    setStaffCards(prev => prev.map(c => {
+      if (c.staffId !== staffId) return c;
+      const bookings = c.bookings.map(b =>
+        b.id === bookingId ? { ...b, commissionAmount: amount } : b
+      );
+      return { ...c, bookings };
+    }));
+  }
+
   async function handleSave(card: StaffCommission) {
-    const amount = Number(card.amount.replace(/\D/g, "")) || 0;
+    const totalAmount = card.bookings.reduce((sum, b) => sum + b.commissionAmount, 0);
     updateCard(card.staffId, { saving: true });
 
     try {
       let commissionId = card.commissionId;
 
       if (commissionId) {
-        // Update existing
         await supabase
           .from("commissions")
           .update({
-            total_amount: amount,
+            total_amount: totalAmount,
             booking_count: card.bookings.length,
             status: card.isPaid ? "paid" : "unpaid",
             paid_at: card.isPaid ? new Date().toISOString() : null,
           })
           .eq("id", commissionId);
       } else {
-        // Insert new
         const { data: inserted } = await supabase
           .from("commissions")
           .insert({
@@ -218,7 +240,7 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
             period_start: period.start,
             period_end: period.end,
             booking_count: card.bookings.length,
-            total_amount: amount,
+            total_amount: totalAmount,
             status: card.isPaid ? "paid" : "unpaid",
             paid_at: card.isPaid ? new Date().toISOString() : null,
           })
@@ -227,10 +249,13 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         commissionId = inserted?.id ?? null;
       }
 
+      // Save per-booking commission_amount
+      await Promise.all(card.bookings.map(b =>
+        supabase.from("bookings").update({ commission_amount: b.commissionAmount }).eq("id", b.id)
+      ));
+
       // If marking as paid: auto-create expense
       if (card.isPaid && card.savedStatus !== "paid" && commissionId) {
-        const periodLabel = period.label;
-        // Check if expense already exists for this commission
         const { data: existingExpense } = await supabase
           .from("expenses")
           .select("id")
@@ -241,8 +266,8 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         if (!existingExpense) {
           await supabase.from("expenses").insert({
             date: new Date().toISOString().split("T")[0],
-            description: `Komisi ${card.staffName} - ${periodLabel}`,
-            amount: amount,
+            description: `Komisi ${card.staffName} - ${period.label}`,
+            amount: totalAmount,
             category: "Commission",
             source: "commission",
             source_id: commissionId,
@@ -258,10 +283,9 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         action: card.commissionId ? "UPDATE" : "CREATE",
         entity: "commissions",
         entity_id: commissionId,
-        description: `Simpan komisi ${card.staffName}: ${formatRupiah(amount)} — ${card.isPaid ? "Sudah Dibayar" : "Belum Dibayar"}`,
+        description: `Simpan komisi ${card.staffName}: ${formatRupiah(totalAmount)} — ${card.isPaid ? "Sudah Dibayar" : "Belum Dibayar"}`,
       });
 
-      // Refresh data
       fetchData();
     } catch {
       updateCard(card.staffId, { saving: false });
@@ -337,8 +361,8 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
               key={card.staffId}
               card={card}
               onToggleExpand={() => updateCard(card.staffId, { expanded: !card.expanded })}
-              onAmountChange={val => updateCard(card.staffId, { amount: val.replace(/\D/g, "") })}
               onTogglePaid={() => updateCard(card.staffId, { isPaid: !card.isPaid })}
+              onBookingCommissionChange={(bookingId, val) => updateBookingCommission(card.staffId, bookingId, val)}
               onSave={() => handleSave(card)}
             />
           ))}
@@ -353,13 +377,14 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
 interface StaffCardProps {
   card: StaffCommission;
   onToggleExpand: () => void;
-  onAmountChange: (val: string) => void;
   onTogglePaid: () => void;
+  onBookingCommissionChange: (bookingId: string, val: string) => void;
   onSave: () => void;
 }
 
-function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave }: StaffCardProps) {
+function StaffCard({ card, onToggleExpand, onTogglePaid, onBookingCommissionChange, onSave }: StaffCardProps) {
   const isPaid = card.savedStatus === "paid";
+  const totalCommission = card.bookings.reduce((sum, b) => sum + b.commissionAmount, 0);
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isPaid ? "border-green-100" : "border-gray-100"}`}>
@@ -390,34 +415,18 @@ function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave 
           </div>
         </div>
 
-        {/* Amount input */}
+        {/* Total komisi (auto-sum) + status */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              <Banknote className="w-3.5 h-3.5 inline mr-1" />
-              Nominal Komisi
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={card.amount}
-                onChange={e => onAmountChange(e.target.value)}
-                placeholder="0"
-                disabled={isPaid}
-                className="w-full border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A] disabled:bg-gray-50 disabled:text-gray-400"
-              />
-            </div>
-            {Number(card.amount) > 0 && (
-              <p className="text-xs text-gray-400 mt-1">{formatRupiah(Number(card.amount))}</p>
-            )}
+            <p className="text-xs font-medium text-gray-500 mb-1.5">Total Komisi</p>
+            <p className={`text-lg font-bold ${totalCommission > 0 ? "text-gray-900" : "text-gray-300"}`}>
+              {totalCommission > 0 ? formatRupiah(totalCommission) : "Rp 0"}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">dari {card.bookings.length} booking</p>
           </div>
 
           <div className="flex flex-col justify-between">
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Status
-            </label>
+            <p className="text-xs font-medium text-gray-500 mb-1.5">Status</p>
             <button
               onClick={onTogglePaid}
               disabled={isPaid}
@@ -456,7 +465,7 @@ function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave 
             >
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-3.5 h-3.5" />
-                Lihat Riwayat Booking ({card.bookings.length})
+                Riwayat Booking & Input Komisi ({card.bookings.length})
               </span>
               {card.expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
@@ -467,9 +476,10 @@ function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave 
                   <thead>
                     <tr className="bg-gray-50 text-gray-400">
                       <th className="px-3 py-2 text-left font-medium">Booking</th>
-                      <th className="px-3 py-2 text-left font-medium">Customer</th>
+                      <th className="px-3 py-2 text-left font-medium hidden sm:table-cell">Customer</th>
                       <th className="px-3 py-2 text-left font-medium hidden sm:table-cell">Tanggal</th>
-                      <th className="px-3 py-2 text-right font-medium">Total</th>
+                      <th className="px-3 py-2 text-right font-medium">Total Booking</th>
+                      <th className="px-3 py-2 text-right font-medium">Komisi</th>
                       <th className="px-3 py-2 w-6" />
                     </tr>
                   </thead>
@@ -477,9 +487,26 @@ function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave 
                     {card.bookings.map(b => (
                       <tr key={b.id} className="hover:bg-gray-50">
                         <td className="px-3 py-2 font-mono text-gray-500">{b.booking_number}</td>
-                        <td className="px-3 py-2 text-gray-800 font-medium">{b.customers?.name ?? "-"}</td>
+                        <td className="px-3 py-2 text-gray-800 font-medium hidden sm:table-cell">{b.customers?.name ?? "-"}</td>
                         <td className="px-3 py-2 text-gray-500 hidden sm:table-cell">{formatDate(b.booking_date)}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{formatRupiah(b.total)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {isPaid ? (
+                            <span className="font-semibold text-gray-700">{formatRupiah(b.commissionAmount)}</span>
+                          ) : (
+                            <div className="flex items-center justify-end">
+                              <span className="text-gray-400 mr-1">Rp</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={b.commissionAmount > 0 ? String(b.commissionAmount) : ""}
+                                onChange={e => onBookingCommissionChange(b.id, e.target.value)}
+                                placeholder="0"
+                                className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-right text-xs focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
+                              />
+                            </div>
+                          )}
+                        </td>
                         <td className="px-3 py-2">
                           <Link
                             href={`/bookings/${b.id}`}
@@ -494,9 +521,13 @@ function StaffCard({ card, onToggleExpand, onAmountChange, onTogglePaid, onSave 
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-gray-200 bg-gray-50">
-                      <td colSpan={3} className="px-3 py-2 font-semibold text-gray-600">Total</td>
+                      <td colSpan={3} className="px-3 py-2 font-semibold text-gray-600 hidden sm:table-cell">Total</td>
+                      <td colSpan={1} className="px-3 py-2 font-semibold text-gray-600 sm:hidden">Total</td>
                       <td className="px-3 py-2 text-right font-bold text-gray-800">
                         {formatRupiah(card.bookings.reduce((s, b) => s + b.total, 0))}
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold text-[#8B1A1A]">
+                        {formatRupiah(totalCommission)}
                       </td>
                       <td />
                     </tr>

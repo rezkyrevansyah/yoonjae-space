@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, PRINT_ORDER_STATUS_LABEL } from "@/lib/constants";
 import type { BookingDetail } from "./booking-detail-client";
 import type { CurrentUser, BookingStatus, PrintOrderStatus } from "@/lib/types/database";
@@ -29,7 +29,10 @@ import {
   Printer,
   Link as LinkIcon,
   Loader2,
+  CalendarDays,
 } from "lucide-react";
+
+const supabase = createClient();
 
 const BOOKING_FLOW: BookingStatus[] = [
   "BOOKED",
@@ -50,6 +53,10 @@ const PRINT_FLOW: PrintOrderStatus[] = [
   "DONE",
 ];
 
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 interface Props {
   booking: BookingDetail;
   currentUser: CurrentUser;
@@ -57,12 +64,17 @@ interface Props {
 }
 
 export function TabProgress({ booking, currentUser, onUpdate }: Props) {
-  const supabase = createClient();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [driveLink, setDriveLink] = useState(booking.google_drive_link ?? "");
   const [showDriveForm, setShowDriveForm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // Date tracking
+  const [statusDate, setStatusDate] = useState("");
+  const [printDate, setPrintDate] = useState("");
+  const [deliverDate, setDeliverDate] = useState("");
+  const [statusDates, setStatusDates] = useState<Record<string, string>>({});
 
   const currentStatusIdx = BOOKING_FLOW.indexOf(booking.status);
   const currentPrintIdx = booking.print_order_status
@@ -70,7 +82,31 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
     : -1;
   const isCanceled = booking.status === "CANCELED";
 
-  async function updateStatus(newStatus: BookingStatus) {
+  // Fetch saved dates on mount
+  useEffect(() => {
+    supabase
+      .from("booking_status_dates")
+      .select("status_type, status_date")
+      .eq("booking_id", booking.id)
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        (data ?? []).forEach((r: { status_type: string; status_date: string }) => {
+          map[r.status_type] = r.status_date;
+        });
+        setStatusDates(map);
+      });
+  }, [booking.id]);
+
+  async function saveStatusDate(statusType: string, date: string) {
+    if (!date) return;
+    await supabase.from("booking_status_dates").upsert(
+      { booking_id: booking.id, status_type: statusType, status_date: date },
+      { onConflict: "booking_id,status_type" }
+    );
+    setStatusDates((prev) => ({ ...prev, [statusType]: date }));
+  }
+
+  async function updateStatus(newStatus: BookingStatus, date?: string) {
     setLoading(true);
     try {
       const { error } = await supabase
@@ -78,6 +114,8 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
         .update({ status: newStatus })
         .eq("id", booking.id);
       if (error) throw error;
+
+      await saveStatusDate(newStatus, date ?? "");
 
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -90,6 +128,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
       });
 
       onUpdate({ status: newStatus });
+      setStatusDate("");
       toast({ title: "Status diperbarui", description: BOOKING_STATUS_LABEL[newStatus] });
     } catch {
       toast({ title: "Error", description: "Gagal memperbarui status", variant: "destructive" });
@@ -113,6 +152,8 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
         .eq("id", booking.id);
       if (error) throw error;
 
+      await saveStatusDate("PHOTOS_DELIVERED", deliverDate);
+
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
@@ -125,6 +166,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
 
       onUpdate({ status: "PHOTOS_DELIVERED", google_drive_link: normalizedLink });
       setShowDriveForm(false);
+      setDeliverDate("");
       toast({ title: "Foto berhasil dikirim!", description: "Status → Photos Delivered" });
     } catch {
       toast({ title: "Error", description: "Gagal deliver foto", variant: "destructive" });
@@ -133,7 +175,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
     }
   }
 
-  async function updatePrintStatus(newStatus: PrintOrderStatus) {
+  async function updatePrintStatus(newStatus: PrintOrderStatus, date?: string) {
     setLoading(true);
     try {
       const { error } = await supabase
@@ -141,6 +183,8 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
         .update({ print_order_status: newStatus })
         .eq("id", booking.id);
       if (error) throw error;
+
+      await saveStatusDate(newStatus, date ?? "");
 
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -153,6 +197,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
       });
 
       onUpdate({ print_order_status: newStatus });
+      setPrintDate("");
       toast({ title: "Print status diperbarui", description: PRINT_ORDER_STATUS_LABEL[newStatus] });
     } catch {
       toast({ title: "Error", description: "Gagal memperbarui print status", variant: "destructive" });
@@ -162,7 +207,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
   }
 
   async function startPrint() {
-    await updatePrintStatus("SELECTION");
+    await updatePrintStatus("SELECTION", printDate || undefined);
   }
 
   return (
@@ -173,7 +218,6 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
 
         {/* Stepper */}
         <div className="relative">
-          {/* Line */}
           <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
           <div
             className="absolute top-4 left-4 h-0.5 bg-maroon-600 transition-all"
@@ -183,19 +227,17 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                 : `${(currentStatusIdx / (BOOKING_FLOW.length - 1)) * 100}%`,
             }}
           />
-
           <div className="relative flex justify-between">
             {BOOKING_FLOW.map((status, idx) => {
               const isPast = idx < currentStatusIdx;
               const isCurrent = idx === currentStatusIdx && !isCanceled;
+              const savedDate = statusDates[status];
               return (
                 <div key={status} className="flex flex-col items-center gap-1">
                   <div
                     className={cn(
                       "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
-                      isPast || isCurrent
-                        ? "border-maroon-600"
-                        : "border-gray-300"
+                      isPast || isCurrent ? "border-maroon-600" : "border-gray-300"
                     )}
                   >
                     {isPast ? (
@@ -212,6 +254,11 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   )}>
                     {BOOKING_STATUS_LABEL[status]}
                   </span>
+                  {savedDate && (
+                    <span className="text-[10px] text-gray-400 leading-none text-center max-w-[60px]">
+                      {formatDate(savedDate)}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -247,7 +294,30 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                       onChange={(e) => setDriveLink(e.target.value)}
                       placeholder="https://drive.google.com/..."
                     />
-                    <div className="flex gap-2">
+                    {/* Date input for Photos Delivered */}
+                    <div className="flex items-end gap-2 pt-1">
+                      <div className="flex-1">
+                        <Label className="text-xs text-gray-500 mb-1 block">
+                          Tanggal Photos Delivered (opsional)
+                        </Label>
+                        <input
+                          type="date"
+                          value={deliverDate}
+                          onChange={(e) => setDeliverDate(e.target.value)}
+                          className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 gap-1"
+                        onClick={() => setDeliverDate(todayStr())}
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Today
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 pt-1">
                       <Button
                         variant="outline"
                         size="sm"
@@ -270,7 +340,33 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
               </>
             )}
 
-            {/* Next / Back buttons for other statuses */}
+            {/* Date input for next status (non SHOOT_DONE) */}
+            {booking.status !== "SHOOT_DONE" && currentStatusIdx < BOOKING_FLOW.length - 1 && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-gray-500 mb-1 block">
+                    Tanggal {BOOKING_STATUS_LABEL[BOOKING_FLOW[currentStatusIdx + 1]]} (opsional)
+                  </Label>
+                  <input
+                    type="date"
+                    value={statusDate}
+                    onChange={(e) => setStatusDate(e.target.value)}
+                    className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => setStatusDate(todayStr())}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Today
+                </Button>
+              </div>
+            )}
+
+            {/* Next / Back buttons */}
             {booking.status !== "SHOOT_DONE" && (
               <div className="flex gap-2">
                 {currentStatusIdx > 0 && (
@@ -287,7 +383,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                 {currentStatusIdx < BOOKING_FLOW.length - 1 && (
                   <Button
                     className="flex-1 gap-1 bg-maroon-700 hover:bg-maroon-600 text-white"
-                    onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx + 1])}
+                    onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx + 1], statusDate || undefined)}
                     disabled={loading}
                   >
                     {loading ? (
@@ -355,8 +451,31 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
         </h3>
 
         {!booking.print_order_status ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-gray-500">Belum ada print order untuk booking ini.</p>
+            {/* Date input for starting print */}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Label className="text-xs text-gray-500 mb-1 block">
+                  Tanggal Selection (opsional)
+                </Label>
+                <input
+                  type="date"
+                  value={printDate}
+                  onChange={(e) => setPrintDate(e.target.value)}
+                  className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1"
+                onClick={() => setPrintDate(todayStr())}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Today
+              </Button>
+            </div>
             <Button
               variant="outline"
               className="gap-2"
@@ -382,6 +501,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                 {PRINT_FLOW.map((status, idx) => {
                   const isPast = idx < currentPrintIdx;
                   const isCurrent = idx === currentPrintIdx;
+                  const savedDate = statusDates[status];
                   return (
                     <div key={status} className="flex flex-col items-center gap-1">
                       <div
@@ -404,11 +524,42 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                       )}>
                         {PRINT_ORDER_STATUS_LABEL[status]}
                       </span>
+                      {savedDate && (
+                        <span className="text-[10px] text-gray-400 leading-none text-center max-w-[50px]">
+                          {formatDate(savedDate)}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
+
+            {/* Date input for next print step */}
+            {currentPrintIdx < PRINT_FLOW.length - 1 && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-gray-500 mb-1 block">
+                    Tanggal {PRINT_ORDER_STATUS_LABEL[PRINT_FLOW[currentPrintIdx + 1]]} (opsional)
+                  </Label>
+                  <input
+                    type="date"
+                    value={printDate}
+                    onChange={(e) => setPrintDate(e.target.value)}
+                    className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => setPrintDate(todayStr())}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Today
+                </Button>
+              </div>
+            )}
 
             {/* Print nav */}
             <div className="flex gap-2">
@@ -426,7 +577,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
               {currentPrintIdx < PRINT_FLOW.length - 1 && (
                 <Button
                   className="flex-1 gap-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => updatePrintStatus(PRINT_FLOW[currentPrintIdx + 1])}
+                  onClick={() => updatePrintStatus(PRINT_FLOW[currentPrintIdx + 1], printDate || undefined)}
                   disabled={loading}
                 >
                   {loading ? (

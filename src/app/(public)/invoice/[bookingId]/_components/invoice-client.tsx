@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatDate, formatRupiah, formatTime } from "@/lib/utils";
@@ -9,11 +9,10 @@ import type { BookingStatus } from "@/lib/types/database";
 import {
   ArrowLeft,
   Copy,
-  MessageCircle,
+  Share2,
   Printer,
   Check,
 } from "lucide-react";
-import { useState } from "react";
 
 // ---- Types ----
 interface BookingData {
@@ -62,9 +61,29 @@ interface Props {
   currentUser: CurrentUser | null;
 }
 
+const INVOICE_WIDTH = 600;
+
 export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
   const [copied, setCopied] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [paperHeight, setPaperHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    function updateScale() {
+      const vw = window.innerWidth;
+      setScale(vw < INVOICE_WIDTH ? vw / INVOICE_WIDTH : 1);
+    }
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && printRef.current) setPaperHeight(printRef.current.offsetHeight);
+  }, [scale, mounted]);
 
   // Resolve invoice
   const invoice = Array.isArray(booking.invoices)
@@ -92,11 +111,17 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
     discountLabel = "Diskon Manual";
   }
 
-  // WhatsApp share
-  const pageUrl = typeof window !== "undefined" ? window.location.href : "";
-  const waLink = studioInfo?.whatsapp_number
-    ? `https://wa.me/${studioInfo.whatsapp_number.replace(/^0/, "62").replace(/\D/g, "")}?text=${encodeURIComponent(`Halo, berikut invoice saya: ${pageUrl}`)}`
-    : null;
+  const handleShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: `Invoice ${booking.booking_number}`, url: window.location.href });
+      } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -133,17 +158,13 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
             )}
           </button>
 
-          {waLink && (
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 bg-green-500 text-white text-sm px-3 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span>Share WA</span>
-            </a>
-          )}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 bg-green-500 text-white text-sm px-3 py-2 rounded-lg hover:bg-green-600 transition-colors"
+          >
+            <Share2 className="h-4 w-4" />
+            <span>Bagikan</span>
+          </button>
 
           <button
             onClick={handlePrint}
@@ -155,12 +176,25 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
         </div>
       </div>
 
-      {/* Invoice paper — horizontal scroll on small screens */}
-      <div className="bg-gray-50 min-h-screen py-8 print:bg-white print:p-0 print:m-0 overflow-x-auto">
+      {/* Invoice paper */}
+      <div className="bg-gray-50 min-h-screen py-8 print:bg-white print:p-0 print:m-0 print:min-h-0 overflow-x-hidden">
+        {/* Scale wrapper — shrinks invoice on mobile after mount, normal on desktop/SSR */}
+        <div
+          style={{
+            width: mounted && scale < 1 ? `${Math.round(INVOICE_WIDTH * scale)}px` : "100%",
+            maxWidth: !mounted || scale >= 1 ? "672px" : undefined,
+            height: mounted && paperHeight && scale < 1 ? `${Math.round(paperHeight * scale)}px` : undefined,
+            margin: "0 auto",
+          }}
+        >
         <div
           ref={printRef}
-          className="bg-white mx-auto shadow-md print:shadow-none print:max-w-none"
-          style={{ minWidth: "600px", maxWidth: "672px", minHeight: "297mm" }}
+          className="invoice-paper bg-white shadow-md print:shadow-none print:max-w-none"
+          style={{
+            width: INVOICE_WIDTH,
+            transformOrigin: "top left",
+            transform: mounted && scale < 1 ? `scale(${scale})` : undefined,
+          }}
         >
           {/* ---- Header ---- */}
           <div className="border-b-2 border-[#8B1A1A] p-8 pb-6">
@@ -350,6 +384,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* ---- Print styles ---- */}
@@ -365,6 +400,13 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
           }
           .print\\:hidden {
             display: none !important;
+          }
+          body > * {
+            min-height: 0 !important;
+          }
+          .invoice-paper {
+            margin: 0 auto;
+            width: 600px;
           }
         }
       `}</style>

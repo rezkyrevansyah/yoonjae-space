@@ -20,10 +20,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { CurrentUser, BookingStatus, PrintOrderStatus } from "@/lib/types/database";
-import { ArrowLeft, User, FileText, MessageCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, User, FileText, MessageCircle, Trash2, CalendarClock, Pencil } from "lucide-react";
 import { TabOverview } from "./tab-overview";
 import { TabProgress } from "./tab-progress";
 import { TabPricing } from "./tab-pricing";
+import { RescheduleModal } from "./reschedule-modal";
+import { EditDetailModal } from "./edit-detail-modal";
+import type { PackageOption, BackgroundOption, PhotoForOption, UserOption, CustomFieldOption } from "./edit-detail-modal";
 
 export interface BookingAddonRow {
   addon_id: string;
@@ -41,6 +44,7 @@ export interface BookingDetail {
   end_time: string;
   status: BookingStatus;
   print_order_status: PrintOrderStatus | null;
+  is_rescheduled: boolean;
   google_drive_link: string | null;
   person_count: number;
   notes: string | null;
@@ -76,9 +80,14 @@ interface Props {
   currentUser: CurrentUser;
   booking: BookingDetail;
   availableAddons: AvailableAddon[];
+  packages: PackageOption[];
+  backgrounds: BackgroundOption[];
+  photoFors: PhotoForOption[];
+  users: UserOption[];
+  customFields: CustomFieldOption[];
 }
 
-export function BookingDetailClient({ currentUser, booking: initialBooking, availableAddons }: Props) {
+export function BookingDetailClient({ currentUser, booking: initialBooking, availableAddons, packages, backgrounds, photoFors, users, customFields }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -86,6 +95,8 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
   const [booking, setBooking] = useState<BookingDetail>(initialBooking);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [showEditDetail, setShowEditDetail] = useState(false);
 
   async function handleDelete() {
     setDeleting(true);
@@ -134,6 +145,11 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
           <Badge className={BOOKING_STATUS_COLOR[booking.status]}>
             {BOOKING_STATUS_LABEL[booking.status]}
           </Badge>
+          {booking.is_rescheduled && (
+            <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+              Rescheduled
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -157,6 +173,24 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
               Invoice
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+            onClick={() => setShowEditDetail(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Detail
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50"
+            onClick={() => setShowReschedule(true)}
+          >
+            <CalendarClock className="h-4 w-4" />
+            Reschedule
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -197,6 +231,37 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
           />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Detail Modal */}
+      <EditDetailModal
+        open={showEditDetail}
+        onClose={() => setShowEditDetail(false)}
+        booking={booking}
+        currentUser={currentUser}
+        onUpdated={(updated) => setBooking((prev) => ({ ...prev, ...updated }))}
+        packages={packages}
+        backgrounds={backgrounds}
+        photoFors={photoFors}
+        users={users}
+        customFields={customFields}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        open={showReschedule}
+        onClose={() => setShowReschedule(false)}
+        booking={booking}
+        currentUser={currentUser}
+        onRescheduled={(newDate, newStart, newEnd) =>
+          setBooking((prev) => ({
+            ...prev,
+            booking_date: newDate,
+            start_time: newStart,
+            end_time: newEnd,
+            is_rescheduled: true,
+          }))
+        }
+      />
 
       {/* Delete Dialog */}
       <AlertDialog open={showDelete} onOpenChange={setShowDelete}>

@@ -151,11 +151,12 @@ export function StepCustomerData({ customerData, onChange, leads }: Props) {
 
         <div>
           <Label>Leads / Referral</Label>
-          <Select value={customerData.lead_id} onValueChange={(v) => set("lead_id", v)}>
+          <Select value={customerData.lead_id || "__none__"} onValueChange={(v) => set("lead_id", v === "__none__" ? "" : v)}>
             <SelectTrigger>
               <SelectValue placeholder="Pilih sumber leads" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">—</SelectItem>
               {leads.map((l) => (
                 <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
               ))}

@@ -1,8 +1,11 @@
 "use client";
 
-import { Plus, Pencil, Trash2, Bot } from "lucide-react";
+import { useState } from "react";
+import { Plus, Pencil, Trash2, Bot, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import type { Expense } from "@/lib/types/database";
+
+type ExpenseSortField = "date" | "amount";
 
 interface Props {
   expenses: Expense[];
@@ -13,7 +16,29 @@ interface Props {
 }
 
 export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Props) {
+  const [sortField, setSortField] = useState<ExpenseSortField>("date");
+  const [sortAsc, setSortAsc] = useState(false);
+
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const sorted = [...expenses].sort((a, b) => {
+    if (sortField === "date") {
+      return sortAsc
+        ? a.date.localeCompare(b.date)
+        : b.date.localeCompare(a.date);
+    }
+    return sortAsc ? a.amount - b.amount : b.amount - a.amount;
+  });
+
+  function handleSort(field: ExpenseSortField) {
+    if (sortField === field) setSortAsc(v => !v);
+    else { setSortField(field); setSortAsc(false); }
+  }
+
+  function SortIcon({ field }: { field: ExpenseSortField }) {
+    if (sortField !== field) return <ChevronsUpDown className="w-3 h-3 text-gray-300" />;
+    return sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -45,16 +70,32 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left font-medium">Tanggal</th>
+                  <th
+                    className="px-4 py-2.5 text-left font-medium cursor-pointer select-none hover:text-gray-700"
+                    onClick={() => handleSort("date")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Tanggal
+                      <SortIcon field="date" />
+                    </span>
+                  </th>
                   <th className="px-4 py-2.5 text-left font-medium">Deskripsi</th>
                   <th className="px-4 py-2.5 text-left font-medium">Kategori</th>
                   <th className="px-4 py-2.5 text-left font-medium">Vendor</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Jumlah</th>
+                  <th
+                    className="px-4 py-2.5 text-right font-medium cursor-pointer select-none hover:text-gray-700"
+                    onClick={() => handleSort("amount")}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1 w-full">
+                      Jumlah
+                      <SortIcon field="amount" />
+                    </span>
+                  </th>
                   <th className="px-4 py-2.5 w-20 text-center font-medium">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {expenses.map((e) => {
+                {sorted.map((e) => {
                   const isAuto = e.source === "commission";
                   const vendor = e.vendors as { name: string } | null | undefined;
                   return (
@@ -125,7 +166,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
 
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-50">
-            {expenses.map((e) => {
+            {sorted.map((e) => {
               const isAuto = e.source === "commission";
               const vendor = e.vendors as { name: string } | null | undefined;
               return (

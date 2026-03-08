@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { getCachedStudioInfo, getCachedSettingsGeneral } from "@/lib/cached-queries";
 import { CustomerPageClient } from "./_components/customer-page-client";
 
 export default async function CustomerPage({ params }: { params: { bookingId: string } }) {
   const supabase = await createClient();
 
-  const [{ data: booking }, { data: studioInfo }, { data: settings }] = await Promise.all([
+  const [{ data: booking }, studioInfo, settings] = await Promise.all([
     supabase
       .from("bookings")
       .select(`
@@ -19,16 +20,8 @@ export default async function CustomerPage({ params }: { params: { bookingId: st
       `)
       .eq("id", params.bookingId)
       .single(),
-    supabase
-      .from("settings_studio_info")
-      .select("studio_name, logo_url, front_photo_url, address, whatsapp_number, instagram, google_maps_url, footer_text")
-      .eq("lock", true)
-      .maybeSingle(),
-    supabase
-      .from("settings_general")
-      .select("open_time, close_time")
-      .eq("lock", true)
-      .maybeSingle(),
+    getCachedStudioInfo(),
+    getCachedSettingsGeneral(),
   ]);
 
   if (!booking) notFound();

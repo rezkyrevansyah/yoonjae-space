@@ -39,6 +39,8 @@ function StudioLogo({ logoUrl, studioName }: { logoUrl?: string | null; studioNa
         height={36}
         className="rounded-lg object-cover w-9 h-9 shrink-0"
         onError={() => setImgError(true)}
+        priority
+        sizes="36px"
       />
     );
   }

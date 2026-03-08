@@ -55,6 +55,7 @@ export default async function CalendarPage() {
       currentUser={currentUser}
       openTime={settings?.open_time ?? "09:00"}
       closeTime={settings?.close_time ?? "21:00"}
+      timeSlotInterval={settings?.time_slot_interval ?? 30}
       initialBookings={initialBookings}
       initialDateStr={today}
     />

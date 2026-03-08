@@ -4,9 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
-
-// Module-level singleton — stable across renders, no dependency churn
-const supabase = createClient();
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   BOOKING_STATUS_LABEL,
   BOOKING_STATUS_COLOR,
+  PRINT_ORDER_STATUS_LABEL,
 } from "@/lib/constants";
 import { formatRupiah, formatDate, formatTime } from "@/lib/utils";
 import type { CurrentUser, BookingStatus } from "@/lib/types/database";
@@ -54,6 +52,8 @@ import {
   CalendarCheck,
 } from "lucide-react";
 
+const supabase = createClient();
+
 interface BookingRow {
   id: string;
   booking_number: string;
@@ -61,6 +61,8 @@ interface BookingRow {
   start_time: string;
   end_time: string;
   status: BookingStatus;
+  print_order_status: string | null;
+  is_rescheduled: boolean;
   total: number;
   created_at: string;
   customers: { name: string } | null;
@@ -73,10 +75,11 @@ const ALL_STATUSES = "ALL";
 
 interface Props {
   currentUser: CurrentUser;
+  initialPrint: string;
   initialData: { bookings: BookingRow[]; total: number };
 }
 
-export function BookingsClient({ currentUser, initialData }: Props) {
+export function BookingsClient({ currentUser, initialPrint, initialData }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   // Stable ref for currentUser to avoid adding it to useCallback deps
@@ -91,16 +94,35 @@ export function BookingsClient({ currentUser, initialData }: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
+  const [printFilter, setPrintFilter] = useState<string>(initialPrint);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortAsc, setSortAsc] = useState(false);
 
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteNumber, setDeleteNumber] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
+
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  function resetFilters() {
+    setSearchInput("");
+    setSearch("");
+    setStatusFilter(ALL_STATUSES);
+    setPrintFilter("");
+    setDateFrom("");
+    setDateTo("");
+    setPage(0);
+  }
+
+  const hasActiveFilters = !!(searchInput || statusFilter !== ALL_STATUSES || printFilter || dateFrom || dateTo);
+  const isTodayFilter = dateFrom === todayStr && dateTo === todayStr;
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -108,7 +130,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
       let query = supabase
         .from("bookings")
         .select(
-          `id, booking_number, booking_date, start_time, end_time, status, total, created_at,
+          `id, booking_number, booking_date, start_time, end_time, status, print_order_status, is_rescheduled, total, created_at,
            customers(name),
            packages(name),
            staff:users!bookings_staff_id_fkey(name)`,
@@ -119,6 +141,9 @@ export function BookingsClient({ currentUser, initialData }: Props) {
 
       if (statusFilter !== ALL_STATUSES) {
         query = query.eq("status", statusFilter);
+      }
+      if (printFilter) {
+        query = query.eq("print_order_status", printFilter);
       }
       if (dateFrom) query = query.gte("booking_date", dateFrom);
       if (dateTo) query = query.lte("booking_date", dateTo);
@@ -142,9 +167,10 @@ export function BookingsClient({ currentUser, initialData }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, dateFrom, dateTo, search, page, pageSize, sortAsc, toast]);
+  }, [statusFilter, printFilter, dateFrom, dateTo, search, page, pageSize, sortAsc, toast]);
 
   // Track whether we've moved past the initial default state
+  // Initial data is already server-filtered (server reads ?print= param), so always skip first fetch
   const isInitialMount = useRef(true);
 
   // Debounce search input — 300ms delay before committing to query
@@ -154,7 +180,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
   }, [searchInput]);
 
   useEffect(() => {
-    // Skip the very first fetch — initial data already provided by server
+    // Skip the very first fetch only when we have server-provided initial data (no print filter)
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -165,7 +191,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
   // Reset page when filters or sort change
   useEffect(() => {
     setPage(0);
-  }, [search, statusFilter, dateFrom, dateTo, pageSize, sortAsc]);
+  }, [search, statusFilter, printFilter, dateFrom, dateTo, pageSize, sortAsc]);
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -214,8 +240,8 @@ export function BookingsClient({ currentUser, initialData }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Cari nama customer / booking ID..."
@@ -225,12 +251,23 @@ export function BookingsClient({ currentUser, initialData }: Props) {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_STATUSES}>Semua Status</SelectItem>
             {Object.entries(BOOKING_STATUS_LABEL).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={printFilter || ALL_STATUSES} onValueChange={(v) => setPrintFilter(v === ALL_STATUSES ? "" : v)}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Print Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_STATUSES}>Semua Print</SelectItem>
+            {Object.entries(PRINT_ORDER_STATUS_LABEL).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
           </SelectContent>
@@ -256,6 +293,19 @@ export function BookingsClient({ currentUser, initialData }: Props) {
             />
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { setDateFrom(todayStr); setDateTo(todayStr); setPage(0); }}
+          className={`shrink-0 ${isTodayFilter ? "bg-maroon-50 border-maroon-300 text-maroon-700" : ""}`}
+        >
+          Hari Ini
+        </Button>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="shrink-0 text-gray-500">
+            Reset Filter
+          </Button>
+        )}
       </div>
 
       {/* Table — desktop */}
@@ -281,6 +331,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
               <TableHead>Waktu</TableHead>
               <TableHead>Paket</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Print Status</TableHead>
               <TableHead>Handled By</TableHead>
               <TableHead>Total</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
@@ -290,7 +341,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 10 }).map((_, j) => (
                     <TableCell key={j}>
                       <div className="h-4 bg-gray-100 rounded animate-pulse" />
                     </TableCell>
@@ -299,7 +350,7 @@ export function BookingsClient({ currentUser, initialData }: Props) {
               ))
             ) : bookings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-16 text-center">
+                <TableCell colSpan={10} className="py-16 text-center">
                   <CalendarCheck className="mx-auto h-10 w-10 text-gray-300 mb-2" />
                   <p className="text-gray-500">Belum ada booking</p>
                 </TableCell>
@@ -313,9 +364,25 @@ export function BookingsClient({ currentUser, initialData }: Props) {
                   <TableCell className="text-sm">{formatTime(b.start_time)}</TableCell>
                   <TableCell className="text-sm">{b.packages?.name ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge className={BOOKING_STATUS_COLOR[b.status]}>
-                      {BOOKING_STATUS_LABEL[b.status]}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge className={BOOKING_STATUS_COLOR[b.status]}>
+                        {BOOKING_STATUS_LABEL[b.status]}
+                      </Badge>
+                      {b.is_rescheduled && (
+                        <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+                          Rescheduled
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {b.print_order_status ? (
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {PRINT_ORDER_STATUS_LABEL[b.print_order_status as keyof typeof PRINT_ORDER_STATUS_LABEL] ?? b.print_order_status}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">{b.staff?.name ?? "-"}</TableCell>
                   <TableCell className="text-sm font-medium">{formatRupiah(b.total)}</TableCell>
@@ -368,13 +435,28 @@ export function BookingsClient({ currentUser, initialData }: Props) {
                   <p className="font-mono text-xs text-gray-500">{b.booking_number}</p>
                   <p className="font-semibold text-gray-900">{b.customers?.name ?? "-"}</p>
                 </div>
-                <Badge className={BOOKING_STATUS_COLOR[b.status]}>
-                  {BOOKING_STATUS_LABEL[b.status]}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={BOOKING_STATUS_COLOR[b.status]}>
+                    {BOOKING_STATUS_LABEL[b.status]}
+                  </Badge>
+                  {b.is_rescheduled && (
+                    <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+                      Rescheduled
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="text-sm text-gray-600 space-y-1">
                 <p>{formatDate(b.booking_date)} · {formatTime(b.start_time)}</p>
                 <p>{b.packages?.name ?? "-"}</p>
+                {b.print_order_status && (
+                  <p className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400">Print:</span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      {PRINT_ORDER_STATUS_LABEL[b.print_order_status as keyof typeof PRINT_ORDER_STATUS_LABEL] ?? b.print_order_status}
+                    </span>
+                  </p>
+                )}
                 <p className="font-semibold text-gray-900">{formatRupiah(b.total)}</p>
               </div>
               <div className="flex gap-2 mt-3">

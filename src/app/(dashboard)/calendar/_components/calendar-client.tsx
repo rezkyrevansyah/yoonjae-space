@@ -12,11 +12,13 @@ import {
   ChevronRight,
   Plus,
   ExternalLink,
+  CalendarSearch,
 } from "lucide-react";
 import { CalendarDayView } from "./calendar-day-view";
 import { CalendarWeekView } from "./calendar-week-view";
 import { CalendarMonthView } from "./calendar-month-view";
 import { BookingPopup } from "./booking-popup";
+import { AvailabilityModal } from "./availability-modal";
 
 // ---- Types ----
 export interface CalendarBooking {
@@ -28,6 +30,7 @@ export interface CalendarBooking {
   status: BookingStatus;
   person_count: number;
   behind_the_scenes: boolean;
+  notes: string | null;
   customers: { name: string; phone: string } | null;
   packages: { name: string; duration_minutes: number } | null;
   photo_for: { name: string } | null;
@@ -41,6 +44,7 @@ interface Props {
   currentUser: CurrentUser;
   openTime: string;
   closeTime: string;
+  timeSlotInterval: number;
   initialBookings: CalendarBooking[];
   initialDateStr: string;
 }
@@ -83,7 +87,7 @@ function formatNavLabel(d: Date, mode: ViewMode): string {
   return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 }
 
-export function CalendarClient({ currentUser, openTime, closeTime, initialBookings, initialDateStr }: Props) {
+export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInterval, initialBookings, initialDateStr }: Props) {
   const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("day");
   const [cursor, setCursor] = useState<Date>(new Date());
@@ -91,6 +95,7 @@ export function CalendarClient({ currentUser, openTime, closeTime, initialBookin
   const [loading, setLoading] = useState(false);
   const isInitialMount = useRef(true);
   const [selectedBooking, setSelectedBooking] = useState<CalendarBooking | null>(null);
+  const [showAvailability, setShowAvailability] = useState(false);
 
   const fetchBookings = useCallback(async (mode: ViewMode, date: Date) => {
     setLoading(true);
@@ -114,7 +119,7 @@ export function CalendarClient({ currentUser, openTime, closeTime, initialBookin
     // Week/Month view: fetch lightweight data (no nested arrays) — popup lazy-loads detail
     const selectFields = mode === "day"
       ? `id, booking_number, booking_date, start_time, end_time, status,
-         person_count, behind_the_scenes,
+         person_count, behind_the_scenes, notes,
          customers(name, phone),
          packages(name, duration_minutes),
          photo_for:photo_for(name),
@@ -237,6 +242,15 @@ export function CalendarClient({ currentUser, openTime, closeTime, initialBookin
 
         {/* Actions */}
         <div className="flex items-center gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAvailability(true)}
+            className="flex items-center gap-1.5"
+          >
+            <CalendarSearch className="h-3.5 w-3.5" />
+            Cek Ketersediaan
+          </Button>
           <Link
             href="/mua"
             target="_blank"
@@ -280,6 +294,16 @@ export function CalendarClient({ currentUser, openTime, closeTime, initialBookin
           />
         )}
       </div>
+
+      {/* Availability modal */}
+      <AvailabilityModal
+        open={showAvailability}
+        onClose={() => setShowAvailability(false)}
+        date={cursor}
+        openTime={openTime}
+        closeTime={closeTime}
+        timeSlotInterval={timeSlotInterval}
+      />
 
       {/* Booking popup */}
       {selectedBooking && (

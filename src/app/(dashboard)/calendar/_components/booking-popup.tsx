@@ -142,6 +142,13 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           {booking.behind_the_scenes && (
             <p className="text-xs text-purple-600 font-medium">BTS ✓</p>
           )}
+
+          {booking.notes && (
+            <div className="pt-1">
+              <p className="text-xs text-gray-500 mb-1">Catatan</p>
+              <p className="text-sm text-gray-700 whitespace-pre-line">{booking.notes}</p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
