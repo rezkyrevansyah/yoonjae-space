@@ -25,7 +25,7 @@ export default async function CalendarPage() {
       .from("bookings")
       .select(`
         id, booking_number, booking_date, start_time, end_time, status,
-        person_count, behind_the_scenes,
+        person_count, behind_the_scenes, notes,
         customers(name, phone),
         packages(name, duration_minutes),
         photo_for:photo_for(name),

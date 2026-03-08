@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const BOOKING_FLOW: BookingStatus[] = [
-  "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED",
+  "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "CLOSED",
 ];
 
 interface Props {
