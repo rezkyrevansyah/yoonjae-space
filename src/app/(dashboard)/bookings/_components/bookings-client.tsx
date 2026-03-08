@@ -148,9 +148,16 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
       if (dateFrom) query = query.gte("booking_date", dateFrom);
       if (dateTo) query = query.lte("booking_date", dateTo);
       if (search.trim()) {
-        query = query.or(
-          `booking_number.ilike.%${search.trim()}%,customers.name.ilike.%${search.trim()}%`
-        );
+        const { data: matchingCustomers } = await supabase
+          .from("customers")
+          .select("id")
+          .ilike("name", `%${search.trim()}%`);
+        const customerIds = matchingCustomers?.map((c) => c.id) ?? [];
+        const conditions = [`booking_number.ilike.%${search.trim()}%`];
+        if (customerIds.length > 0) {
+          conditions.push(`customer_id.in.(${customerIds.join(",")})`);
+        }
+        query = query.or(conditions.join(","));
       }
 
       const from = page * pageSize;

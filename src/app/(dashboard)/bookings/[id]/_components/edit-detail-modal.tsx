@@ -298,13 +298,14 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
                 Jumlah Orang <span className="text-red-500">*</span>
               </Label>
               <Input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 value={personCountInput}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => {
-                  setPersonCountInput(e.target.value);
-                  const v = parseInt(e.target.value, 10);
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setPersonCountInput(raw);
+                  const v = parseInt(raw, 10);
                   if (!isNaN(v) && v > 0) setForm((f) => ({ ...f, person_count: v }));
                 }}
               />
