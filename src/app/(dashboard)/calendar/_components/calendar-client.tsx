@@ -126,7 +126,7 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
          booking_backgrounds(backgrounds(name)),
          booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position))`
       : `id, booking_number, booking_date, start_time, end_time, status,
-         person_count, behind_the_scenes,
+         person_count, behind_the_scenes, notes,
          customers(name, phone),
          packages(name, duration_minutes),
          photo_for:photo_for(name)`;
