@@ -108,9 +108,6 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       onUpdate({ booking_addons: updated });
       setSelectedAddonId("__none__");
 
-      // Check if we need ADDON_UNPAID status
-      await checkAndUpdateStatus(updated);
-
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
@@ -155,7 +152,6 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       const updated = addons.filter((a) => !(a.addon_id === addonId && a.is_extra));
       setAddons(updated);
       onUpdate({ booking_addons: updated });
-      await checkAndUpdateStatus(updated);
 
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -191,8 +187,6 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       setAddons(updated);
       onUpdate({ booking_addons: updated });
 
-      await checkAndUpdateStatus(updated);
-
       const addonName = addons.find((a) => a.addon_id === addonId)?.addons?.name ?? addonId;
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -212,27 +206,6 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       toast({ title: "Error", description: "Gagal memperbarui status add-on", variant: "destructive" });
     } finally {
       setTogglingId(null);
-    }
-  }
-
-  async function checkAndUpdateStatus(currentAddons: BookingAddonRow[]) {
-    // Only manage status when booking is relevant
-    const relevantStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
-    if (!relevantStatuses.includes(booking.status)) return;
-
-    const extraUnpaid = currentAddons.filter((a) => a.is_extra && !a.is_paid);
-    let newStatus = booking.status;
-
-    if (extraUnpaid.length > 0 && booking.status !== "ADDON_UNPAID") {
-      newStatus = "ADDON_UNPAID";
-    } else if (extraUnpaid.length === 0 && booking.status === "ADDON_UNPAID") {
-      // Revert to previous logical status
-      newStatus = "PHOTOS_DELIVERED";
-    }
-
-    if (newStatus !== booking.status) {
-      await supabase.from("bookings").update({ status: newStatus }).eq("id", booking.id);
-      onUpdate({ status: newStatus });
     }
   }
 

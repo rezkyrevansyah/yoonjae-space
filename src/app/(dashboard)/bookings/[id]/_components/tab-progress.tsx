@@ -30,6 +30,7 @@ import {
   Link as LinkIcon,
   Loader2,
   CalendarDays,
+  AlertCircle,
 } from "lucide-react";
 
 const supabase = createClient();
@@ -39,7 +40,6 @@ const BOOKING_FLOW: BookingStatus[] = [
   "PAID",
   "SHOOT_DONE",
   "PHOTOS_DELIVERED",
-  "ADDON_UNPAID",
   "CLOSED",
 ];
 
@@ -76,7 +76,9 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
   const [deliverDate, setDeliverDate] = useState("");
   const [statusDates, setStatusDates] = useState<Record<string, string>>({});
 
-  const currentStatusIdx = BOOKING_FLOW.indexOf(booking.status);
+  const effectiveStatus: BookingStatus =
+    booking.status === "ADDON_UNPAID" ? "PHOTOS_DELIVERED" : booking.status;
+  const currentStatusIdx = BOOKING_FLOW.indexOf(effectiveStatus);
   const currentPrintIdx = booking.print_order_status
     ? PRINT_FLOW.indexOf(booking.print_order_status)
     : -1;
@@ -272,12 +274,30 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
           </div>
         )}
 
+        {booking.status === "ADDON_UNPAID" && (
+          <div className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 p-3 text-orange-700 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Ada extra add-on yang belum lunas. Cek tab <strong>Pricing</strong>.
+          </div>
+        )}
+
         {/* Action buttons */}
         {!isCanceled && (
           <div className="space-y-3">
             {/* SHOOT_DONE → PHOTOS_DELIVERED: need drive link */}
             {booking.status === "SHOOT_DONE" && (
               <>
+                {!showDriveForm && (
+                  <Button
+                    variant="outline"
+                    className="gap-1"
+                    onClick={() => updateStatus("PAID")}
+                    disabled={loading}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Kembali ke Paid
+                  </Button>
+                )}
                 {!showDriveForm ? (
                   <Button
                     className="w-full gap-2 bg-maroon-700 hover:bg-maroon-600 text-white"
