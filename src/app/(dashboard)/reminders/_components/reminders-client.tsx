@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, CurrentUser } from "@/lib/types/database";
-import { Bell, MessageCircle, Heart, CheckCircle, Clock } from "lucide-react";
+import { Bell, MessageCircle, Heart, CheckCircle, Clock, X } from "lucide-react";
 
 // ---- Types ----
 export interface ReminderBooking {
@@ -180,6 +180,56 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
     toast({ title: "Ditandai sudah di-remind ✓" });
   }
 
+  async function unmarkReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment") {
+    // Optimistic update
+    setMarkedIds(prev => ({
+      ...prev,
+      [booking.id]: (prev[booking.id] ?? []).filter(t => t !== type),
+    }));
+    setBookings(prev =>
+      prev.map(b =>
+        b.id === booking.id
+          ? { ...b, booking_reminders: b.booking_reminders.filter(r => r.type !== type) }
+          : b
+      )
+    );
+
+    const { error } = await supabase
+      .from("booking_reminders")
+      .delete()
+      .eq("booking_id", booking.id)
+      .eq("type", type);
+
+    if (error) {
+      // Rollback
+      setMarkedIds(prev => ({
+        ...prev,
+        [booking.id]: [...(prev[booking.id] ?? []), type],
+      }));
+      setBookings(prev =>
+        prev.map(b =>
+          b.id === booking.id
+            ? { ...b, booking_reminders: [...b.booking_reminders, { type, sent_at: "" }] }
+            : b
+        )
+      );
+      toast({ title: "Gagal membatalkan tandai", variant: "destructive" });
+      return;
+    }
+
+    await supabase.from("activity_log").insert({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      user_role: currentUser.role_name,
+      action: "DELETE",
+      entity: "booking_reminders",
+      entity_id: booking.id,
+      description: `Reminder (${type}) dibatalkan untuk booking ${booking.booking_number}`,
+    });
+
+    toast({ title: "Tandai dibatalkan" });
+  }
+
   function isMarked(bookingId: string, type: string): boolean {
     // O(1) Map + Set lookup instead of O(n) .find()
     const dbMarked = dbMarkedMap.get(bookingId)?.has(type) ?? false;
@@ -300,9 +350,9 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-center gap-2">
-                          <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" />
-                          <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" />
-                          <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" />
+                          <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" onCancel={() => unmarkReminded(b, "reminder")} />
+                          <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" onCancel={() => unmarkReminded(b, "thank_you_payment")} />
+                          <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" onCancel={() => unmarkReminded(b, "thank_you")} />
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
@@ -379,9 +429,9 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
 
                   {/* Reminded badges */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" />
-                    <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" />
-                    <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" />
+                    <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" onCancel={() => unmarkReminded(b, "reminder")} />
+                    <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" onCancel={() => unmarkReminded(b, "thank_you_payment")} />
+                    <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" onCancel={() => unmarkReminded(b, "thank_you")} />
                   </div>
 
                   {/* Action buttons */}
@@ -428,13 +478,18 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
 
 // ---- Helper components ----
 
-function RemindedBadge({ active, label }: { active: boolean; label: string }) {
+function RemindedBadge({ active, label, onCancel }: { active: boolean; label: string; onCancel?: () => void }) {
   if (!active) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">
-      <CheckCircle className="h-3 w-3" />
+    <button
+      onClick={onCancel}
+      title="Batalkan tandai"
+      className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors group"
+    >
+      <CheckCircle className="h-3 w-3 group-hover:hidden" />
+      <X className="h-3 w-3 hidden group-hover:inline" />
       {label}
-    </span>
+    </button>
   );
 }
 
