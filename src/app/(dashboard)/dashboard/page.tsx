@@ -49,16 +49,13 @@ export default async function DashboardPage() {
 
   const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
 
-  // Parallel fetch — 7 independent queries at once
+  // Parallel fetch — 6 independent queries at once
   const [
     { count: totalBookings },
     { data: revenueRows },
     { count: belumLunas },
     { data: todayBookings },
-    { count: countSelection },
-    { count: countVendor },
-    { count: countPacking },
-    { count: countShipped },
+    { data: printOrderRows },
     studioInfo,
   ] = await Promise.all([
     // 1. Total bookings this month (count only)
@@ -92,38 +89,24 @@ export default async function DashboardPage() {
       .not("status", "in", '("CANCELED")')
       .order("start_time"),
 
-    // 5-8. Print order counts — each is a separate count query (DB does the counting)
+    // 5. Print order statuses — single query, grouped in JS (replaces 4 separate count queries)
     supabase
       .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("print_order_status", "SELECTION"),
+      .select("print_order_status")
+      .in("print_order_status", ["SELECTION", "VENDOR", "PACKING", "SHIPPED"]),
 
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("print_order_status", "VENDOR"),
-
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("print_order_status", "PACKING"),
-
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("print_order_status", "SHIPPED"),
-
-    // 9. Studio name for greeting — cached (TTL 1hr)
+    // 6. Studio name for greeting — cached (TTL 1hr)
     getCachedStudioInfo(),
   ]);
 
   const estimasiRevenue = (revenueRows ?? []).reduce((sum, r) => sum + ((r as { total: number }).total ?? 0), 0);
 
+  const rows = (printOrderRows ?? []) as unknown as { print_order_status: string }[];
   const printCounts = {
-    SELECTION: countSelection ?? 0,
-    VENDOR: countVendor ?? 0,
-    PACKING: countPacking ?? 0,
-    SHIPPED: countShipped ?? 0,
+    SELECTION: rows.filter(r => r.print_order_status === "SELECTION").length,
+    VENDOR: rows.filter(r => r.print_order_status === "VENDOR").length,
+    PACKING: rows.filter(r => r.print_order_status === "PACKING").length,
+    SHIPPED: rows.filter(r => r.print_order_status === "SHIPPED").length,
   };
 
   const greeting = getGreeting(now);

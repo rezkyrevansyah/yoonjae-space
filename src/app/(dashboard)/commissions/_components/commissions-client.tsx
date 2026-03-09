@@ -135,19 +135,20 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
     setLoading(true);
 
     const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
-    const { data: bookings } = await supabase
-      .from("bookings")
-      .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(name)")
-      .gte("booking_date", period.start)
-      .lte("booking_date", period.end)
-      .in("status", paidStatuses)
-      .order("booking_date");
-
-    const { data: existingCommissions } = await supabase
-      .from("commissions")
-      .select("id, staff_id, total_amount, status")
-      .eq("period_start", period.start)
-      .eq("period_end", period.end);
+    const [{ data: bookings }, { data: existingCommissions }] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(name)")
+        .gte("booking_date", period.start)
+        .lte("booking_date", period.end)
+        .in("status", paidStatuses)
+        .order("booking_date"),
+      supabase
+        .from("commissions")
+        .select("id, staff_id, total_amount, status")
+        .eq("period_start", period.start)
+        .eq("period_end", period.end),
+    ]);
 
     const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
     for (const c of (existingCommissions ?? [])) {

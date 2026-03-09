@@ -16,7 +16,8 @@ export default async function VendorsPage() {
     supabase
       .from("expenses")
       .select("vendor_id, amount")
-      .not("vendor_id", "is", null),
+      .not("vendor_id", "is", null)
+      .gte("date", new Date(new Date().setMonth(new Date().getMonth() - 24)).toISOString().slice(0, 10)),
   ]);
 
   if (!currentUser) redirect("/login");

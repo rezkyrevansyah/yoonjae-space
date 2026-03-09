@@ -4,7 +4,7 @@ Full review:
 Review this project using the review system in reffs/. Run both code review and performance review. Output separate report files for each. the report is .md files and save inside reffs folder
 
 Code only: 
-Review this project's code quality  (Analyzed All pages in this project have) using reffs/code_review/code_review.md. the report is .md files and save inside reffs folder
+Review this project's code quality (Analyzed All pages in this project have) using reffs/code_review/code_review.md. the report is .md files and save inside reffs folder
 
 Performance only: 
 Review this project's performance (Analyzed All pages in this project have) using reffs/performance_review/performance_checklist.md. the report is .md files and save inside reffs folder
