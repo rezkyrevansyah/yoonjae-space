@@ -3,15 +3,9 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { getCachedSettingsGeneral } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { CalendarClient, type CalendarBooking } from "./_components/calendar-client";
+import { toDateStr } from "@/lib/utils";
 
 export const metadata = { title: "Calendar — Yoonjaespace" };
-
-function toDateStr(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
 
 export default async function CalendarPage() {
   const supabase = await createClient();

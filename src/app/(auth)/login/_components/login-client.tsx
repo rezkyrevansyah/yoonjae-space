@@ -67,6 +67,7 @@ export function LoginClient({ logoUrl, studioName }: LoginClientProps) {
         // loading tetap true sampai navigasi selesai (komponen unmount)
       }
     } catch {
+      toast({ title: "Login gagal", description: "Terjadi kesalahan. Coba lagi.", variant: "destructive" });
       setLoading(false);
     }
   }

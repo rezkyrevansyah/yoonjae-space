@@ -10,6 +10,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Verify caller has user-management permission
+  const { data: callerData } = await supabase
+    .from("users")
+    .select("id, name, is_primary, roles(name, menu_access)")
+    .eq("auth_id", user.id)
+    .single();
+  const callerRolesData = callerData?.roles as unknown;
+  const callerRole = (Array.isArray(callerRolesData) ? callerRolesData[0] : callerRolesData) as { name: string; menu_access: string[] } | null;
+  const hasPermission = callerData?.is_primary || callerRole?.menu_access?.includes("user-management");
+  if (!hasPermission) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json();
   const { userId } = body; // users.id (not auth_id)
 
@@ -46,15 +59,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Activity log
-  const { data: callerData } = await supabase
-    .from("users")
-    .select("id, name, roles(name)")
-    .eq("auth_id", user.id)
-    .single();
-
-  const callerRolesData = callerData?.roles as unknown;
-  const callerRole = (Array.isArray(callerRolesData) ? callerRolesData[0] : callerRolesData) as { name: string } | null;
-
   await supabase.from("activity_log").insert({
     user_id: callerData?.id ?? null,
     user_name: callerData?.name ?? "System",

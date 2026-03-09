@@ -3,12 +3,9 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { getCachedReminderTemplates, getCachedStudioInfo } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { RemindersClient, type ReminderBooking } from "./_components/reminders-client";
+import { toDateStr } from "@/lib/utils";
 
 export const metadata = { title: "Reminders — Yoonjaespace" };
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export default async function RemindersPage() {
   const supabase = await createClient();

@@ -342,16 +342,19 @@ export function NewBookingClient({
 
       // 6. Insert booking_addons
       if (addonData.addon_ids.length > 0) {
-        const addonRows = addonData.addon_ids.map((aid) => {
-          const addon = addons.find((a) => a.id === aid)!;
-          return {
-            booking_id: bookingId,
-            addon_id: aid,
-            price: addon.price,
-            is_paid: true,
-            is_extra: false,
-          };
-        });
+        const addonRows = addonData.addon_ids
+          .map((aid) => {
+            const addon = addons.find((a) => a.id === aid);
+            if (!addon) return null;
+            return {
+              booking_id: bookingId,
+              addon_id: aid,
+              price: addon.price,
+              is_paid: true,
+              is_extra: false,
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null);
         const { error: addonErr } = await supabase.from("booking_addons").insert(addonRows);
         if (addonErr) throw new Error("Gagal insert addons");
       }

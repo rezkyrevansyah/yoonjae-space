@@ -38,7 +38,7 @@ import {
   BOOKING_STATUS_COLOR,
   PRINT_ORDER_STATUS_LABEL,
 } from "@/lib/constants";
-import { formatRupiah, formatDate, formatTime } from "@/lib/utils";
+import { formatRupiah, formatDate, formatTime, toDateStr } from "@/lib/utils";
 import type { CurrentUser, BookingStatus } from "@/lib/types/database";
 import {
   Plus,
@@ -106,10 +106,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
   const [deleteNumber, setDeleteNumber] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
 
-  const todayStr = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+  const todayStr = toDateStr(new Date());
 
   function resetFilters() {
     setSearchInput("");

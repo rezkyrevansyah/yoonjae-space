@@ -42,6 +42,14 @@ export function formatDateShort(date: string | Date): string {
   }).format(parseLocalDate(date));
 }
 
+// Format Date as YYYY-MM-DD using local timezone (for DB queries)
+export function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
 export function formatTime(time: string): string {
   const [hours, minutes] = time.split(":");
   return `${hours}:${minutes}`;
