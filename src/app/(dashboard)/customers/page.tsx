@@ -38,7 +38,7 @@ export default async function CustomersPage() {
     bookings: { total: number; booking_date: string }[];
   };
 
-  const initialCustomers: CustomerRow[] = ((initialResult.data ?? []) as RawCustomer[]).map((c) => {
+  const initialCustomers: CustomerRow[] = ((initialResult.data ?? []) as unknown as RawCustomer[]).map((c) => {
     const bookings = c.bookings ?? [];
     return {
       id: c.id, name: c.name, phone: c.phone, email: c.email,

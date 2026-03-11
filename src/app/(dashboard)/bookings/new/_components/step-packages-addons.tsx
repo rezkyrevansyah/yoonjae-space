@@ -13,7 +13,7 @@ function groupBy<T extends { category: string }>(items: T[]): [string, T[]][] {
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(item);
   }
-  return [...map.entries()].sort(([a], [b]) => {
+  return Array.from(map.entries()).sort(([a], [b]) => {
     if (!a && b) return 1;
     if (a && !b) return -1;
     return a.localeCompare(b);

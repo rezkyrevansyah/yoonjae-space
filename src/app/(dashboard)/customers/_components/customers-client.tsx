@@ -150,12 +150,12 @@ export function CustomersClient({ currentUser, leads, domicileOptions, initialDa
       return;
     }
 
-    const rows: CustomerRow[] = (data ?? []).map((c: {
+    const rows: CustomerRow[] = ((data ?? []) as unknown as Array<{
       id: string; name: string; phone: string; email: string | null;
       instagram: string | null; address: string | null; domicile: string | null;
       lead_id: string | null; leads: { name: string } | null; notes: string | null; created_at: string;
       bookings: { total: number; booking_date: string }[];
-    }) => {
+    }>).map((c) => {
       const bookings = c.bookings ?? [];
       return {
         id: c.id,

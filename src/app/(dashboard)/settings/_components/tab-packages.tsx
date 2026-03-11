@@ -77,7 +77,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       map.get(key)!.push(pkg);
     }
     // Sort: named categories first (alphabetical), then "" last
-    const entries = [...map.entries()].sort(([a], [b]) => {
+    const entries = Array.from(map.entries()).sort(([a], [b]) => {
       if (!a && b) return 1;
       if (a && !b) return -1;
       return a.localeCompare(b);

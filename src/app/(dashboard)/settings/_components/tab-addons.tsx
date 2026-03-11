@@ -72,7 +72,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(item);
     }
-    const entries = [...map.entries()].sort(([a], [b]) => {
+    const entries = Array.from(map.entries()).sort(([a], [b]) => {
       if (!a && b) return 1;
       if (a && !b) return -1;
       return a.localeCompare(b);
