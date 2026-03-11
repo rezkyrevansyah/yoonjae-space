@@ -1,5 +1,6 @@
 export const BOOKING_STATUS = {
   BOOKED: "BOOKED",
+  DP_PAID: "DP_PAID",
   PAID: "PAID",
   SHOOT_DONE: "SHOOT_DONE",
   PHOTOS_DELIVERED: "PHOTOS_DELIVERED",
@@ -12,6 +13,7 @@ export type BookingStatus = keyof typeof BOOKING_STATUS;
 
 export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
   BOOKED: "Booked",
+  DP_PAID: "DP Paid",
   PAID: "Paid",
   SHOOT_DONE: "Shoot Done",
   PHOTOS_DELIVERED: "Photos Delivered",
@@ -22,6 +24,7 @@ export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
 
 export const BOOKING_STATUS_COLOR: Record<BookingStatus, string> = {
   BOOKED: "bg-blue-100 text-blue-800",
+  DP_PAID: "bg-yellow-100 text-yellow-800",
   PAID: "bg-green-100 text-green-800",
   SHOOT_DONE: "bg-purple-100 text-purple-800",
   PHOTOS_DELIVERED: "bg-indigo-100 text-indigo-800",

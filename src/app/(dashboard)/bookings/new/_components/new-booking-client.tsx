@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-// formatRupiah used in child components
 
 import type {
   CurrentUser,
@@ -21,14 +20,13 @@ import type {
 import type { ExistingBooking } from "./step-session";
 import { StepCustomerType } from "./step-customer-type";
 import { StepCustomerData } from "./step-customer-data";
+import { StepPackagesAddons, type PackagesAddonsFormData } from "./step-packages-addons";
 import { StepSession } from "./step-session";
 import { StepDetail } from "./step-detail";
 import { StepTimeEstimate } from "./step-time-estimate";
-import { StepAddons } from "./step-addons";
 import { StepDiscount } from "./step-discount";
 import { StepStaff } from "./step-staff";
 import { StepSummary } from "./step-summary";
-import { StepCustomFields } from "./step-custom-fields";
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,15 +51,10 @@ export interface SessionFormData {
 
 export interface DetailFormData {
   person_count: number;
-  package_id: string;
   background_ids: string[];
   photo_for_id: string;
   notes: string;
   behind_the_scenes: boolean;
-}
-
-export interface AddonFormData {
-  addon_ids: string[];
 }
 
 export interface DiscountFormData {
@@ -84,14 +77,13 @@ export interface CustomFieldValues {
 const STEPS = [
   { id: 1, label: "Tipe Booking" },
   { id: 2, label: "Data Customer" },
-  { id: 3, label: "Sesi" },
-  { id: 4, label: "Detail" },
-  { id: 5, label: "Estimasi Waktu" },
-  { id: 6, label: "Add-ons" },
+  { id: 3, label: "Paket & Add-on" },
+  { id: 4, label: "Sesi & Waktu" },
+  { id: 5, label: "Detail" },
+  { id: 6, label: "Estimasi Waktu" },
   { id: 7, label: "Diskon" },
   { id: 8, label: "Staff" },
-  { id: 9, label: "Info Tambahan" },
-  { id: 10, label: "Ringkasan" },
+  { id: 9, label: "Ringkasan" },
 ];
 
 interface Props {
@@ -105,10 +97,11 @@ interface Props {
   settingsGeneral: SettingsGeneral | null;
   holidays: StudioHoliday[];
   users: { id: string; name: string }[];
+  domicileOptions: string[];
 }
 
 function friendlyError(msg: string): string {
-  if (msg.includes("customers_phone_key") || msg.includes("unique constraint") && msg.includes("phone"))
+  if (msg.includes("customers_phone_key") || (msg.includes("unique constraint") && msg.includes("phone")))
     return "Nomor WhatsApp ini sudah terdaftar di sistem. Gunakan fitur 'Customer Lama' untuk memilih customer yang sudah ada.";
   if (msg.includes("not-null constraint") || msg.includes("null value in column"))
     return "Ada data yang wajib diisi tapi masih kosong. Periksa kembali formulir dan coba lagi.";
@@ -130,6 +123,7 @@ export function NewBookingClient({
   settingsGeneral,
   holidays,
   users,
+  domicileOptions,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -149,6 +143,11 @@ export function NewBookingClient({
     lead_id: "",
   });
 
+  const [packagesAddonsData, setPackagesAddonsData] = useState<PackagesAddonsFormData>({
+    packages: [],
+    addons: [],
+  });
+
   const [sessionData, setSessionData] = useState<SessionFormData>({
     booking_date: "",
     start_time: "",
@@ -156,15 +155,11 @@ export function NewBookingClient({
 
   const [detailData, setDetailData] = useState<DetailFormData>({
     person_count: 1,
-    package_id: "",
     background_ids: [],
     photo_for_id: "",
     notes: "",
     behind_the_scenes: false,
   });
-
-  const [addonData, setAddonData] = useState<AddonFormData>({ addon_ids: [] });
-  const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
 
   const [discountData, setDiscountData] = useState<DiscountFormData>({
     discount_type: "none",
@@ -180,17 +175,35 @@ export function NewBookingClient({
   });
 
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
+  const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
+  const [dpAmount, setDpAmount] = useState<number>(0);
 
   // --- Computed values ---
-  const selectedPackage = packages.find((p) => p.id === detailData.package_id);
-  const selectedAddons = addons.filter((a) => addonData.addon_ids.includes(a.id));
+  const selectedPackages = packagesAddonsData.packages
+    .map((item) => ({
+      package: packages.find((p) => p.id === item.package_id)!,
+      quantity: item.quantity,
+    }))
+    .filter((item) => item.package != null);
+
+  const selectedAddons = packagesAddonsData.addons
+    .map((item) => ({
+      addon: addons.find((a) => a.id === item.addon_id)!,
+      quantity: item.quantity,
+    }))
+    .filter((item) => item.addon != null);
 
   function computeActualStartTime(): string {
     if (!sessionData.start_time) return "";
     const [h, m] = sessionData.start_time.split(":").map(Number);
     let startMinutes = h * 60 + m;
-    selectedAddons.forEach((a) => {
-      if (a.need_extra_time && a.extra_time_position === "before") startMinutes -= a.extra_time_minutes;
+    selectedPackages.forEach(({ package: pkg, quantity }) => {
+      if (pkg.need_extra_time && pkg.extra_time_position === "before")
+        startMinutes -= pkg.extra_time_minutes * quantity;
+    });
+    selectedAddons.forEach(({ addon, quantity }) => {
+      if (addon.need_extra_time && addon.extra_time_position === "before")
+        startMinutes -= addon.extra_time_minutes * quantity;
     });
     const sh = Math.floor(startMinutes / 60);
     const sm = startMinutes % 60;
@@ -198,14 +211,16 @@ export function NewBookingClient({
   }
 
   function computeEndTime(): string {
-    if (!sessionData.start_time || !selectedPackage) return "";
+    if (!sessionData.start_time || selectedPackages.length === 0) return "";
     const [h, m] = sessionData.start_time.split(":").map(Number);
-    let endMinutes = h * 60 + m + selectedPackage.duration_minutes;
-    if (selectedPackage.need_extra_time) endMinutes += selectedPackage.extra_time_minutes;
-    selectedAddons.forEach((a) => {
-      if (!a.need_extra_time) return;
-      if (a.extra_time_position === "after") endMinutes += a.extra_time_minutes;
-      // "before" shifts start earlier but end stays the same relative to chosen start
+    let endMinutes = h * 60 + m;
+    selectedPackages.forEach(({ package: pkg, quantity }) => {
+      endMinutes += pkg.duration_minutes * quantity;
+      if (pkg.need_extra_time && pkg.extra_time_position === "after") endMinutes += pkg.extra_time_minutes * quantity;
+    });
+    selectedAddons.forEach(({ addon, quantity }) => {
+      if (!addon.need_extra_time) return;
+      if (addon.extra_time_position === "after") endMinutes += addon.extra_time_minutes * quantity;
     });
     const endH = Math.floor(endMinutes / 60);
     const endM = endMinutes % 60;
@@ -213,17 +228,27 @@ export function NewBookingClient({
   }
 
   function computeTotalDuration(): number {
-    if (!selectedPackage) return 0;
-    let total = selectedPackage.duration_minutes;
-    if (selectedPackage.need_extra_time) total += selectedPackage.extra_time_minutes;
-    selectedAddons.forEach((a) => { if (a.need_extra_time) total += a.extra_time_minutes; });
+    let total = selectedPackages.reduce((sum, { package: pkg, quantity }) => {
+      let d = pkg.duration_minutes * quantity;
+      if (pkg.need_extra_time) d += pkg.extra_time_minutes * quantity; // count both before+after in total block
+      return sum + d;
+    }, 0);
+    selectedAddons.forEach(({ addon, quantity }) => {
+      if (addon.need_extra_time) total += addon.extra_time_minutes * quantity;
+    });
     return total;
   }
 
   function computePricing() {
-    const packagePrice = selectedPackage?.price ?? 0;
-    const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-    const subtotal = packagePrice + addonsTotal;
+    const packagesTotal = selectedPackages.reduce(
+      (sum, { package: pkg, quantity }) => sum + pkg.price * quantity,
+      0
+    );
+    const addonsTotal = selectedAddons.reduce(
+      (sum, { addon, quantity }) => sum + addon.price * quantity,
+      0
+    );
+    const subtotal = packagesTotal + addonsTotal;
     let discount = 0;
     if (discountData.discount_type === "voucher") {
       if (discountData.voucher_discount_type === "percentage") {
@@ -235,7 +260,7 @@ export function NewBookingClient({
       discount = discountData.manual_discount;
     }
     const total = Math.max(0, subtotal - discount);
-    return { packagePrice, addonsTotal, subtotal, discount, total };
+    return { packagesTotal, addonsTotal, subtotal, discount, total };
   }
 
   const pricing = computePricing();
@@ -300,7 +325,16 @@ export function NewBookingClient({
       const bookingNumber = bookingNumberData as string;
 
       // 3. Determine initial status
-      const initialStatus = settingsGeneral?.default_payment_status === "paid" ? "PAID" : "BOOKED";
+      let initialStatus: string;
+      if (dpAmount > 0) {
+        initialStatus = "DP_PAID";
+      } else {
+        initialStatus = settingsGeneral?.default_payment_status === "paid" ? "PAID" : "BOOKED";
+      }
+
+      // First selected package id for backward compat
+      const firstPackageId = selectedPackages[0]?.package.id ?? null;
+      const hasIncludePrint = selectedPackages.some(({ package: pkg }) => pkg.include_print);
 
       // 4. Insert booking
       const { data: booking, error: bookErr } = await supabase
@@ -311,16 +345,19 @@ export function NewBookingClient({
           booking_date: sessionData.booking_date,
           start_time: actualStartTime || sessionData.start_time,
           end_time: endTime,
-          package_id: detailData.package_id,
+          package_id: firstPackageId,
           photo_for_id: detailData.photo_for_id || null,
           person_count: detailData.person_count,
           notes: detailData.notes || "",
           behind_the_scenes: detailData.behind_the_scenes,
           status: initialStatus,
+          print_order_status: hasIncludePrint ? "SELECTION" : null,
           voucher_id: discountData.discount_type === "voucher" ? discountData.voucher_id : null,
           manual_discount: discountData.discount_type === "manual" ? discountData.manual_discount : 0,
           subtotal: pricing.subtotal,
           total: pricing.total,
+          dp_amount: dpAmount > 0 ? dpAmount : null,
+          dp_paid_at: dpAmount > 0 ? new Date().toISOString() : null,
           staff_id: staffData.staff_id || null,
           created_by: currentUser.id,
         })
@@ -329,7 +366,20 @@ export function NewBookingClient({
       if (bookErr) throw new Error(bookErr.message);
       const bookingId = booking.id;
 
-      // 5. Insert booking_backgrounds
+      // 5. Insert booking_packages
+      if (selectedPackages.length > 0) {
+        const { error: pkgErr } = await supabase.from("booking_packages").insert(
+          selectedPackages.map(({ package: pkg, quantity }) => ({
+            booking_id: bookingId,
+            package_id: pkg.id,
+            quantity,
+            price_snapshot: pkg.price,
+          }))
+        );
+        if (pkgErr) throw new Error("Gagal insert booking_packages: " + pkgErr.message);
+      }
+
+      // 6. Insert booking_backgrounds
       if (detailData.background_ids.length > 0) {
         const { error: bgErr } = await supabase.from("booking_backgrounds").insert(
           detailData.background_ids.map((bgId) => ({
@@ -340,26 +390,22 @@ export function NewBookingClient({
         if (bgErr) throw new Error("Gagal insert backgrounds");
       }
 
-      // 6. Insert booking_addons
-      if (addonData.addon_ids.length > 0) {
-        const addonRows = addonData.addon_ids
-          .map((aid) => {
-            const addon = addons.find((a) => a.id === aid);
-            if (!addon) return null;
-            return {
-              booking_id: bookingId,
-              addon_id: aid,
-              price: addon.price,
-              is_paid: true,
-              is_extra: false,
-            };
-          })
-          .filter((row): row is NonNullable<typeof row> => row !== null);
-        const { error: addonErr } = await supabase.from("booking_addons").insert(addonRows);
+      // 7. Insert booking_addons
+      if (selectedAddons.length > 0) {
+        const { error: addonErr } = await supabase.from("booking_addons").insert(
+          selectedAddons.map(({ addon, quantity }) => ({
+            booking_id: bookingId,
+            addon_id: addon.id,
+            price: addon.price,
+            quantity,
+            is_paid: true,
+            is_extra: false,
+          }))
+        );
         if (addonErr) throw new Error("Gagal insert addons");
       }
 
-      // 7. Insert booking_custom_fields
+      // 8. Insert booking_custom_fields
       const cfEntries = Object.entries(customFieldValues).filter(([, v]) => v !== "");
       if (cfEntries.length > 0) {
         const { error: cfErr } = await supabase.from("booking_custom_fields").insert(
@@ -372,17 +418,20 @@ export function NewBookingClient({
         if (cfErr) throw new Error("Gagal insert custom fields");
       }
 
-      // 8. Generate invoice
+      // 9. Generate invoice
       const { data: invNumber, error: invNumErr } = await supabase.rpc("generate_invoice_number");
       if (invNumErr) throw new Error("Gagal generate invoice number");
       const { error: invErr } = await supabase.from("invoices").insert({
         invoice_number: invNumber as string,
         booking_id: bookingId,
-        invoice_date: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`; })(),
+        invoice_date: (() => {
+          const n = new Date();
+          return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+        })(),
       });
       if (invErr) throw new Error("Gagal insert invoice");
 
-      // 9. Activity log
+      // 10. Activity log
       const displayName = customerData.isExisting
         ? customerData.existingCustomerName
         : customerData.name;
@@ -414,20 +463,15 @@ export function NewBookingClient({
         if (customerData.isExisting) return !!customerData.existingCustomerId;
         return !!(customerData.name && customerData.phone);
       case 3:
-        return !!(sessionData.booking_date && sessionData.start_time);
+        return packagesAddonsData.packages.length > 0;
       case 4:
-        return !!(detailData.package_id && detailData.person_count > 0);
+        return !!(sessionData.booking_date && sessionData.start_time);
       case 5:
-        return true;
+        return detailData.person_count > 0;
       case 6:
-        return true;
       case 7:
-        return true;
       case 8:
-        return true;
       case 9:
-        return true;
-      case 10:
         return true;
       default:
         return false;
@@ -486,42 +530,47 @@ export function NewBookingClient({
             customerData={customerData}
             onChange={setCustomerData}
             leads={leads}
+            domicileOptions={domicileOptions}
           />
         )}
         {step === 3 && (
+          <StepPackagesAddons
+            data={packagesAddonsData}
+            onChange={setPackagesAddonsData}
+            packages={packages}
+            addons={addons}
+          />
+        )}
+        {step === 4 && (
           <StepSession
             sessionData={sessionData}
             onChange={setSessionData}
             settingsGeneral={settingsGeneral}
             holidays={holidays}
             onExistingBookingsLoaded={setExistingBookings}
-          />
-        )}
-        {step === 4 && (
-          <StepDetail
-            detailData={detailData}
-            onChange={setDetailData}
-            packages={packages}
-            backgrounds={backgrounds}
-            photoFors={photoFors}
+            allowPastDates={customerData.isExisting}
           />
         )}
         {step === 5 && (
+          <StepDetail
+            detailData={detailData}
+            onChange={setDetailData}
+            backgrounds={backgrounds}
+            photoFors={photoFors}
+            customFields={customFields}
+            customFieldValues={customFieldValues}
+            onCustomFieldChange={setCustomFieldValues}
+          />
+        )}
+        {step === 6 && (
           <StepTimeEstimate
             sessionData={sessionData}
-            selectedPackage={selectedPackage}
+            selectedPackages={selectedPackages}
             selectedAddons={selectedAddons}
             actualStartTime={actualStartTime}
             endTime={endTime}
             totalDuration={totalDuration}
             conflictingBookings={conflictingBookings}
-          />
-        )}
-        {step === 6 && (
-          <StepAddons
-            addonData={addonData}
-            onChange={setAddonData}
-            addons={addons}
           />
         )}
         {step === 7 && (
@@ -540,21 +589,13 @@ export function NewBookingClient({
           />
         )}
         {step === 9 && (
-          <StepCustomFields
-            customFields={customFields}
-            values={customFieldValues}
-            onChange={setCustomFieldValues}
-          />
-        )}
-        {step === 10 && (
           <StepSummary
             customerData={customerData}
             sessionData={sessionData}
             detailData={detailData}
-            addonData={addonData}
             discountData={discountData}
             staffData={staffData}
-            selectedPackage={selectedPackage}
+            selectedPackages={selectedPackages}
             selectedAddons={selectedAddons}
             backgrounds={backgrounds}
             photoFors={photoFors}
@@ -564,6 +605,8 @@ export function NewBookingClient({
             totalDuration={totalDuration}
             customFields={customFields}
             customFieldValues={customFieldValues}
+            dpAmount={dpAmount}
+            onDpAmountChange={setDpAmount}
           />
         )}
       </div>

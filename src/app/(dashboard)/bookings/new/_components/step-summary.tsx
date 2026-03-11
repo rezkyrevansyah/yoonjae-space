@@ -1,33 +1,43 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatRupiah, formatDate, formatTime } from "@/lib/utils";
 import type {
   CustomerFormData,
   SessionFormData,
   DetailFormData,
-  AddonFormData,
   DiscountFormData,
   StaffFormData,
   CustomFieldValues,
 } from "./new-booking-client";
 import type { Package, Addon, Background, PhotoFor, CustomField } from "@/lib/types/database";
-import { User, Calendar, Package as PackageIcon, Tag, UserCheck } from "lucide-react";
+import { User, Calendar, Package as PackageIcon, Tag, UserCheck, CreditCard } from "lucide-react";
+
+interface SelectedPackageItem {
+  package: Package;
+  quantity: number;
+}
+
+interface SelectedAddonItem {
+  addon: Addon;
+  quantity: number;
+}
 
 interface Props {
   customerData: CustomerFormData;
   sessionData: SessionFormData;
   detailData: DetailFormData;
-  addonData: AddonFormData;
   discountData: DiscountFormData;
   staffData: StaffFormData;
-  selectedPackage: Package | undefined;
-  selectedAddons: Addon[];
+  selectedPackages: SelectedPackageItem[];
+  selectedAddons: SelectedAddonItem[];
   backgrounds: Background[];
   photoFors: PhotoFor[];
   users: { id: string; name: string }[];
   pricing: {
-    packagePrice: number;
+    packagesTotal: number;
     addonsTotal: number;
     subtotal: number;
     discount: number;
@@ -37,6 +47,8 @@ interface Props {
   totalDuration: number;
   customFields: CustomField[];
   customFieldValues: CustomFieldValues;
+  dpAmount: number;
+  onDpAmountChange: (amount: number) => void;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -54,7 +66,7 @@ export function StepSummary({
   detailData,
   discountData,
   staffData,
-  selectedPackage,
+  selectedPackages,
   selectedAddons,
   backgrounds,
   photoFors,
@@ -64,10 +76,13 @@ export function StepSummary({
   totalDuration,
   customFields,
   customFieldValues,
+  dpAmount,
+  onDpAmountChange,
 }: Props) {
   const selectedBgs = backgrounds.filter((b) => detailData.background_ids.includes(b.id));
   const selectedPhotoFor = photoFors.find((p) => p.id === detailData.photo_for_id);
   const staffMember = users.find((u) => u.id === staffData.staff_id);
+  const remaining = Math.max(0, pricing.total - dpAmount);
 
   return (
     <div className="space-y-5">
@@ -161,14 +176,28 @@ export function StepSummary({
           Paket & Add-ons
         </div>
         <div className="rounded-lg bg-gray-50 p-3 space-y-0.5">
-          <Row label="Paket" value={selectedPackage?.name ?? "-"} />
+          {selectedPackages.map(({ package: pkg, quantity }) => (
+            <Row
+              key={pkg.id}
+              label={`Paket${selectedPackages.length > 1 ? "" : ""}`}
+              value={
+                <span>
+                  {pkg.name}
+                  {quantity > 1 && <span className="text-maroon-600 ml-1">×{quantity}</span>}
+                  <span className="text-gray-500 ml-1 text-xs">({formatRupiah(pkg.price * quantity)})</span>
+                </span>
+              }
+            />
+          ))}
           {selectedAddons.length > 0 && (
             <Row
               label="Add-ons"
               value={
                 <span className="flex flex-wrap gap-1 justify-end">
-                  {selectedAddons.map((a) => (
-                    <Badge key={a.id} variant="secondary" className="text-xs">{a.name}</Badge>
+                  {selectedAddons.map(({ addon, quantity }) => (
+                    <Badge key={addon.id} variant="secondary" className="text-xs">
+                      {addon.name}{quantity > 1 ? ` ×${quantity}` : ""}
+                    </Badge>
                   ))}
                 </span>
               }
@@ -207,10 +236,12 @@ export function StepSummary({
           Harga
         </div>
         <div className="rounded-lg border-2 border-maroon-200 bg-maroon-50 p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Paket</span>
-            <span>{formatRupiah(pricing.packagePrice)}</span>
-          </div>
+          {selectedPackages.map(({ package: pkg, quantity }) => (
+            <div key={pkg.id} className="flex justify-between text-sm">
+              <span className="text-gray-600">{pkg.name}{quantity > 1 ? ` ×${quantity}` : ""}</span>
+              <span>{formatRupiah(pkg.price * quantity)}</span>
+            </div>
+          ))}
           {pricing.addonsTotal > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Add-ons</span>
@@ -236,6 +267,46 @@ export function StepSummary({
             <span>Total</span>
             <span>{formatRupiah(pricing.total)}</span>
           </div>
+        </div>
+      </section>
+
+      {/* Down Payment */}
+      <section>
+        <div className="flex items-center gap-2 font-medium text-gray-700 text-sm mb-2">
+          <CreditCard className="h-4 w-4 text-maroon-700" />
+          Down Payment (opsional)
+        </div>
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-xs text-gray-500">
+            Isi jika customer sudah membayar DP. Kosongkan jika belum ada pembayaran.
+          </p>
+          <div>
+            <Label className="mb-1 block text-sm">Jumlah DP (Rp)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={dpAmount || ""}
+              placeholder="0"
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                const maxDp = Math.floor(pricing.total);
+                onDpAmountChange(isNaN(v) || v < 0 ? 0 : Math.min(v, maxDp));
+              }}
+            />
+          </div>
+          {dpAmount > 0 && (
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">DP dibayar</span>
+                <span className="font-medium text-yellow-700">{formatRupiah(dpAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-yellow-200 pt-1">
+                <span className="text-gray-600">Sisa pembayaran</span>
+                <span className="font-semibold text-gray-900">{formatRupiah(remaining)}</span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </div>

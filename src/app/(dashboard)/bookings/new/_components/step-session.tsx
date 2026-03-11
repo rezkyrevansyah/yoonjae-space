@@ -33,6 +33,7 @@ interface Props {
   settingsGeneral: SettingsGeneral | null;
   holidays: StudioHoliday[];
   onExistingBookingsLoaded?: (bookings: ExistingBooking[]) => void;
+  allowPastDates?: boolean;
 }
 
 function isHoliday(dateStr: string, holidays: StudioHoliday[]): StudioHoliday | undefined {
@@ -70,13 +71,17 @@ function getEffectiveStartMinutes(b: ExistingBooking): number {
   return start;
 }
 
-export function StepSession({ sessionData, onChange, settingsGeneral, holidays, onExistingBookingsLoaded }: Props) {
+export function StepSession({ sessionData, onChange, settingsGeneral, holidays, onExistingBookingsLoaded, allowPastDates = false }: Props) {
   const supabase = createClient();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    sessionData.booking_date ? new Date(sessionData.booking_date + "T00:00:00") : undefined
-  );
+  const now = new Date();
+  const initDate = sessionData.booking_date ? new Date(sessionData.booking_date + "T00:00:00") : undefined;
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initDate);
+  const [displayMonth, setDisplayMonth] = useState<Date>(initDate ?? now);
+  const [overridePastDates, setOverridePastDates] = useState(false);
   const [existingBookings, setExistingBookings] = useState<(ExistingBooking & { customers: { name: string } | null })[]>([]);
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
+
+  const effectiveAllowPast = allowPastDates || overridePastDates;
 
   // Fetch bookings for selected date
   useEffect(() => {
@@ -103,16 +108,26 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   function handleDateSelect(date: Date | undefined) {
     setSelectedDate(date);
     if (date) {
+      setDisplayMonth(date);
       onChange({ ...sessionData, booking_date: toDateStr(date), start_time: "" });
     }
+  }
+
+  function handleMonthChange(month: Date) {
+    setDisplayMonth(month);
+    // Auto-select tanggal 1 bulan baru
+    const firstOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+    setSelectedDate(firstOfMonth);
+    onChange({ ...sessionData, booking_date: toDateStr(firstOfMonth), start_time: "" });
   }
 
   const holidayMatch = selectedDate
     ? isHoliday(toDateStr(selectedDate), holidays)
     : undefined;
 
-  // Disable past dates
+  // Disable past dates (skip if allowed)
   function isDisabled(date: Date): boolean {
+    if (effectiveAllowPast) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today;
@@ -151,17 +166,64 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Pilih Sesi</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Pilih Sesi & Waktu</h2>
         <p className="text-sm text-gray-500">Tentukan tanggal dan waktu sesi foto</p>
       </div>
+
+      {effectiveAllowPast && (
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Mode Booking Lama — tanggal masa lalu diizinkan</p>
+        </div>
+      )}
+
+      {/* Toggle past dates — hanya tampil jika prop allowPastDates belum aktif */}
+      {!allowPastDates && (
+        <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-300 px-3 py-2">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Input tanggal masa lalu</p>
+            <p className="text-xs text-gray-500">Aktifkan jika booking ini sudah terjadi sebelumnya</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !overridePastDates;
+              setOverridePastDates(next);
+              // Reset calendar to today if turning off
+              if (!next) {
+                const today = new Date();
+                setDisplayMonth(today);
+                setSelectedDate(undefined);
+                onChange({ ...sessionData, booking_date: "", start_time: "" });
+              }
+            }}
+            className={cn(
+              "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+              overridePastDates ? "bg-amber-500" : "bg-gray-200"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
+                overridePastDates ? "translate-x-4" : "translate-x-0"
+              )}
+            />
+          </button>
+        </div>
+      )}
 
       <div>
         <Label className="mb-2 block">Tanggal <span className="text-red-500">*</span></Label>
         <div className="border rounded-lg p-2 flex justify-center">
           <DayPicker
             mode="single"
+            month={displayMonth}
+            onMonthChange={handleMonthChange}
             selected={selectedDate}
             onSelect={handleDateSelect}
+            captionLayout="dropdown"
+            startMonth={effectiveAllowPast ? new Date(2015, 0) : new Date(now.getFullYear(), now.getMonth())}
+            endMonth={new Date(now.getFullYear() + 2, 11)}
             disabled={isDisabled}
             components={{ Chevron }}
             classNames={{

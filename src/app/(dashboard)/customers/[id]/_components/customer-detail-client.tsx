@@ -10,6 +10,7 @@ import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, CurrentUser } from "@/lib/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DomicileCombobox } from "@/components/ui/domicile-combobox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -79,6 +80,7 @@ interface Props {
   currentUser: CurrentUser;
   customer: CustomerData;
   leads: { id: string; name: string }[];
+  domicileOptions: string[];
 }
 
 interface EditForm {
@@ -93,7 +95,7 @@ interface EditForm {
 
 const supabase = createClient();
 
-export function CustomerDetailClient({ currentUser, customer, leads }: Props) {
+export function CustomerDetailClient({ currentUser, customer, leads, domicileOptions }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [showEdit, setShowEdit] = useState(false);
@@ -445,11 +447,19 @@ export function CustomerDetailClient({ currentUser, customer, leads }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Domisili</Label>
-                <Input
-                  value={editForm.domicile}
-                  onChange={e => setEditForm(f => ({ ...f, domicile: e.target.value }))}
-                  placeholder="Kota"
-                />
+                {domicileOptions.length > 0 ? (
+                  <DomicileCombobox
+                    options={domicileOptions}
+                    value={editForm.domicile}
+                    onChange={(v) => setEditForm(f => ({ ...f, domicile: v }))}
+                  />
+                ) : (
+                  <Input
+                    value={editForm.domicile}
+                    onChange={e => setEditForm(f => ({ ...f, domicile: e.target.value }))}
+                    placeholder="Kota"
+                  />
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Leads</Label>

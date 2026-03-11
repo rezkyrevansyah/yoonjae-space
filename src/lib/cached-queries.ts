@@ -17,6 +17,7 @@ export const CACHE_TAGS = {
   ROLES: "roles",
   USERS_ACTIVE: "users_active",
   VENDORS_ACTIVE: "vendors_active",
+  DOMICILES: "domiciles",
 } as const;
 
 // ── Why admin client? ───────────────────────────────────────
@@ -76,8 +77,9 @@ const _getCachedPackages = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("packages")
-      .select("id, name, price, duration_minutes, need_extra_time, extra_time_minutes, is_active")
+      .select("id, name, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, is_active")
       .eq("is_active", true)
+      .order("sort_order")
       .order("name");
     return data ?? [];
   },
@@ -104,8 +106,9 @@ const _getCachedAddons = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("addons")
-      .select("id, name, price, need_extra_time, extra_time_minutes, is_active")
+      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active")
       .eq("is_active", true)
+      .order("sort_order")
       .order("name");
     return data ?? [];
   },
@@ -125,6 +128,20 @@ const _getCachedLeads = unstable_cache(
   },
   ["leads-active"],
   { tags: [CACHE_TAGS.LEADS], revalidate: 3600 }
+);
+
+const _getCachedDomiciles = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("domiciles")
+      .select("id, name, is_active")
+      .eq("is_active", true)
+      .order("name");
+    return data ?? [];
+  },
+  ["domiciles-active"],
+  { tags: [CACHE_TAGS.DOMICILES], revalidate: 3600 }
 );
 
 const _getCachedPhotoFor = unstable_cache(
@@ -222,6 +239,7 @@ export const getCachedPackages = cache(_getCachedPackages);
 export const getCachedBackgrounds = cache(_getCachedBackgrounds);
 export const getCachedAddons = cache(_getCachedAddons);
 export const getCachedLeads = cache(_getCachedLeads);
+export const getCachedDomiciles = cache(_getCachedDomiciles);
 export const getCachedPhotoFor = cache(_getCachedPhotoFor);
 export const getCachedCustomFields = cache(_getCachedCustomFields);
 export const getCachedHolidays = cache(_getCachedHolidays);

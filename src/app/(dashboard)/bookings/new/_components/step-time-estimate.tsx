@@ -11,10 +11,20 @@ interface ConflictingBooking {
   endTime: string;
 }
 
+interface SelectedPackageItem {
+  package: Package;
+  quantity: number;
+}
+
+interface SelectedAddonItem {
+  addon: Addon;
+  quantity: number;
+}
+
 interface Props {
   sessionData: SessionFormData;
-  selectedPackage: Package | undefined;
-  selectedAddons: Addon[];
+  selectedPackages: SelectedPackageItem[];
+  selectedAddons: SelectedAddonItem[];
   actualStartTime: string;
   endTime: string;
   totalDuration: number;
@@ -23,14 +33,14 @@ interface Props {
 
 export function StepTimeEstimate({
   sessionData,
-  selectedPackage,
+  selectedPackages,
   selectedAddons,
   actualStartTime,
   endTime,
   totalDuration,
   conflictingBookings = [],
 }: Props) {
-  if (!selectedPackage || !sessionData.start_time) {
+  if (selectedPackages.length === 0 || !sessionData.start_time) {
     return (
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Estimasi Waktu</h2>
@@ -41,11 +51,13 @@ export function StepTimeEstimate({
     );
   }
 
-  const extraAddons = selectedAddons.filter((a) => a.need_extra_time);
-  const beforeAddons = extraAddons.filter((a) => a.extra_time_position === "before");
-  const afterAddons = extraAddons.filter((a) => a.extra_time_position === "after");
+  const extraAddons = selectedAddons.filter((a) => a.addon.need_extra_time);
+  const beforeAddons = extraAddons.filter((a) => a.addon.extra_time_position === "before");
+  const afterAddons = extraAddons.filter((a) => a.addon.extra_time_position === "after");
+  const beforePackages = selectedPackages.filter((p) => p.package.need_extra_time && p.package.extra_time_position === "before");
   const displayStart = actualStartTime || sessionData.start_time;
   const hasBeforeAddon = beforeAddons.length > 0;
+  const hasBeforePackage = beforePackages.length > 0;
 
   return (
     <div className="space-y-4">
@@ -62,35 +74,45 @@ export function StepTimeEstimate({
               {formatTime(displayStart)} — {endTime}
             </p>
             <p className="text-sm text-maroon-600">{totalDuration} menit total</p>
-            {hasBeforeAddon && (
+            {(hasBeforeAddon || hasBeforePackage) && (
               <p className="text-xs text-amber-600 mt-0.5">
-                ⚠ Waktu mulai lebih awal dari sesi yang dipilih ({formatTime(sessionData.start_time)}) karena ada add-on sebelum sesi
+                ⚠ Waktu mulai lebih awal dari sesi yang dipilih ({formatTime(sessionData.start_time)}) karena ada {hasBeforePackage ? "paket" : ""}{hasBeforePackage && hasBeforeAddon ? " dan " : ""}{hasBeforeAddon ? "add-on" : ""} sebelum sesi
               </p>
             )}
           </div>
         </div>
 
         <div className="space-y-1.5 text-sm">
-          {beforeAddons.map((a) => (
-            <div key={a.id} className="flex justify-between text-amber-700">
-              <span>{a.name} (sebelum sesi)</span>
-              <span>−{a.extra_time_minutes} mnt</span>
+          {beforePackages.map(({ package: pkg, quantity }) => (
+            <div key={`pkg-before-${pkg.id}`} className="flex justify-between text-amber-700">
+              <span>Extra time: {pkg.name}{quantity > 1 ? ` ×${quantity}` : ""} (sebelum sesi)</span>
+              <span>−{pkg.extra_time_minutes * quantity} mnt</span>
             </div>
           ))}
-          <div className="flex justify-between text-maroon-700">
-            <span>Paket: {selectedPackage.name}</span>
-            <span>{selectedPackage.duration_minutes} mnt</span>
-          </div>
-          {selectedPackage.need_extra_time && (
-            <div className="flex justify-between text-maroon-600">
-              <span>Extra time paket</span>
-              <span>+{selectedPackage.extra_time_minutes} mnt</span>
+          {beforeAddons.map(({ addon, quantity }) => (
+            <div key={addon.id} className="flex justify-between text-amber-700">
+              <span>{addon.name}{quantity > 1 ? ` ×${quantity}` : ""} (sebelum sesi)</span>
+              <span>−{addon.extra_time_minutes * quantity} mnt</span>
             </div>
-          )}
-          {afterAddons.map((a) => (
-            <div key={a.id} className="flex justify-between text-maroon-600">
-              <span>{a.name} (setelah sesi)</span>
-              <span>+{a.extra_time_minutes} mnt</span>
+          ))}
+          {selectedPackages.map(({ package: pkg, quantity }) => (
+            <div key={pkg.id}>
+              <div className="flex justify-between text-maroon-700">
+                <span>Paket: {pkg.name}{quantity > 1 ? ` ×${quantity}` : ""}</span>
+                <span>{pkg.duration_minutes * quantity} mnt</span>
+              </div>
+              {pkg.need_extra_time && pkg.extra_time_position === "after" && (
+                <div className="flex justify-between text-maroon-600 text-xs pl-2">
+                  <span>Extra time paket (setelah sesi){quantity > 1 ? ` ×${quantity}` : ""}</span>
+                  <span>+{pkg.extra_time_minutes * quantity} mnt</span>
+                </div>
+              )}
+            </div>
+          ))}
+          {afterAddons.map(({ addon, quantity }) => (
+            <div key={addon.id} className="flex justify-between text-maroon-600">
+              <span>{addon.name}{quantity > 1 ? ` ×${quantity}` : ""} (setelah sesi)</span>
+              <span>+{addon.extra_time_minutes * quantity} mnt</span>
             </div>
           ))}
         </div>

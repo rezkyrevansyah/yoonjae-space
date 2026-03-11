@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DomicileCombobox } from "@/components/ui/domicile-combobox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
+  MessageCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -63,6 +65,7 @@ export interface CustomerRow {
   address: string | null;
   domicile: string | null;
   lead_id: string | null;
+  lead_name: string | null;
   notes: string | null;
   created_at: string;
   total_bookings: number;
@@ -73,6 +76,7 @@ export interface CustomerRow {
 interface Props {
   currentUser: CurrentUser;
   leads: { id: string; name: string }[];
+  domicileOptions: string[];
   initialData: { customers: CustomerRow[]; total: number };
 }
 
@@ -92,13 +96,15 @@ type CustomerSortField = "name" | "total_bookings" | "total_spend" | "last_visit
 const PAGE_SIZE = 25;
 const supabase = createClient();
 
-export function CustomersClient({ currentUser, leads, initialData }: Props) {
+export function CustomersClient({ currentUser, leads, domicileOptions, initialData }: Props) {
   const { toast } = useToast();
   const isInitialMount = useRef(true);
   const [customers, setCustomers] = useState<CustomerRow[]>(initialData.customers);
   const [total, setTotal] = useState(initialData.total);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [leadFilter, setLeadFilter] = useState("");
+  const [domicileFilter, setDomicileFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState<CustomerSortField>("name");
   const [sortAsc, setSortAsc] = useState(true);
@@ -113,7 +119,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     address: "", domicile: "", lead_id: "", notes: "",
   });
 
-  const fetchCustomers = useCallback(async (searchVal: string, pageVal: number, sf: CustomerSortField, sa: boolean) => {
+  const fetchCustomers = useCallback(async (searchVal: string, pageVal: number, sf: CustomerSortField, sa: boolean, lf: string, df: string) => {
     setLoading(true);
     const from = pageVal * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -124,6 +130,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
       .from("customers")
       .select(`
         id, name, phone, email, instagram, address, domicile, lead_id, notes, created_at,
+        leads(name),
         bookings(total, booking_date)
       `, { count: "exact" })
       .order("name", { ascending: true });
@@ -131,6 +138,8 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     if (searchVal.trim()) {
       query = query.or(`name.ilike.%${searchVal}%,phone.ilike.%${searchVal}%`);
     }
+    if (lf) query = query.eq("lead_id", lf);
+    if (df) query = query.eq("domicile", df);
 
     query = query.range(from, to);
     const { data, count, error } = await query;
@@ -144,7 +153,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     const rows: CustomerRow[] = (data ?? []).map((c: {
       id: string; name: string; phone: string; email: string | null;
       instagram: string | null; address: string | null; domicile: string | null;
-      lead_id: string | null; notes: string | null; created_at: string;
+      lead_id: string | null; leads: { name: string } | null; notes: string | null; created_at: string;
       bookings: { total: number; booking_date: string }[];
     }) => {
       const bookings = c.bookings ?? [];
@@ -157,6 +166,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
         address: c.address,
         domicile: c.domicile,
         lead_id: c.lead_id,
+        lead_name: c.leads?.name ?? null,
         notes: c.notes,
         created_at: c.created_at,
         total_bookings: bookings.length,
@@ -190,9 +200,9 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
       isInitialMount.current = false;
       return;
     }
-    const t = setTimeout(() => fetchCustomers(search, page, sortField, sortAsc), 300);
+    const t = setTimeout(() => fetchCustomers(search, page, sortField, sortAsc, leadFilter, domicileFilter), 300);
     return () => clearTimeout(t);
-  }, [search, page, sortField, sortAsc, fetchCustomers]);
+  }, [search, page, sortField, sortAsc, leadFilter, domicileFilter, fetchCustomers]);
 
   // Phone uniqueness check
   function handlePhoneChange(val: string) {
@@ -252,7 +262,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
     setShowAdd(false);
     setForm({ name: "", phone: "", email: "", instagram: "", address: "", domicile: "", lead_id: "", notes: "" });
     toast({ title: "Customer ditambahkan!" });
-    fetchCustomers(search, page, sortField, sortAsc);
+    fetchCustomers(search, page, sortField, sortAsc, leadFilter, domicileFilter);
   }
 
   async function handleDelete(c: CustomerRow) {
@@ -288,7 +298,7 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
 
     toast({ title: "Customer dihapus" });
     setDeleteTarget(null);
-    fetchCustomers(search, page, sortField, sortAsc);
+    fetchCustomers(search, page, sortField, sortAsc, leadFilter, domicileFilter);
   }
 
   const exportFilename = `customers-${new Date().toISOString().split("T")[0]}`;
@@ -362,15 +372,35 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Cari nama atau nomor WA..."
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          className="pl-9"
-        />
+      {/* Search & Filters */}
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Cari nama atau nomor WA..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(0); }}
+            className="pl-9"
+          />
+        </div>
+        <Select value={leadFilter || "ALL"} onValueChange={v => { setLeadFilter(v === "ALL" ? "" : v); setPage(0); }}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Semua Leads" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Semua Leads</SelectItem>
+            {leads.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        {domicileOptions.length > 0 && (
+          <DomicileCombobox
+            options={domicileOptions}
+            value={domicileFilter}
+            onChange={(v) => { setDomicileFilter(v); setPage(0); }}
+            placeholder="Semua Domisili"
+            className="w-full sm:w-48"
+          />
+        )}
       </div>
 
       {/* Desktop table */}
@@ -384,19 +414,21 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
               <SortHeader field="total_bookings" label="Bookings" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="right" />
               <SortHeader field="total_spend" label="Total Spend" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="right" />
               <SortHeader field="last_visit" label="Last Visit" sortField={sortField} sortAsc={sortAsc} setSortField={setSortField} setSortAsc={setSortAsc} align="left" />
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Leads</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Domisili</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm animate-pulse">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm animate-pulse">
                   Memuat...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center">
+                <td colSpan={9} className="px-4 py-12 text-center">
                   <Users className="h-8 w-8 text-gray-200 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm">Tidak ada customer</p>
                 </td>
@@ -418,8 +450,20 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
                   <td className="px-4 py-3 text-gray-500 text-xs">
                     {c.last_visit ? formatDate(c.last_visit) : "-"}
                   </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{c.lead_name ?? "-"}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{c.domicile ?? "-"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
+                      {c.phone && (
+                        <a
+                          href={`https://wa.me/${c.phone.replace(/^0/, "62").replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </a>
+                      )}
                       <Link
                         href={`/customers/${c.id}`}
                         className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
@@ -461,6 +505,16 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
                   <p className="text-xs text-gray-500 font-mono">{c.phone}</p>
                 </div>
                 <div className="flex gap-1">
+                  {c.phone && (
+                    <a
+                      href={`https://wa.me/${c.phone.replace(/^0/, "62").replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-green-50 text-gray-400 hover:text-green-600"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </a>
+                  )}
                   <Link href={`/customers/${c.id}`} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-500">
                     <Eye className="h-4 w-4" />
                   </Link>
@@ -562,11 +616,19 @@ export function CustomersClient({ currentUser, leads, initialData }: Props) {
 
               <div className="space-y-1.5">
                 <Label>Domisili</Label>
-                <Input
-                  value={form.domicile}
-                  onChange={e => setForm(f => ({ ...f, domicile: e.target.value }))}
-                  placeholder="Kota"
-                />
+                {domicileOptions.length > 0 ? (
+                  <DomicileCombobox
+                    options={domicileOptions}
+                    value={form.domicile}
+                    onChange={(v) => setForm(f => ({ ...f, domicile: v }))}
+                  />
+                ) : (
+                  <Input
+                    value={form.domicile}
+                    onChange={e => setForm(f => ({ ...f, domicile: e.target.value }))}
+                    placeholder="Kota"
+                  />
+                )}
               </div>
 
               <div className="space-y-1.5">

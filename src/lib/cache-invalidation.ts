@@ -19,6 +19,10 @@ export async function invalidateLeads() {
   revalidateTag(CACHE_TAGS.LEADS);
 }
 
+export async function invalidateDomiciles() {
+  revalidateTag(CACHE_TAGS.DOMICILES);
+}
+
 export async function invalidatePhotoFor() {
   revalidateTag(CACHE_TAGS.PHOTO_FOR);
 }

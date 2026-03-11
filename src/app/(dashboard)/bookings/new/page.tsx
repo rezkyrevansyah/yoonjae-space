@@ -11,6 +11,7 @@ import {
   getCachedSettingsGeneral,
   getCachedHolidays,
   getCachedActiveUsers,
+  getCachedDomiciles,
 } from "@/lib/cached-queries";
 import type { Package, Background, Addon, Lead, PhotoFor, CustomField, SettingsGeneral, StudioHoliday } from "@/lib/types/database";
 
@@ -28,6 +29,7 @@ export default async function NewBookingPage() {
     settingsGeneral,
     holidays,
     users,
+    domiciles,
   ] = await Promise.all([
     getCurrentUser(),
     getCachedPackages(),
@@ -39,6 +41,7 @@ export default async function NewBookingPage() {
     getCachedSettingsGeneral(),
     getCachedHolidays(),
     getCachedActiveUsers(),
+    getCachedDomiciles(),
   ]);
 
   if (!currentUser) redirect("/login");
@@ -55,6 +58,7 @@ export default async function NewBookingPage() {
       settingsGeneral={settingsGeneral as SettingsGeneral | null}
       holidays={(holidays as StudioHoliday[]) ?? []}
       users={(users as { id: string; name: string }[]) ?? []}
+      domicileOptions={(domiciles as { name: string }[]).map(d => d.name)}
     />
   );
 }

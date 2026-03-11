@@ -47,7 +47,10 @@ function toDateStr(d: Date): string {
 
 export function RescheduleModal({ open, onClose, booking, currentUser, onRescheduled }: Props) {
   const { toast } = useToast();
+  const now = new Date();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [displayMonth, setDisplayMonth] = useState<Date>(now);
+  const [overridePastDates, setOverridePastDates] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [existingSlots, setExistingSlots] = useState<ExistingSlot[]>([]);
   const [saving, setSaving] = useState(false);
@@ -85,7 +88,22 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
   const closeTime = settingsGeneral?.close_time ?? "21:00";
   const interval = settingsGeneral?.time_slot_interval ?? 30;
   const timeSlots = generateTimeSlots(openTime, closeTime, interval);
-  const durationMins = booking.packages?.duration_minutes ?? 60;
+
+  // Multi-package duration: sum all packages' duration + extra_time
+  const durationMins = booking.booking_packages?.length > 0
+    ? booking.booking_packages.reduce((sum, bp) => {
+        const dur = (bp.packages?.duration_minutes ?? 0) * bp.quantity;
+        const extra = bp.packages?.need_extra_time ? (bp.packages.extra_time_minutes ?? 0) * bp.quantity : 0;
+        return sum + dur + extra;
+      }, 0)
+    : booking.packages?.duration_minutes ?? 60;
+
+  function handleMonthChange(month: Date) {
+    setDisplayMonth(month);
+    const firstOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
+    setSelectedDate(firstOfMonth);
+    setSelectedTime("");
+  }
 
   function isSlotBooked(slot: string): boolean {
     const slotMins = timeToMinutes(slot);
@@ -152,6 +170,8 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
     if (saving) return;
     setSelectedDate(undefined);
     setSelectedTime("");
+    setDisplayMonth(new Date());
+    setOverridePastDates(false);
     onClose();
   }
 
@@ -169,15 +189,67 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Past dates toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-300 px-3 py-2">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Input tanggal masa lalu</p>
+              <p className="text-xs text-gray-500">Aktifkan jika reschedule ke tanggal yang sudah lewat</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !overridePastDates;
+                setOverridePastDates(next);
+                if (!next) {
+                  setDisplayMonth(new Date());
+                  setSelectedDate(undefined);
+                  setSelectedTime("");
+                }
+              }}
+              className={cn(
+                "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+                overridePastDates ? "bg-amber-500" : "bg-gray-200"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200",
+                  overridePastDates ? "translate-x-4" : "translate-x-0"
+                )}
+              />
+            </button>
+          </div>
+
+          {overridePastDates && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <p className="text-sm text-amber-700">Mode tanggal masa lalu — semua tanggal diizinkan</p>
+            </div>
+          )}
+
           {/* Date picker */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Pilih Tanggal Baru</p>
-            <div className="flex justify-center">
+            <div className="flex justify-center border rounded-lg p-2">
               <DayPicker
                 mode="single"
+                month={displayMonth}
+                onMonthChange={handleMonthChange}
                 selected={selectedDate}
-                onSelect={(date) => { setSelectedDate(date); setSelectedTime(""); }}
-                disabled={{ before: new Date() }}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  if (date) setDisplayMonth(date);
+                  setSelectedTime("");
+                }}
+                captionLayout="dropdown"
+                startMonth={new Date(2015, 0)}
+                endMonth={new Date(now.getFullYear() + 2, 11)}
+                disabled={(date) => {
+                  if (overridePastDates) return false;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today;
+                }}
                 components={{ Chevron: (props) => <Chevron {...props} /> }}
                 classNames={{
                   selected: "!bg-[#8B1A1A] !text-white !rounded-full",

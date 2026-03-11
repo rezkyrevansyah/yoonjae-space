@@ -37,6 +37,8 @@ export interface CalendarBooking {
   photo_for: { name: string } | null;
   booking_backgrounds: { backgrounds: { name: string } | null }[];
   booking_addons: { addons: { name: string; need_extra_time: boolean; extra_time_minutes: number; extra_time_position: 'before' | 'after' } | null; price: number; is_paid: boolean; is_extra: boolean }[];
+  booking_packages: { id: string; package_id: string; quantity: number; price_snapshot: number; packages: { name: string } | null }[];
+  booking_custom_fields: { custom_field_id: string; value: string | null; custom_fields: { label: string } | null }[];
 }
 
 type ViewMode = "day" | "week" | "month";
@@ -117,12 +119,16 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
          packages(name, duration_minutes),
          photo_for:photo_for(name),
          booking_backgrounds(backgrounds(name)),
-         booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position))`
+         booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position)),
+         booking_packages(id, package_id, quantity, price_snapshot, packages(name)),
+         booking_custom_fields(custom_field_id, value, custom_fields(label))`
       : `id, booking_number, booking_date, start_time, end_time, status,
          person_count, behind_the_scenes, notes,
          customers(name, phone),
          packages(name, duration_minutes),
-         photo_for:photo_for(name)`;
+         photo_for:photo_for(name),
+         booking_packages(id, package_id, quantity, price_snapshot, packages(name)),
+         booking_custom_fields(custom_field_id, value, custom_fields(label))`;
 
     const { data, error } = await supabase
       .from("bookings")
@@ -146,6 +152,8 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
         ...raw,
         booking_backgrounds: raw.booking_backgrounds ?? [],
         booking_addons: raw.booking_addons ?? [],
+        booking_packages: raw.booking_packages ?? [],
+        booking_custom_fields: raw.booking_custom_fields ?? [],
       };
     }));
   }, [toast]);

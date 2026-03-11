@@ -11,19 +11,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn, formatRupiah } from "@/lib/utils";
-import type { DetailFormData } from "./new-booking-client";
-import type { Package, Background, PhotoFor } from "@/lib/types/database";
+import { cn } from "@/lib/utils";
+import type { DetailFormData, CustomFieldValues } from "./new-booking-client";
+import type { Background, PhotoFor, CustomField } from "@/lib/types/database";
 
 interface Props {
   detailData: DetailFormData;
   onChange: (data: DetailFormData) => void;
-  packages: Package[];
   backgrounds: Background[];
   photoFors: PhotoFor[];
+  customFields: CustomField[];
+  customFieldValues: CustomFieldValues;
+  onCustomFieldChange: (values: CustomFieldValues) => void;
 }
 
-export function StepDetail({ detailData, onChange, packages, backgrounds, photoFors }: Props) {
+export function StepDetail({
+  detailData,
+  onChange,
+  backgrounds,
+  photoFors,
+  customFields,
+  customFieldValues,
+  onCustomFieldChange,
+}: Props) {
   function toggleBackground(id: string) {
     const current = detailData.background_ids;
     const next = current.includes(id)
@@ -32,10 +42,14 @@ export function StepDetail({ detailData, onChange, packages, backgrounds, photoF
     onChange({ ...detailData, background_ids: next });
   }
 
+  function setCF(id: string, value: string) {
+    onCustomFieldChange({ ...customFieldValues, [id]: value });
+  }
+
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Detail Booking</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Detail & Info Tambahan</h2>
         <p className="text-sm text-gray-500">Isi detail sesi foto</p>
       </div>
 
@@ -51,26 +65,6 @@ export function StepDetail({ detailData, onChange, packages, backgrounds, photoF
             onChange({ ...detailData, person_count: isNaN(v) ? 0 : v });
           }}
         />
-      </div>
-
-      <div>
-        <Label>Paket <span className="text-red-500">*</span></Label>
-        <Select
-          value={detailData.package_id || "__none__"}
-          onValueChange={(v) => onChange({ ...detailData, package_id: v === "__none__" ? "" : v })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Pilih paket" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__" disabled>— Pilih paket —</SelectItem>
-            {packages.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name} — {formatRupiah(p.price)} ({p.duration_minutes} mnt)
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div>
@@ -137,6 +131,64 @@ export function StepDetail({ detailData, onChange, packages, backgrounds, photoF
           <p className="text-xs text-gray-500">Video dokumentasi proses foto</p>
         </div>
       </div>
+
+      {/* Custom Fields */}
+      {customFields.length > 0 && (
+        <div className="space-y-4 pt-2 border-t">
+          <p className="text-sm font-medium text-gray-700">Informasi Tambahan</p>
+          {customFields.map((cf) => (
+            <div key={cf.id}>
+              <Label className="mb-1 block">{cf.label}</Label>
+              {cf.field_type === "text" && (
+                <Input
+                  value={customFieldValues[cf.id] ?? ""}
+                  onChange={(e) => setCF(cf.id, e.target.value)}
+                />
+              )}
+              {cf.field_type === "number" && (
+                <Input
+                  type="number"
+                  value={customFieldValues[cf.id] ?? ""}
+                  onChange={(e) => setCF(cf.id, e.target.value)}
+                />
+              )}
+              {cf.field_type === "url" && (
+                <Input
+                  type="url"
+                  value={customFieldValues[cf.id] ?? ""}
+                  onChange={(e) => setCF(cf.id, e.target.value)}
+                  placeholder="https://"
+                />
+              )}
+              {cf.field_type === "checkbox" && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Checkbox
+                    checked={customFieldValues[cf.id] === "true"}
+                    onCheckedChange={(checked) => setCF(cf.id, checked ? "true" : "false")}
+                  />
+                  <span className="text-sm text-gray-700">{cf.label}</span>
+                </div>
+              )}
+              {cf.field_type === "select" && cf.options && (
+                <Select
+                  value={customFieldValues[cf.id] || "__none__"}
+                  onValueChange={(v) => setCF(cf.id, v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih opsi..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {cf.options.filter(Boolean).map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

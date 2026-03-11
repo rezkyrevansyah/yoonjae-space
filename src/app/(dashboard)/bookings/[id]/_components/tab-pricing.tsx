@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 const supabase = createClient();
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatRupiah } from "@/lib/utils";
 import type { BookingDetail, BookingAddonRow, AvailableAddon } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
-import { Plus, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard } from "lucide-react";
 
 interface Props {
   booking: BookingDetail;
@@ -30,12 +31,28 @@ interface Props {
 export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: Props) {
   const { toast } = useToast();
 
+  // --- Add-on state ---
   const [addons, setAddons] = useState<BookingAddonRow[]>(booking.booking_addons);
   const [selectedAddonId, setSelectedAddonId] = useState("__none__");
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  // --- DP state ---
+  const [dpAmount, setDpAmount] = useState<number | null>(
+    booking.dp_amount != null && booking.dp_amount > 0 ? booking.dp_amount : null
+  );
+  const [dpPaidAt, setDpPaidAt] = useState<string | null>(booking.dp_paid_at ?? null);
+  const [editingDp, setEditingDp] = useState(false);
+  const [dpInput, setDpInput] = useState("");
+  const [savingDp, setSavingDp] = useState(false);
+  const [togglingDp, setTogglingDp] = useState(false);
+  const [deletingDp, setDeletingDp] = useState(false);
+
+  const hasDp = dpAmount != null && dpAmount > 0;
+  const dpIsLunas = dpPaidAt != null;
+
+  // --- Derived pricing ---
   const originalAddons = useMemo(() => addons.filter((a) => !a.is_extra), [addons]);
   const extraAddons = useMemo(() => addons.filter((a) => a.is_extra), [addons]);
 
@@ -44,7 +61,9 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     return availableAddons.filter((a) => !usedIds.has(a.id));
   }, [addons, availableAddons]);
 
-  const packagePrice = booking.packages?.price ?? 0;
+  const packagesTotal = booking.booking_packages.reduce(
+    (sum, bp) => sum + bp.price_snapshot * bp.quantity, 0
+  );
   const originalAddonsTotal = useMemo(
     () => originalAddons.reduce((s, a) => s + a.price, 0),
     [originalAddons]
@@ -59,11 +78,134 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         const v = booking.vouchers;
         if (!v) return 0;
         if (v.discount_type === "percentage")
-          return Math.floor(((packagePrice + originalAddonsTotal) * v.discount_value) / 100);
+          return Math.floor(((packagesTotal + originalAddonsTotal) * v.discount_value) / 100);
         return v.discount_value;
       })();
-  const total = Math.max(0, packagePrice + originalAddonsTotal - discount) + extraAddonsTotal;
+  const total = Math.max(0, packagesTotal + originalAddonsTotal - discount) + extraAddonsTotal;
 
+  // --- DP handlers ---
+  async function handleSaveDp() {
+    const amount = parseInt(dpInput.replace(/\D/g, ""), 10);
+    if (!amount || amount <= 0) return;
+    setSavingDp(true);
+    const isNew = !hasDp;
+    try {
+      const now = new Date().toISOString();
+      // New DP: default to Lunas + update status. Edit: keep existing dp_paid_at unchanged.
+      const updatePayload = isNew
+        ? { dp_amount: amount, dp_paid_at: now, status: booking.status === "BOOKED" ? "DP_PAID" : booking.status }
+        : { dp_amount: amount };
+      const { error } = await supabase
+        .from("bookings")
+        .update(updatePayload)
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      setDpAmount(amount);
+      if (isNew) {
+        setDpPaidAt(now);
+        onUpdate({ dp_amount: amount, dp_paid_at: now, status: updatePayload.status as typeof booking.status ?? booking.status });
+      } else {
+        onUpdate({ dp_amount: amount });
+      }
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: hasDp ? "UPDATE" : "CREATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `${hasDp ? "Update" : "Tambah"} DP booking ${booking.booking_number}: ${formatRupiah(amount)}`,
+      });
+
+      toast({ title: "DP disimpan", description: formatRupiah(amount) });
+      setEditingDp(false);
+      setDpInput("");
+    } catch {
+      toast({ title: "Gagal menyimpan DP", variant: "destructive" });
+    } finally {
+      setSavingDp(false);
+    }
+  }
+
+  async function handleToggleDpPaid() {
+    setTogglingDp(true);
+    try {
+      const now = new Date().toISOString();
+      let newPaidAt: string | null;
+      let newStatus = booking.status;
+
+      if (dpIsLunas) {
+        newPaidAt = null;
+        if (booking.status === "DP_PAID") newStatus = "BOOKED";
+      } else {
+        newPaidAt = now;
+        if (booking.status === "BOOKED") newStatus = "DP_PAID";
+      }
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({ dp_paid_at: newPaidAt, status: newStatus })
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      setDpPaidAt(newPaidAt);
+      onUpdate({ dp_paid_at: newPaidAt, status: newStatus });
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `DP booking ${booking.booking_number}: ${dpIsLunas ? "Belum Lunas" : "Lunas"}`,
+      });
+
+      toast({ title: dpIsLunas ? "DP: Belum Lunas" : "DP: Lunas" });
+    } catch {
+      toast({ title: "Gagal update status DP", variant: "destructive" });
+    } finally {
+      setTogglingDp(false);
+    }
+  }
+
+  async function handleDeleteDp() {
+    setDeletingDp(true);
+    try {
+      let newStatus = booking.status;
+      if (booking.status === "DP_PAID") newStatus = "BOOKED";
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({ dp_amount: 0, dp_paid_at: null, status: newStatus })
+        .eq("id", booking.id);
+      if (error) throw error;
+
+      setDpAmount(null);
+      setDpPaidAt(null);
+      onUpdate({ dp_amount: 0, dp_paid_at: null, status: newStatus });
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "DELETE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Hapus DP booking ${booking.booking_number}`,
+      });
+
+      toast({ title: "DP dihapus" });
+    } catch {
+      toast({ title: "Gagal menghapus DP", variant: "destructive" });
+    } finally {
+      setDeletingDp(false);
+    }
+  }
+
+  // --- Extra add-on handlers ---
   async function addExtraAddon() {
     if (!selectedAddonId || selectedAddonId === "__none__") return;
     const addon = availableAddons.find((a) => a.id === selectedAddonId);
@@ -80,9 +222,8 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       });
       if (error) throw error;
 
-      // Sync bookings.total with the new extra addon included
       const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) + addon.price;
-      const newTotal = Math.max(0, packagePrice + originalAddonsTotal - discount) + newExtraTotal;
+      const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
         .update({ total: newTotal })
@@ -139,9 +280,8 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         .eq("is_extra", true);
       if (error) throw error;
 
-      // Sync bookings.total with the addon removed
       const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) - removedPrice;
-      const newTotal = Math.max(0, packagePrice + originalAddonsTotal - discount) + newExtraTotal;
+      const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
         .update({ total: newTotal })
@@ -211,15 +351,27 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
 
   return (
     <div className="space-y-5 pt-4">
-      {/* Original addons */}
+      {/* Paket & Add-on Awal */}
       <div className="bg-white rounded-xl border p-5 space-y-3">
         <h3 className="font-semibold text-gray-800">Paket & Add-on Awal</h3>
 
         <div className="space-y-2">
-          <div className="flex justify-between text-sm py-1.5 border-b border-gray-50">
-            <span className="text-gray-600">Paket: {booking.packages?.name}</span>
-            <span className="font-medium">{formatRupiah(packagePrice)}</span>
-          </div>
+          {booking.booking_packages.length > 0 ? (
+            booking.booking_packages.map((bp) => (
+              <div key={bp.id} className="flex justify-between text-sm py-1.5 border-b border-gray-50">
+                <span className="text-gray-600">
+                  Paket: {bp.packages?.name}
+                  {bp.quantity > 1 && <span className="text-gray-400 ml-1">(x{bp.quantity})</span>}
+                </span>
+                <span className="font-medium">{formatRupiah(bp.price_snapshot * bp.quantity)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-between text-sm py-1.5 border-b border-gray-50">
+              <span className="text-gray-600">Paket: {booking.packages?.name}</span>
+              <span className="font-medium">{formatRupiah(booking.packages?.price ?? 0)}</span>
+            </div>
+          )}
           {originalAddons.map((a) => (
             <div key={a.addon_id} className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
               <span className="text-gray-600">{a.addons?.name ?? a.addon_id}</span>
@@ -238,7 +390,122 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         </div>
       </div>
 
-      {/* Extra add-ons */}
+      {/* Down Payment */}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-maroon-700" />
+            Down Payment (DP)
+          </h3>
+          {!editingDp && !hasDp && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-8 text-xs"
+              onClick={() => { setDpInput(""); setEditingDp(true); }}
+            >
+              <Plus className="h-3.5 w-3.5" />Tambah DP
+            </Button>
+          )}
+        </div>
+
+        {editingDp ? (
+          <div className="space-y-3">
+            <div>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Nominal DP..."
+                value={dpInput}
+                onChange={(e) => setDpInput(e.target.value)}
+                className="text-sm"
+                autoFocus
+              />
+              {dpInput && parseInt(dpInput) > 0 && (
+                <p className="text-xs text-gray-400 mt-1">{formatRupiah(parseInt(dpInput))}</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleSaveDp}
+                disabled={savingDp || !dpInput || parseInt(dpInput) <= 0}
+                className="bg-maroon-700 hover:bg-maroon-600 h-8"
+              >
+                {savingDp && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                Simpan
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditingDp(false)} className="h-8">
+                Batal
+              </Button>
+            </div>
+          </div>
+        ) : hasDp ? (
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="font-semibold text-sm text-gray-900">{formatRupiah(dpAmount!)}</p>
+              {dpPaidAt && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Dibayar:{" "}
+                  {new Date(dpPaidAt).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className={dpIsLunas ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                {dpIsLunas ? "Lunas" : "Belum Lunas"}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleDpPaid}
+                disabled={togglingDp}
+                className="h-8 px-2"
+                title={dpIsLunas ? "Tandai Belum Lunas" : "Tandai Lunas"}
+              >
+                {togglingDp ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : dpIsLunas ? (
+                  <XCircle className="h-3.5 w-3.5 text-red-500" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setDpInput(String(dpAmount)); setEditingDp(true); }}
+                className="h-8 px-2"
+                title="Edit nominal DP"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteDp}
+                disabled={deletingDp}
+                className="h-8 px-2 text-red-400 hover:text-red-600 hover:bg-red-50"
+                title="Hapus DP"
+              >
+                {deletingDp ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Belum ada DP yang dicatat.</p>
+        )}
+      </div>
+
+      {/* Extra Add-on */}
       <div className="bg-white rounded-xl border p-5 space-y-4">
         <h3 className="font-semibold text-gray-800">Extra Add-on</h3>
 
@@ -296,7 +563,6 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
           </div>
         )}
 
-        {/* Add extra addon */}
         {availableToAdd.length > 0 && (
           <div className="flex gap-2 pt-1">
             <Select value={selectedAddonId} onValueChange={setSelectedAddonId}>
@@ -325,11 +591,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         )}
       </div>
 
-      {/* Total summary */}
+      {/* Total Summary */}
       <div className="rounded-xl border-2 border-maroon-200 bg-maroon-50 p-5 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Subtotal awal</span>
-          <span>{formatRupiah(Math.max(0, packagePrice + originalAddonsTotal - discount))}</span>
+          <span>{formatRupiah(Math.max(0, packagesTotal + originalAddonsTotal - discount))}</span>
         </div>
         {extraAddonsTotal > 0 && (
           <div className="flex justify-between text-sm">
@@ -341,6 +607,18 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
           <span>Total</span>
           <span>{formatRupiah(total)}</span>
         </div>
+        {hasDp && (
+          <>
+            <div className="flex justify-between text-sm border-t border-maroon-200 pt-2 text-blue-700">
+              <span>DP {dpIsLunas ? "(Lunas)" : "(Belum Lunas)"}</span>
+              <span>− {formatRupiah(dpAmount!)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold text-maroon-800">
+              <span>Sisa Tagihan</span>
+              <span>{formatRupiah(Math.max(0, total - dpAmount!))}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

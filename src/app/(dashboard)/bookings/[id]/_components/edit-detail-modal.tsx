@@ -22,14 +22,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Loader2 } from "lucide-react";
-import type { BookingDetail } from "./booking-detail-client";
+import { Pencil, Loader2, Clock, Minus, Plus } from "lucide-react";
+import type { BookingDetail, BookingPackageRow } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
 
 const supabase = createClient();
 
-interface FormState {
+interface FormPackageItem {
   package_id: string;
+  quantity: number;
+}
+
+interface FormState {
+  packages: FormPackageItem[];
   person_count: number;
   background_ids: string[];
   photo_for_id: string;
@@ -81,13 +86,43 @@ interface Props {
   customFields: CustomFieldOption[];
 }
 
+function QuantityControl({
+  value,
+  onIncrease,
+  onDecrease,
+}: {
+  value: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={onDecrease}
+        className="h-6 w-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <span className="w-6 text-center text-sm font-semibold">{value}</span>
+      <button
+        type="button"
+        onClick={onIncrease}
+        className="h-6 w-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated, packages, backgrounds, photoFors, users, customFields }: Props) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [personCountInput, setPersonCountInput] = useState("1");
 
   const [form, setForm] = useState<FormState>({
-    package_id: "",
+    packages: [],
     person_count: 1,
     background_ids: [],
     photo_for_id: "",
@@ -102,8 +137,20 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
     if (!open) return;
     const pc = booking.person_count;
     setPersonCountInput(String(pc));
+
+    // Build packages list from booking_packages, fallback to single package
+    let prefillPackages: FormPackageItem[] = [];
+    if (booking.booking_packages?.length > 0) {
+      prefillPackages = booking.booking_packages.map((bp) => ({
+        package_id: bp.package_id,
+        quantity: bp.quantity,
+      }));
+    } else if (booking.packages?.id) {
+      prefillPackages = [{ package_id: booking.packages.id, quantity: 1 }];
+    }
+
     setForm({
-      package_id: booking.packages?.id ?? "",
+      packages: prefillPackages,
       person_count: pc,
       background_ids: booking.booking_backgrounds.map((b) => b.background_id),
       photo_for_id: booking.photo_for?.id ?? "",
@@ -129,21 +176,39 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
     setForm((f) => ({ ...f, customFieldValues: { ...f.customFieldValues, [id]: value } }));
   }
 
-  const selectedPackage = packages.find((p) => p.id === form.package_id);
+  function getPackageQty(pkg_id: string): number {
+    return form.packages.find((p) => p.package_id === pkg_id)?.quantity ?? 0;
+  }
+
+  function setPackageQty(pkg_id: string, qty: number) {
+    setForm((f) => {
+      if (qty <= 0) {
+        return { ...f, packages: f.packages.filter((p) => p.package_id !== pkg_id) };
+      }
+      const existing = f.packages.find((p) => p.package_id === pkg_id);
+      if (existing) {
+        return { ...f, packages: f.packages.map((p) => p.package_id === pkg_id ? { ...p, quantity: qty } : p) };
+      }
+      return { ...f, packages: [...f.packages, { package_id: pkg_id, quantity: qty }] };
+    });
+  }
 
   async function handleSubmit() {
-    if (!form.package_id) {
-      toast({ title: "Error", description: "Paket harus dipilih", variant: "destructive" });
+    if (form.packages.length === 0) {
+      toast({ title: "Error", description: "Pilih minimal 1 paket", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       // Calculate new subtotal/total
-      const packagePrice = selectedPackage?.price ?? booking.packages?.price ?? 0;
+      const packagesTotal = form.packages.reduce((sum, item) => {
+        const pkg = packages.find((p) => p.id === item.package_id);
+        return sum + (pkg?.price ?? 0) * item.quantity;
+      }, 0);
       const addonsTotal = booking.booking_addons
         .filter((a) => !a.is_extra)
         .reduce((sum, a) => sum + a.price, 0);
-      const newSubtotal = packagePrice + addonsTotal;
+      const newSubtotal = packagesTotal + addonsTotal;
 
       // Re-apply existing discount
       let discount = booking.manual_discount ?? 0;
@@ -161,7 +226,7 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
-          package_id: form.package_id,
+          package_id: form.packages[0]?.package_id ?? null,
           person_count: form.person_count,
           photo_for_id: form.photo_for_id || null,
           behind_the_scenes: form.behind_the_scenes,
@@ -173,7 +238,28 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
         .eq("id", booking.id);
       if (bookingError) throw bookingError;
 
-      // 2. Update booking_backgrounds: delete + reinsert
+      // 2. Delete + reinsert booking_packages
+      const { error: bpDeleteError } = await supabase
+        .from("booking_packages")
+        .delete()
+        .eq("booking_id", booking.id);
+      if (bpDeleteError) throw bpDeleteError;
+
+      const pkgRows = form.packages.map((item) => {
+        const pkg = packages.find((p) => p.id === item.package_id);
+        return {
+          booking_id: booking.id,
+          package_id: item.package_id,
+          quantity: item.quantity,
+          price_snapshot: pkg?.price ?? 0,
+        };
+      });
+      if (pkgRows.length > 0) {
+        const { error: bpInsertError } = await supabase.from("booking_packages").insert(pkgRows);
+        if (bpInsertError) throw bpInsertError;
+      }
+
+      // 3. Update booking_backgrounds: delete + reinsert
       const { error: bgDeleteError } = await supabase
         .from("booking_backgrounds")
         .delete()
@@ -187,7 +273,7 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
         if (bgInsertError) throw bgInsertError;
       }
 
-      // 3. Update custom fields: delete all then reinsert non-empty values
+      // 4. Update custom fields: delete all then reinsert non-empty values
       await supabase.from("booking_custom_fields").delete().eq("booking_id", booking.id);
       const cfRows = customFields
         .filter((cf) => (form.customFieldValues[cf.id] ?? "") !== "")
@@ -197,7 +283,7 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
         if (cfError) throw cfError;
       }
 
-      // 4. Log activity
+      // 5. Log activity
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
@@ -208,10 +294,7 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
         description: `Mengedit detail booking ${booking.booking_number}`,
       });
 
-      // 5. Notify parent to refresh
-      const newPackage = selectedPackage
-        ? { id: selectedPackage.id, name: selectedPackage.name, price: selectedPackage.price, duration_minutes: selectedPackage.duration_minutes }
-        : booking.packages;
+      // 6. Notify parent to refresh
       const newPhotoFor = photoFors.find((p) => p.id === form.photo_for_id) ?? null;
       const newStaff = users.find((u) => u.id === form.staff_id) ?? null;
       const newBgRows = form.background_ids.map((bg_id) => {
@@ -225,9 +308,23 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
           value: form.customFieldValues[cf.id],
           custom_fields: { id: cf.id, label: cf.label, field_type: cf.field_type, options: cf.options },
         }));
+      const newBookingPackages: BookingPackageRow[] = form.packages.map((item) => {
+        const pkg = packages.find((p) => p.id === item.package_id);
+        return {
+          id: "",
+          package_id: item.package_id,
+          quantity: item.quantity,
+          price_snapshot: pkg?.price ?? 0,
+          packages: pkg
+            ? { id: pkg.id, name: pkg.name, price: pkg.price, duration_minutes: pkg.duration_minutes, need_extra_time: false, extra_time_minutes: 0 }
+            : null,
+        };
+      });
+      const firstPkg = packages.find((p) => p.id === form.packages[0]?.package_id) ?? null;
 
       onUpdated({
-        packages: newPackage,
+        packages: firstPkg ? { id: firstPkg.id, name: firstPkg.name, price: firstPkg.price, duration_minutes: firstPkg.duration_minutes } : booking.packages,
+        booking_packages: newBookingPackages,
         person_count: form.person_count,
         photo_for: newPhotoFor ? { id: newPhotoFor.id, name: newPhotoFor.name } : null,
         behind_the_scenes: form.behind_the_scenes,
@@ -269,208 +366,242 @@ export function EditDetailModal({ open, onClose, booking, currentUser, onUpdated
         </DialogHeader>
 
         <div className="space-y-4">
-            {/* Package */}
-            <div>
-              <Label className="mb-1.5 block">
-                Paket <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={form.package_id || "__none__"}
-                onValueChange={(v) => setForm((f) => ({ ...f, package_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih paket" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" disabled>— Pilih paket —</SelectItem>
-                  {packages.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {formatRupiah(p.price)} ({p.duration_minutes} mnt)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Person Count */}
-            <div>
-              <Label className="mb-1.5 block">
-                Jumlah Orang <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={personCountInput}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "");
-                  setPersonCountInput(raw);
-                  const v = parseInt(raw, 10);
-                  if (!isNaN(v) && v > 0) setForm((f) => ({ ...f, person_count: v }));
-                }}
-              />
-            </div>
-
-            {/* Backgrounds */}
-            {backgrounds.length > 0 && (
-              <div>
-                <Label className="mb-1.5 block">Background</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {backgrounds.map((bg) => (
-                    <button
-                      key={bg.id}
-                      type="button"
-                      onClick={() => toggleBackground(bg.id)}
-                      className={cn(
-                        "rounded-lg border px-3 py-2 text-sm text-left transition-colors",
-                        form.background_ids.includes(bg.id)
-                          ? "bg-maroon-50 border-maroon-400 text-maroon-700 font-medium"
-                          : "bg-white border-gray-200 text-gray-700 hover:border-gray-300"
-                      )}
-                    >
-                      {bg.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Photo For */}
-            <div>
-              <Label className="mb-1.5 block">Photo For</Label>
-              <Select
-                value={form.photo_for_id || "__none__"}
-                onValueChange={(v) => setForm((f) => ({ ...f, photo_for_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih tujuan foto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {photoFors.map((pf) => (
-                    <SelectItem key={pf.id} value={pf.id}>{pf.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* BTS */}
-            <div className="flex items-center gap-3 rounded-lg border p-3">
-              <Checkbox
-                id="edit-bts"
-                checked={form.behind_the_scenes}
-                onCheckedChange={(checked) => setForm((f) => ({ ...f, behind_the_scenes: !!checked }))}
-              />
-              <div>
-                <label htmlFor="edit-bts" className="text-sm font-medium cursor-pointer">
-                  Behind the Scenes (BTS)
-                </label>
-                <p className="text-xs text-gray-500">Video dokumentasi proses foto</p>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <Label className="mb-1.5 block">Notes</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Catatan tambahan untuk sesi ini..."
-                rows={3}
-              />
-            </div>
-
-            {/* Staff */}
-            <div>
-              <Label className="mb-1.5 block">Staff</Label>
-              <Select
-                value={form.staff_id || "__none__"}
-                onValueChange={(v) => setForm((f) => ({ ...f, staff_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih staff" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Custom Fields */}
-            {customFields.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-gray-700">Informasi Tambahan</p>
-                {customFields.map((cf) => (
-                  <div key={cf.id}>
-                    <Label className="mb-1.5 block">{cf.label}</Label>
-                    {cf.field_type === "text" && (
-                      <Input
-                        value={form.customFieldValues[cf.id] ?? ""}
-                        onChange={(e) => setCustomField(cf.id, e.target.value)}
-                      />
+          {/* Packages — multi-select cards */}
+          <div>
+            <Label className="mb-1.5 block">
+              Paket <span className="text-red-500">*</span>
+            </Label>
+            <div className="space-y-2">
+              {packages.map((pkg) => {
+                const qty = getPackageQty(pkg.id);
+                const isSelected = qty > 0;
+                return (
+                  <div
+                    key={pkg.id}
+                    onClick={() => setPackageQty(pkg.id, isSelected ? 0 : 1)}
+                    className={cn(
+                      "rounded-lg border p-3 cursor-pointer transition-colors",
+                      isSelected
+                        ? "bg-maroon-50 border-maroon-300"
+                        : "bg-white border-gray-200 hover:border-gray-300"
                     )}
-                    {cf.field_type === "number" && (
-                      <Input
-                        type="number"
-                        value={form.customFieldValues[cf.id] ?? ""}
-                        onChange={(e) => setCustomField(cf.id, e.target.value)}
-                      />
-                    )}
-                    {cf.field_type === "url" && (
-                      <Input
-                        type="url"
-                        value={form.customFieldValues[cf.id] ?? ""}
-                        onChange={(e) => setCustomField(cf.id, e.target.value)}
-                        placeholder="https://"
-                      />
-                    )}
-                    {cf.field_type === "checkbox" && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <Checkbox
-                          checked={form.customFieldValues[cf.id] === "true"}
-                          onCheckedChange={(checked) => setCustomField(cf.id, checked ? "true" : "false")}
-                        />
-                        <span className="text-sm text-gray-700">{cf.label}</span>
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("font-medium text-sm", isSelected ? "text-maroon-800" : "text-gray-800")}>
+                          {pkg.name}
+                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className={cn("text-sm font-semibold", isSelected ? "text-maroon-700" : "text-gray-600")}>
+                            {formatRupiah(pkg.price)}
+                          </p>
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {pkg.duration_minutes} mnt
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    {cf.field_type === "select" && cf.options && (
-                      <Select
-                        value={form.customFieldValues[cf.id] || "__none__"}
-                        onValueChange={(v) => setCustomField(cf.id, v === "__none__" ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih opsi..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">—</SelectItem>
-                          {cf.options.filter(Boolean).map((opt) => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {isSelected && (
+                        <QuantityControl
+                          value={qty}
+                          onIncrease={() => setPackageQty(pkg.id, qty + 1)}
+                          onDecrease={() => setPackageQty(pkg.id, qty - 1)}
+                        />
+                      )}
+                    </div>
+                    {isSelected && qty > 1 && (
+                      <p className="text-xs text-maroon-600 mt-1 font-medium">
+                        Subtotal: {formatRupiah(pkg.price * qty)}
+                      </p>
                     )}
                   </div>
+                );
+              })}
+            </div>
+            {form.packages.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">Pilih minimal 1 paket</p>
+            )}
+          </div>
+
+          {/* Person Count */}
+          <div>
+            <Label className="mb-1.5 block">
+              Jumlah Orang <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={personCountInput}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, "");
+                setPersonCountInput(raw);
+                const v = parseInt(raw, 10);
+                if (!isNaN(v) && v > 0) setForm((f) => ({ ...f, person_count: v }));
+              }}
+            />
+          </div>
+
+          {/* Backgrounds */}
+          {backgrounds.length > 0 && (
+            <div>
+              <Label className="mb-1.5 block">Background</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {backgrounds.map((bg) => (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    onClick={() => toggleBackground(bg.id)}
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-sm text-left transition-colors",
+                      form.background_ids.includes(bg.id)
+                        ? "bg-maroon-50 border-maroon-400 text-maroon-700 font-medium"
+                        : "bg-white border-gray-200 text-gray-700 hover:border-gray-300"
+                    )}
+                  >
+                    {bg.name}
+                  </button>
                 ))}
               </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={handleClose} disabled={saving}>
-                Batal
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={saving || !form.package_id}
-                className="bg-[#8B1A1A] hover:bg-[#B22222] gap-1.5"
-              >
-                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Simpan
-              </Button>
             </div>
+          )}
+
+          {/* Photo For */}
+          <div>
+            <Label className="mb-1.5 block">Photo For</Label>
+            <Select
+              value={form.photo_for_id || "__none__"}
+              onValueChange={(v) => setForm((f) => ({ ...f, photo_for_id: v === "__none__" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih tujuan foto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">—</SelectItem>
+                {photoFors.map((pf) => (
+                  <SelectItem key={pf.id} value={pf.id}>{pf.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* BTS */}
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <Checkbox
+              id="edit-bts"
+              checked={form.behind_the_scenes}
+              onCheckedChange={(checked) => setForm((f) => ({ ...f, behind_the_scenes: !!checked }))}
+            />
+            <div>
+              <label htmlFor="edit-bts" className="text-sm font-medium cursor-pointer">
+                Behind the Scenes (BTS)
+              </label>
+              <p className="text-xs text-gray-500">Video dokumentasi proses foto</p>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <Label className="mb-1.5 block">Notes</Label>
+            <Textarea
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="Catatan tambahan untuk sesi ini..."
+              rows={3}
+            />
+          </div>
+
+          {/* Staff */}
+          <div>
+            <Label className="mb-1.5 block">Staff</Label>
+            <Select
+              value={form.staff_id || "__none__"}
+              onValueChange={(v) => setForm((f) => ({ ...f, staff_id: v === "__none__" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">—</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700">Informasi Tambahan</p>
+              {customFields.map((cf) => (
+                <div key={cf.id}>
+                  <Label className="mb-1.5 block">{cf.label}</Label>
+                  {cf.field_type === "text" && (
+                    <Input
+                      value={form.customFieldValues[cf.id] ?? ""}
+                      onChange={(e) => setCustomField(cf.id, e.target.value)}
+                    />
+                  )}
+                  {cf.field_type === "number" && (
+                    <Input
+                      type="number"
+                      value={form.customFieldValues[cf.id] ?? ""}
+                      onChange={(e) => setCustomField(cf.id, e.target.value)}
+                    />
+                  )}
+                  {cf.field_type === "url" && (
+                    <Input
+                      type="url"
+                      value={form.customFieldValues[cf.id] ?? ""}
+                      onChange={(e) => setCustomField(cf.id, e.target.value)}
+                      placeholder="https://"
+                    />
+                  )}
+                  {cf.field_type === "checkbox" && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Checkbox
+                        checked={form.customFieldValues[cf.id] === "true"}
+                        onCheckedChange={(checked) => setCustomField(cf.id, checked ? "true" : "false")}
+                      />
+                      <span className="text-sm text-gray-700">{cf.label}</span>
+                    </div>
+                  )}
+                  {cf.field_type === "select" && cf.options && (
+                    <Select
+                      value={form.customFieldValues[cf.id] || "__none__"}
+                      onValueChange={(v) => setCustomField(cf.id, v === "__none__" ? "" : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih opsi..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">—</SelectItem>
+                        {cf.options.filter(Boolean).map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 justify-end pt-2">
+            <Button variant="outline" onClick={handleClose} disabled={saving}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={saving || form.packages.length === 0}
+              className="bg-[#8B1A1A] hover:bg-[#B22222] gap-1.5"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Simpan
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

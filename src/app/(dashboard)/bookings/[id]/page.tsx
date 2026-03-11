@@ -20,8 +20,8 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
       .from("bookings")
       .select(`
         id, booking_number, booking_date, start_time, end_time, status, print_order_status,
-        google_drive_link, person_count, notes, behind_the_scenes, subtotal, total,
-        voucher_id, manual_discount, staff_id, created_by, created_at,
+        is_rescheduled, google_drive_link, person_count, notes, behind_the_scenes, subtotal, total,
+        dp_amount, dp_paid_at, voucher_id, manual_discount, staff_id, created_by, created_at,
         customers(id, name, phone, email, instagram, address, domicile),
         packages(id, name, price, duration_minutes),
         photo_for:photo_for(id, name),
@@ -30,7 +30,8 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
         creator:users!bookings_created_by_fkey(id, name),
         booking_backgrounds(background_id, backgrounds(id, name)),
         booking_addons(addon_id, price, is_paid, is_extra, addons(id, name, need_extra_time, extra_time_minutes)),
-        booking_custom_fields(custom_field_id, value, custom_fields(id, label, field_type, options))
+        booking_custom_fields(custom_field_id, value, custom_fields(id, label, field_type, options)),
+        booking_packages(id, package_id, quantity, price_snapshot, packages(id, name, price, duration_minutes, need_extra_time, extra_time_minutes))
       `)
       .eq("id", params.id)
       .single(),

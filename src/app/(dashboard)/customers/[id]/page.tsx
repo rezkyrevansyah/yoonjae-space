@@ -13,7 +13,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
 
   if (!currentUser) redirect("/login");
 
-  const [{ data: customer }, { data: leads }] = await Promise.all([
+  const [{ data: customer }, { data: leads }, { data: domiciles }] = await Promise.all([
     supabase
       .from("customers")
       .select(`
@@ -31,6 +31,11 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       .select("id, name")
       .eq("is_active", true)
       .order("name"),
+    supabase
+      .from("domiciles")
+      .select("name")
+      .eq("is_active", true)
+      .order("name"),
   ]);
 
   if (!customer) notFound();
@@ -40,6 +45,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       currentUser={currentUser}
       customer={customer as never}
       leads={(leads ?? []) as { id: string; name: string }[]}
+      domicileOptions={(domiciles ?? []).map((d) => d.name)}
     />
   );
 }

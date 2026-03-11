@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DomicileCombobox } from "@/components/ui/domicile-combobox";
 import type { CustomerFormData } from "./new-booking-client";
 import type { Lead } from "@/lib/types/database";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -20,11 +21,12 @@ interface Props {
   customerData: CustomerFormData;
   onChange: (data: CustomerFormData) => void;
   leads: Lead[];
+  domicileOptions: string[];
 }
 
 type PhoneStatus = "idle" | "checking" | "available" | "taken";
 
-export function StepCustomerData({ customerData, onChange, leads }: Props) {
+export function StepCustomerData({ customerData, onChange, leads, domicileOptions }: Props) {
   const supabase = createClient();
   const [phoneStatus, setPhoneStatus] = useState<PhoneStatus>("idle");
 
@@ -142,11 +144,19 @@ export function StepCustomerData({ customerData, onChange, leads }: Props) {
 
         <div>
           <Label>Domisili</Label>
-          <Input
-            value={customerData.domicile}
-            onChange={(e) => set("domicile", e.target.value)}
-            placeholder="Kota domisili"
-          />
+          {domicileOptions.length > 0 ? (
+            <DomicileCombobox
+              options={domicileOptions}
+              value={customerData.domicile}
+              onChange={(v) => set("domicile", v)}
+            />
+          ) : (
+            <Input
+              value={customerData.domicile}
+              onChange={(e) => set("domicile", e.target.value)}
+              placeholder="Kota domisili"
+            />
+          )}
         </div>
 
         <div>

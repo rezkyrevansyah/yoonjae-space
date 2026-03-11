@@ -72,6 +72,7 @@ interface BookingRow {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 const ALL_STATUSES = "ALL";
+const RESCHEDULED_FILTER = "RESCHEDULED";
 
 interface Props {
   currentUser: CurrentUser;
@@ -136,7 +137,9 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
         .order("booking_date", { ascending: sortAsc })
         .order("start_time", { ascending: sortAsc });
 
-      if (statusFilter !== ALL_STATUSES) {
+      if (statusFilter === RESCHEDULED_FILTER) {
+        query = query.eq("is_rescheduled", true);
+      } else if (statusFilter !== ALL_STATUSES) {
         query = query.eq("status", statusFilter);
       }
       if (printFilter) {
@@ -145,14 +148,18 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
       if (dateFrom) query = query.gte("booking_date", dateFrom);
       if (dateTo) query = query.lte("booking_date", dateTo);
       if (search.trim()) {
-        const { data: matchingCustomers } = await supabase
-          .from("customers")
-          .select("id")
-          .ilike("name", `%${search.trim()}%`);
+        const [{ data: matchingCustomers }, { data: matchingPackages }] = await Promise.all([
+          supabase.from("customers").select("id").ilike("name", `%${search.trim()}%`),
+          supabase.from("packages").select("id").ilike("name", `%${search.trim()}%`),
+        ]);
         const customerIds = matchingCustomers?.map((c) => c.id) ?? [];
+        const packageIds = matchingPackages?.map((p) => p.id) ?? [];
         const conditions = [`booking_number.ilike.%${search.trim()}%`];
         if (customerIds.length > 0) {
           conditions.push(`customer_id.in.(${customerIds.join(",")})`);
+        }
+        if (packageIds.length > 0) {
+          conditions.push(`package_id.in.(${packageIds.join(",")})`);
         }
         query = query.or(conditions.join(","));
       }
@@ -248,7 +255,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Cari nama customer / booking ID..."
+            placeholder="Cari customer, booking ID, atau nama paket..."
             className="pl-9"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -260,6 +267,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_STATUSES}>Semua Status</SelectItem>
+            <SelectItem value={RESCHEDULED_FILTER}>Rescheduled</SelectItem>
             {Object.entries(BOOKING_STATUS_LABEL).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}

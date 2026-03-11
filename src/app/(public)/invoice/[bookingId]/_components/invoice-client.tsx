@@ -25,6 +25,8 @@ interface BookingData {
   subtotal: number;
   total: number;
   manual_discount: number | null;
+  dp_amount: number | null;
+  dp_paid_at: string | null;
   customers: { name: string; phone: string; email: string | null } | null;
   packages: { name: string; price: number } | null;
   vouchers: {
@@ -38,6 +40,12 @@ interface BookingData {
     is_paid: boolean;
     is_extra: boolean;
     addons: { name: string } | null;
+  }[];
+  booking_packages: {
+    package_id: string;
+    quantity: number;
+    price_snapshot: number;
+    packages: { name: string } | null;
   }[];
   invoices: { invoice_number: string; invoice_date: string } | { invoice_number: string; invoice_date: string }[] | null;
 }
@@ -308,8 +316,22 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {/* Package */}
-                {booking.packages && (
+                {/* Packages — use booking_packages for multi-package support, fallback to packages for legacy */}
+                {booking.booking_packages && booking.booking_packages.length > 0 ? (
+                  booking.booking_packages.map((bp, i) => (
+                    <tr key={i}>
+                      <td className="py-3 text-gray-800">
+                        Paket {bp.packages?.name ?? "-"}
+                        {bp.quantity > 1 && (
+                          <span className="ml-2 text-xs text-gray-400">(x{bp.quantity})</span>
+                        )}
+                      </td>
+                      <td className="py-3 text-right text-gray-800 font-mono">
+                        {formatRupiah(bp.price_snapshot * bp.quantity)}
+                      </td>
+                    </tr>
+                  ))
+                ) : booking.packages ? (
                   <tr>
                     <td className="py-3 text-gray-800">
                       Paket {booking.packages.name}
@@ -318,7 +340,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                       {formatRupiah(booking.packages.price)}
                     </td>
                   </tr>
-                )}
+                ) : null}
 
                 {/* Add-ons */}
                 {booking.booking_addons.map((ba, i) => (
@@ -367,6 +389,34 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                   {formatRupiah(booking.total)}
                 </span>
               </div>
+
+              {/* DP & Remaining */}
+              {booking.dp_amount != null && booking.dp_amount > 0 && (
+                <>
+                  {booking.dp_paid_at ? (
+                    // Lunas — green, no minus
+                    <div className="flex justify-between text-sm text-green-700 border-t border-gray-100 pt-2">
+                      <span className="flex items-center gap-1.5">
+                        DP
+                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                          ✓ Sudah Dibayar
+                        </span>
+                      </span>
+                      <span className="font-mono">{formatRupiah(booking.dp_amount)}</span>
+                    </div>
+                  ) : (
+                    // Belum Lunas — blue, with minus
+                    <div className="flex justify-between text-sm text-blue-700 border-t border-gray-100 pt-2">
+                      <span>DP Dibayar</span>
+                      <span className="font-mono">− {formatRupiah(booking.dp_amount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-semibold text-gray-800">
+                    <span>Sisa Tagihan</span>
+                    <span className="font-mono">{formatRupiah(Math.max(0, booking.total - booking.dp_amount))}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

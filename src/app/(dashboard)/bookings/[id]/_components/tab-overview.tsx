@@ -1,5 +1,3 @@
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatTime, formatRupiah } from "@/lib/utils";
@@ -21,7 +19,6 @@ function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode 
 
 export function TabOverview({ booking }: Props) {
   const customer = booking.customers;
-  const pkg = booking.packages;
   const bgs = booking.booking_backgrounds.map((b) => b.backgrounds?.name).filter(Boolean);
   const addons = booking.booking_addons.filter((a) => !a.is_extra);
   const extraAddons = booking.booking_addons.filter((a) => a.is_extra);
@@ -92,7 +89,7 @@ export function TabOverview({ booking }: Props) {
         </CardContent>
       </Card>
 
-      {/* Package */}
+      {/* Packages */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2 text-gray-700">
@@ -101,9 +98,28 @@ export function TabOverview({ booking }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <Row label="Paket" value={<span className="font-medium">{pkg?.name}</span>} />
-          <Row label="Durasi" value={`${pkg?.duration_minutes} menit`} />
-          <Row label="Harga" value={formatRupiah(pkg?.price ?? 0)} />
+          {booking.booking_packages.length > 0 ? (
+            booking.booking_packages.map((bp) => (
+              <Row
+                key={bp.id}
+                label={
+                  <span>
+                    {bp.packages?.name ?? "-"}
+                    {bp.quantity > 1 && (
+                      <Badge variant="secondary" className="ml-1.5 text-xs py-0 px-1.5">x{bp.quantity}</Badge>
+                    )}
+                  </span>
+                }
+                value={<span className="font-medium">{formatRupiah(bp.price_snapshot * bp.quantity)}</span>}
+              />
+            ))
+          ) : (
+            <>
+              <Row label="Paket" value={<span className="font-medium">{booking.packages?.name}</span>} />
+              <Row label="Durasi" value={`${booking.packages?.duration_minutes} menit`} />
+              <Row label="Harga" value={formatRupiah(booking.packages?.price ?? 0)} />
+            </>
+          )}
         </CardContent>
       </Card>
 

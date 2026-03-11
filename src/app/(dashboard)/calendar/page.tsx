@@ -24,7 +24,9 @@ export default async function CalendarPage() {
         packages(name, duration_minutes),
         photo_for:photo_for(name),
         booking_backgrounds(backgrounds(name)),
-        booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position))
+        booking_addons(price, is_paid, is_extra, addons(name, need_extra_time, extra_time_minutes, extra_time_position)),
+        booking_packages(id, package_id, quantity, price_snapshot, packages(name)),
+        booking_custom_fields(custom_field_id, value, custom_fields(label))
       `)
       .gte("booking_date", today)
       .lte("booking_date", today)
@@ -41,6 +43,8 @@ export default async function CalendarPage() {
       ...raw,
       booking_backgrounds: raw.booking_backgrounds ?? [],
       booking_addons: raw.booking_addons ?? [],
+      booking_packages: raw.booking_packages ?? [],
+      booking_custom_fields: raw.booking_custom_fields ?? [],
     };
   });
 

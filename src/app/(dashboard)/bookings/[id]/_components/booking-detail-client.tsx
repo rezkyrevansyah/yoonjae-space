@@ -36,6 +36,14 @@ export interface BookingAddonRow {
   addons: { id: string; name: string; need_extra_time: boolean; extra_time_minutes: number } | null;
 }
 
+export interface BookingPackageRow {
+  id: string;
+  package_id: string;
+  quantity: number;
+  price_snapshot: number;
+  packages: { id: string; name: string; price: number; duration_minutes: number; need_extra_time: boolean; extra_time_minutes: number } | null;
+}
+
 export interface BookingDetail {
   id: string;
   booking_number: string;
@@ -51,6 +59,8 @@ export interface BookingDetail {
   behind_the_scenes: boolean;
   subtotal: number;
   total: number;
+  dp_amount: number | null;
+  dp_paid_at: string | null;
   voucher_id: string | null;
   manual_discount: number;
   staff_id: string | null;
@@ -65,6 +75,7 @@ export interface BookingDetail {
   booking_backgrounds: { background_id: string; backgrounds: { id: string; name: string } | null }[];
   booking_addons: BookingAddonRow[];
   booking_custom_fields: { custom_field_id: string; value: string | null; custom_fields: { id: string; label: string; field_type: string; options: string[] | null } | null }[];
+  booking_packages: BookingPackageRow[];
 }
 
 export interface AvailableAddon {

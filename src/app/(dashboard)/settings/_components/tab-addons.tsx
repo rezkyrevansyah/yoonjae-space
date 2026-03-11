@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,31 +22,82 @@ interface TabAddonsProps {
   currentUser: CurrentUser;
 }
 
+const emptyForm = {
+  name: "",
+  price: "",
+  category: "",
+  sort_order: "0",
+  need_extra_time: false,
+  extra_time_minutes: "30",
+  extra_time_position: "after" as "before" | "after",
+  is_active: true,
+};
+
 export function TabAddons({ currentUser }: TabAddonsProps) {
   const { toast } = useToast();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Addon[]>([]);
+  const [addonCategories, setAddonCategories] = useState<{ id: string; name: string }[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", extra_time_position: "after" as "before" | "after", is_active: true });
+  const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchItems(); fetchAddonCategories(); }, []);
+
+  async function fetchAddonCategories() {
+    const { data } = await supabase.from("addon_categories").select("id, name").eq("is_active", true).order("sort_order").order("name");
+    if (data) setAddonCategories(data);
+  }
 
   async function fetchItems() {
     setLoading(true);
-    const { data } = await supabase.from("addons").select("id, name, price, need_extra_time, extra_time_minutes, extra_time_position, is_active, created_at, updated_at").order("name");
+    const { data } = await supabase
+      .from("addons")
+      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active, created_at, updated_at")
+      .order("sort_order")
+      .order("name");
     if (data) setItems(data);
     setLoading(false);
   }
 
-  function openAdd() { setEditingId(null); setForm({ name: "", price: "", need_extra_time: false, extra_time_minutes: "30", extra_time_position: "after", is_active: true }); setModalOpen(true); }
+  // Group addons by category
+  const grouped = useMemo(() => {
+    const map = new Map<string, Addon[]>();
+    for (const item of items) {
+      const key = item.category || "";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    const entries = [...map.entries()].sort(([a], [b]) => {
+      if (!a && b) return 1;
+      if (a && !b) return -1;
+      return a.localeCompare(b);
+    });
+    return entries;
+  }, [items]);
+
+  function openAdd() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  }
+
   function openEdit(item: Addon) {
     setEditingId(item.id);
-    setForm({ name: item.name, price: String(item.price), need_extra_time: item.need_extra_time, extra_time_minutes: String(item.extra_time_minutes), extra_time_position: item.extra_time_position ?? "after", is_active: item.is_active });
+    setForm({
+      name: item.name,
+      price: String(item.price),
+      category: item.category ?? "",
+      sort_order: String(item.sort_order ?? 0),
+      need_extra_time: item.need_extra_time,
+      extra_time_minutes: String(item.extra_time_minutes),
+      extra_time_position: item.extra_time_position ?? "after",
+      is_active: item.is_active,
+    });
     setModalOpen(true);
   }
 
@@ -55,6 +107,8 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
     const payload = {
       name: form.name,
       price: parseInt(form.price.replace(/\D/g, ""), 10),
+      category: form.category.trim(),
+      sort_order: parseInt(form.sort_order, 10) || 0,
       need_extra_time: form.need_extra_time,
       extra_time_minutes: form.need_extra_time ? parseInt(form.extra_time_minutes, 10) : 0,
       extra_time_position: form.need_extra_time ? form.extra_time_position : "after",
@@ -71,7 +125,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       } else {
         const { data, error } = await supabase.from("addons").insert(payload).select().single();
         if (error) throw error;
-        setItems((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+        setItems((prev) => [...prev, data]);
         await invalidateAddons();
         await supabase.from("activity_log").insert({ user_id: currentUser.id, user_name: currentUser.name, user_role: currentUser.role_name, action: "create_addon", entity: "addons", entity_id: data.id, description: `Created addon: ${form.name}` });
         toast({ title: "Berhasil", description: `Add-on "${form.name}" ditambahkan.` });
@@ -105,27 +159,37 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       {items.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">Belum ada add-on.</div>
       ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{item.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm font-semibold text-maroon-700">{formatRupiah(item.price)}</span>
-                  {item.need_extra_time && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {item.extra_time_position === "before" ? "−" : "+"}{item.extra_time_minutes} mnt {item.extra_time_position === "before" ? "(sebelum sesi)" : "(setelah sesi)"}
-                    </span>
-                  )}
-                </div>
+        <div className="space-y-6">
+          {grouped.map(([category, groupItems]) => (
+            <div key={category || "__uncategorized"}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-semibold text-gray-600">{category || "Lainnya"}</span>
+                <div className="flex-1 h-px bg-gray-200" />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={item.is_active ? "default" : "secondary"} className={item.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}>
-                  {item.is_active ? "Aktif" : "Nonaktif"}
-                </Badge>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(item)}><Pencil className="h-3 w-3" /></Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(item.id)}><Trash2 className="h-3 w-3" /></Button>
+              <div className="space-y-2">
+                {groupItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-sm font-semibold text-maroon-700">{formatRupiah(item.price)}</span>
+                        {item.need_extra_time && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {item.extra_time_position === "before" ? "−" : "+"}{item.extra_time_minutes} mnt {item.extra_time_position === "before" ? "(sebelum sesi)" : "(setelah sesi)"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={item.is_active ? "default" : "secondary"} className={item.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}>
+                        {item.is_active ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(item)}><Pencil className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteId(item.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -139,6 +203,26 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
             <div className="space-y-2">
               <Label>Nama <span className="text-red-500">*</span></Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="MUA, Dekorasi, dll." />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Kategori</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v === "__none" ? "" : v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih kategori..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Tanpa Kategori</SelectItem>
+                    {addonCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Urutan</Label>
+                <Input type="number" min={0} value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} placeholder="0" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Harga (Rp) <span className="text-red-500">*</span></Label>

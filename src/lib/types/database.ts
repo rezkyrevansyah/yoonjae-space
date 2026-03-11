@@ -5,6 +5,7 @@
 // --- Enums ---
 export type BookingStatus =
   | "BOOKED"
+  | "DP_PAID"
   | "PAID"
   | "SHOOT_DONE"
   | "PHOTOS_DELIVERED"
@@ -73,9 +74,12 @@ export interface Package {
   description: string | null;
   price: number;
   duration_minutes: number;
-  include_all_photos: boolean;
+  category: string;
+  sort_order: number;
+  include_print: boolean;
   need_extra_time: boolean;
   extra_time_minutes: number;
+  extra_time_position: 'before' | 'after';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -93,6 +97,8 @@ export interface Addon {
   id: string;
   name: string;
   price: number;
+  category: string;
+  sort_order: number;
   need_extra_time: boolean;
   extra_time_minutes: number;
   extra_time_position: 'before' | 'after';
@@ -123,6 +129,13 @@ export interface CustomField {
 }
 
 export interface Lead {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Domicile {
   id: string;
   name: string;
   is_active: boolean;
@@ -198,7 +211,7 @@ export interface Booking {
   booking_date: string;
   start_time: string;
   end_time: string;
-  package_id: string;
+  package_id: string | null;
   photo_for_id: string | null;
   person_count: number;
   notes: string | null;
@@ -211,6 +224,8 @@ export interface Booking {
   manual_discount: number;
   subtotal: number;
   total: number;
+  dp_amount: number | null;
+  dp_paid_at: string | null;
   staff_id: string | null;
   commission_amount: number; // per-booking commission in Rp
   created_by: string | null;
@@ -224,6 +239,7 @@ export interface Booking {
   staff?: Pick<User, "id" | "name">;
   booking_backgrounds?: BookingBackground[];
   booking_addons?: BookingAddon[];
+  booking_packages?: BookingPackage[];
 }
 
 export interface BookingBackground {
@@ -235,10 +251,21 @@ export interface BookingBackground {
 export interface BookingAddon {
   booking_id: string;
   addon_id: string;
-  price: number; // price snapshot at booking time
+  price: number; // price per unit at booking time
+  quantity: number;
   is_paid: boolean;
   is_extra: boolean;
-  addons?: Pick<Addon, "id" | "name" | "need_extra_time" | "extra_time_minutes">;
+  addons?: Pick<Addon, "id" | "name" | "need_extra_time" | "extra_time_minutes" | "extra_time_position">;
+}
+
+export interface BookingPackage {
+  id: string;
+  booking_id: string;
+  package_id: string;
+  quantity: number;
+  price_snapshot: number; // price per unit at booking time
+  created_at: string;
+  packages?: Pick<Package, "id" | "name" | "price" | "duration_minutes" | "need_extra_time" | "extra_time_minutes">;
 }
 
 export interface BookingCustomField {

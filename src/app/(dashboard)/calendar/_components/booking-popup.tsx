@@ -108,7 +108,23 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
             icon={<Clock className="h-4 w-4" />}
             value={`${formatTime(booking.start_time)} — ${formatTime(booking.end_time)} (${durationMin} menit)`}
           />
-          <InfoRow icon={<Package className="h-4 w-4" />} value={booking.packages?.name ?? "-"} />
+          {booking.booking_packages.length > 0 ? (
+            <div className="flex gap-2 text-sm text-gray-700">
+              <span className="text-gray-400 flex-shrink-0 mt-0.5"><Package className="h-4 w-4" /></span>
+              <div className="flex flex-col gap-0.5">
+                {booking.booking_packages.map((bp) => (
+                  <span key={bp.id}>
+                    {bp.packages?.name ?? "-"}
+                    {bp.quantity > 1 && (
+                      <span className="ml-1 text-xs text-gray-400">×{bp.quantity}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <InfoRow icon={<Package className="h-4 w-4" />} value={booking.packages?.name ?? "-"} />
+          )}
           <InfoRow icon={<Users className="h-4 w-4" />} value={`${booking.person_count} orang`} />
           {booking.photo_for && (
             <InfoRow icon={<User className="h-4 w-4" />} value={`Foto untuk: ${booking.photo_for.name}`} />
@@ -147,6 +163,21 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
             <div className="pt-1">
               <p className="text-xs text-gray-500 mb-1">Catatan</p>
               <p className="text-sm text-gray-700 whitespace-pre-line">{booking.notes}</p>
+            </div>
+          )}
+
+          {/* Custom Fields */}
+          {booking.booking_custom_fields.length > 0 && (
+            <div className="pt-1 border-t border-gray-100">
+              <p className="text-xs text-gray-500 mb-2">Informasi Tambahan</p>
+              <div className="space-y-1.5">
+                {booking.booking_custom_fields.map((cf) => (
+                  <div key={cf.custom_field_id} className="flex justify-between text-sm gap-3">
+                    <span className="text-gray-500 flex-shrink-0">{cf.custom_fields?.label ?? cf.custom_field_id}</span>
+                    <span className="text-gray-800 text-right">{cf.value ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

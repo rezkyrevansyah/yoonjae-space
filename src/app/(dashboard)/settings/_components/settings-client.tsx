@@ -11,6 +11,8 @@ import { TabAddons } from "./tab-addons";
 import { TabVouchers } from "./tab-vouchers";
 import { TabCustomFields } from "./tab-custom-fields";
 import { TabSimpleCrud } from "./tab-simple-crud";
+import { TabCategories } from "./tab-categories";
+import { TabDomiciles } from "./tab-domiciles";
 import type { CurrentUser } from "@/lib/types/database";
 
 interface SettingsClientProps {
@@ -24,10 +26,12 @@ const TABS = [
   { value: "packages",       label: "Packages" },
   { value: "backgrounds",    label: "Backgrounds" },
   { value: "addons",         label: "Add-ons" },
+  { value: "categories",     label: "Kategori" },
   { value: "vouchers",       label: "Vouchers" },
   { value: "custom-fields",  label: "Custom Fields" },
   { value: "leads",          label: "Leads" },
   { value: "photo-for",      label: "Photo For" },
+  { value: "domiciles",      label: "Domisili" },
 ];
 
 export function SettingsClient({ currentUser }: SettingsClientProps) {
@@ -80,6 +84,10 @@ export function SettingsClient({ currentUser }: SettingsClientProps) {
             <TabAddons currentUser={currentUser} />
           </TabsContent>
 
+          <TabsContent value="categories" className="mt-0">
+            <TabCategories currentUser={currentUser} />
+          </TabsContent>
+
           <TabsContent value="vouchers" className="mt-0">
             <TabVouchers currentUser={currentUser} />
           </TabsContent>
@@ -104,6 +112,10 @@ export function SettingsClient({ currentUser }: SettingsClientProps) {
               entityLabel="Photo For"
               addLabel="Tambah Photo For"
             />
+          </TabsContent>
+
+          <TabsContent value="domiciles" className="mt-0">
+            <TabDomiciles currentUser={currentUser} />
           </TabsContent>
         </div>
       </Tabs>
