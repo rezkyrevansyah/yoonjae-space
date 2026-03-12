@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, CalendarCheck, Calendar, Users, Bell,
+  LayoutDashboard, CalendarCheck, Calendar, Camera, Users, Bell,
   TrendingUp, Store, Percent, Activity, UserCog, Shield, Settings,
 };
 

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { formatDate, formatTime } from "@/lib/utils";
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR, PRINT_ORDER_STATUS_LABEL } from "@/lib/constants";
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
 import {
   CalendarDays,
@@ -68,9 +68,6 @@ interface Props {
 const BOOKING_FLOW: BookingStatus[] = [
   "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED",
 ];
-const PRINT_FLOW: PrintOrderStatus[] = [
-  "SELECTION", "VENDOR", "PRINTING", "RECEIVE", "PACKING", "SHIPPED", "DONE",
-];
 
 const canViewPhotos = (status: BookingStatus) =>
   ["PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"].includes(status);
@@ -94,9 +91,6 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
     : (booking.invoices as { invoice_number: string } | null)?.invoice_number;
 
   const currentStatusIdx = BOOKING_FLOW.indexOf(booking.status);
-  const currentPrintIdx = booking.print_order_status
-    ? PRINT_FLOW.indexOf(booking.print_order_status)
-    : -1;
 
   // Show last 2 statuses collapsed, all expanded
   const visibleStatuses = timelineExpanded
@@ -208,21 +202,6 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
             })}
           </div>
 
-          {/* Print order status if exists */}
-          {booking.print_order_status && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs text-gray-500 mb-2 font-medium">Print Order</p>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-blue-600 text-xs">📦</span>
-                </div>
-                <span className="text-sm font-medium text-blue-700">
-                  {PRINT_ORDER_STATUS_LABEL[booking.print_order_status]}
-                  {currentPrintIdx === PRINT_FLOW.length - 1 && " ✓"}
-                </span>
-              </div>
-            </div>
-          )}
         </motion.div>
 
         {/* View Photos button */}

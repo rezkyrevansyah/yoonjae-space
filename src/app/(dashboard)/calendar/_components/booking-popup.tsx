@@ -21,8 +21,19 @@ import {
   ChevronRight,
   ChevronLeft,
   ArrowRight,
+  Link as LinkIcon,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const BOOKING_FLOW: BookingStatus[] = [
   "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "CLOSED",
@@ -41,10 +52,18 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<BookingStatus>(booking.status);
+  const [showDriveDialog, setShowDriveDialog] = useState(false);
+  const [driveLink, setDriveLink] = useState("");
 
   const currentIdx = BOOKING_FLOW.indexOf(status);
   const canNext = currentIdx < BOOKING_FLOW.length - 1;
   const canBack = currentIdx > 0;
+
+  function hasStatusPermission(from: BookingStatus, to: BookingStatus): boolean {
+    if (currentUser.is_primary) return true;
+    if (currentUser.menu_access.includes("booking_full_access")) return true;
+    return currentUser.menu_access.includes(`sc:${from}:${to}`);
+  }
 
   async function changeStatus(newStatus: BookingStatus) {
     setLoading(true);
@@ -70,6 +89,40 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
     onStatusUpdate(booking.id, newStatus);
     setLoading(false);
     toast({ title: "Status diperbarui", description: BOOKING_STATUS_LABEL[newStatus] });
+  }
+
+  async function handleDeliver() {
+    const rawLink = driveLink.trim();
+    if (!rawLink) {
+      toast({ title: "Error", description: "Isi Google Drive link terlebih dahulu", variant: "destructive" });
+      return;
+    }
+    const normalizedLink = /^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`;
+    setLoading(true);
+    const { error } = await supabase
+      .from("bookings")
+      .update({ status: "PHOTOS_DELIVERED", google_drive_link: normalizedLink })
+      .eq("id", booking.id);
+    if (error) {
+      toast({ title: "Error", description: "Gagal deliver foto", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+    await supabase.from("activity_log").insert({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      user_role: currentUser.role_name,
+      action: "UPDATE",
+      entity: "bookings",
+      entity_id: booking.id,
+      description: `Foto dikirim untuk booking ${booking.booking_number} (dari Calendar)`,
+    });
+    setStatus("PHOTOS_DELIVERED");
+    onStatusUpdate(booking.id, "PHOTOS_DELIVERED");
+    setShowDriveDialog(false);
+    setDriveLink("");
+    setLoading(false);
+    toast({ title: "Foto berhasil dikirim!", description: "Status → Photos Delivered" });
   }
 
   const durationMin = (() => {
@@ -185,27 +238,53 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
         {/* Actions */}
         <div className="border-t border-gray-100 p-4 space-y-3">
           {/* Status navigation */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!canBack || loading}
-              onClick={() => changeStatus(BOOKING_FLOW[currentIdx - 1])}
-              className="flex-1"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              {canBack ? BOOKING_STATUS_LABEL[BOOKING_FLOW[currentIdx - 1]] : "Back"}
-            </Button>
-            <Button
-              size="sm"
-              disabled={!canNext || loading}
-              onClick={() => changeStatus(BOOKING_FLOW[currentIdx + 1])}
-              className="flex-1 bg-[#8B1A1A] hover:bg-[#B22222]"
-            >
-              {canNext ? BOOKING_STATUS_LABEL[BOOKING_FLOW[currentIdx + 1]] : "Next"}
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+          {status === "SHOOT_DONE" ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loading || !hasStatusPermission("SHOOT_DONE", "PAID")}
+                  onClick={() => changeStatus("PAID")}
+                  className="flex-1"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Paid
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={loading || !hasStatusPermission("SHOOT_DONE", "PHOTOS_DELIVERED")}
+                  onClick={() => setShowDriveDialog(true)}
+                  className="flex-1 bg-[#8B1A1A] hover:bg-[#B22222] disabled:opacity-50"
+                >
+                  <LinkIcon className="h-3.5 w-3.5 mr-1" />
+                  Deliver Foto
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!canBack || loading || (canBack && !hasStatusPermission(status, BOOKING_FLOW[currentIdx - 1]))}
+                onClick={() => changeStatus(BOOKING_FLOW[currentIdx - 1])}
+                className="flex-1"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                {canBack ? BOOKING_STATUS_LABEL[BOOKING_FLOW[currentIdx - 1]] : "Back"}
+              </Button>
+              <Button
+                size="sm"
+                disabled={!canNext || loading || (canNext && !hasStatusPermission(status, BOOKING_FLOW[currentIdx + 1]))}
+                onClick={() => changeStatus(BOOKING_FLOW[currentIdx + 1])}
+                className="flex-1 bg-[#8B1A1A] hover:bg-[#B22222] disabled:opacity-50"
+              >
+                {canNext ? BOOKING_STATUS_LABEL[BOOKING_FLOW[currentIdx + 1]] : "Next"}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
 
           {/* Bottom buttons */}
           <div className="flex gap-2">
@@ -221,6 +300,39 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           </div>
         </div>
       </div>
+
+      {/* Drive Link Dialog */}
+      <Dialog open={showDriveDialog} onOpenChange={(open) => { if (!open) { setShowDriveDialog(false); setDriveLink(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-[#8B1A1A]" />
+              Input Link Foto & Deliver
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1">
+            <Label className="mb-1 block">Google Drive Link</Label>
+            <Input
+              value={driveLink}
+              onChange={(e) => setDriveLink(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDriveDialog(false); setDriveLink(""); }} disabled={loading}>
+              Batal
+            </Button>
+            <Button
+              className="bg-[#8B1A1A] hover:bg-[#B22222] text-white"
+              onClick={handleDeliver}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Deliver Foto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -103,6 +103,8 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
   const supabase = createClient();
   const { toast } = useToast();
 
+  const hasFullAccess = currentUser.is_primary || currentUser.menu_access.includes("booking_full_access");
+
   const [booking, setBooking] = useState<BookingDetail>(initialBooking);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -184,32 +186,36 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
               Invoice
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
-            onClick={() => setShowEditDetail(true)}
-          >
-            <Pencil className="h-4 w-4" />
-            Edit Detail
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50"
-            onClick={() => setShowReschedule(true)}
-          >
-            <CalendarClock className="h-4 w-4" />
-            Reschedule
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-red-500 border-red-200 hover:bg-red-50"
-            onClick={() => setShowDelete(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {hasFullAccess && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50"
+                onClick={() => setShowEditDetail(true)}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit Detail
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50"
+                onClick={() => setShowReschedule(true)}
+              >
+                <CalendarClock className="h-4 w-4" />
+                Reschedule
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-red-500 border-red-200 hover:bg-red-50"
+                onClick={() => setShowDelete(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -218,7 +224,9 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
         <TabsList className="w-full">
           <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
           <TabsTrigger value="progress" className="flex-1">Progress</TabsTrigger>
-          <TabsTrigger value="pricing" className="flex-1">Pricing</TabsTrigger>
+          {hasFullAccess && (
+            <TabsTrigger value="pricing" className="flex-1">Pricing</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview">
@@ -233,14 +241,16 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
           />
         </TabsContent>
 
-        <TabsContent value="pricing">
-          <TabPricing
-            booking={booking}
-            currentUser={currentUser}
-            availableAddons={availableAddons}
-            onUpdate={(updated) => setBooking((prev) => ({ ...prev, ...updated }))}
-          />
-        </TabsContent>
+        {hasFullAccess && (
+          <TabsContent value="pricing">
+            <TabPricing
+              booking={booking}
+              currentUser={currentUser}
+              availableAddons={availableAddons}
+              onUpdate={(updated) => setBooking((prev) => ({ ...prev, ...updated }))}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Edit Detail Modal */}

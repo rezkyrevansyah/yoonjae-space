@@ -26,19 +26,20 @@ export default async function CommissionsPage() {
   // Fetch cutoff day from settings
   const { data: settings } = await supabase
     .from("settings_general")
-    .select("commission_cutoff_day")
+    .select("commission_cutoff_day, commission_default_bonus")
     .eq("lock", true)
     .maybeSingle();
   const cutoffDay = settings?.commission_cutoff_day ?? 26;
+  const defaultBonus = settings?.commission_default_bonus ?? 0;
 
   const period = getPeriodRange(month, year, cutoffDay);
 
-  const [currentUser, staffUsers, bookingsResult, commissionsResult] = await Promise.all([
+  const [currentUser, staffUsers, bookingsResult, commissionsResult, packagesResult] = await Promise.all([
     getCurrentUser(),
     getCachedActiveUsers(),
     supabase
       .from("bookings")
-      .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(name)")
+      .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(id, name, commission_bonus)")
       .gte("booking_date", period.start)
       .lte("booking_date", period.end)
       .in("status", PAID_STATUSES)
@@ -48,6 +49,12 @@ export default async function CommissionsPage() {
       .select("id, staff_id, total_amount, status")
       .eq("period_start", period.start)
       .eq("period_end", period.end),
+    supabase
+      .from("packages")
+      .select("id, name, commission_bonus")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name"),
   ]);
 
   if (!currentUser) redirect("/login");
@@ -56,6 +63,8 @@ export default async function CommissionsPage() {
     month,
     year,
     cutoffDay,
+    defaultBonus,
+    packages: (packagesResult.data ?? []) as { id: string; name: string; commission_bonus: number }[],
     bookings: (bookingsResult.data ?? []) as unknown as InitialCommissionData["bookings"],
     existingCommissions: (commissionsResult.data ?? []) as unknown as InitialCommissionData["existingCommissions"],
   };

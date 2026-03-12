@@ -21,6 +21,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
@@ -63,12 +70,20 @@ interface Props {
   onUpdate: (updated: Partial<BookingDetail>) => void;
 }
 
+function hasStatusPermission(from: BookingStatus, to: BookingStatus, currentUser: CurrentUser): boolean {
+  if (currentUser.is_primary) return true;
+  if (currentUser.menu_access.includes("booking_full_access")) return true;
+  return currentUser.menu_access.includes(`sc:${from}:${to}`);
+}
+
 export function TabProgress({ booking, currentUser, onUpdate }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [driveLink, setDriveLink] = useState(booking.google_drive_link ?? "");
-  const [showDriveForm, setShowDriveForm] = useState(false);
+  const [showDriveDialog, setShowDriveDialog] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const canCancel = currentUser.is_primary || currentUser.menu_access.includes("booking_full_access") || currentUser.menu_access.includes("sc:cancel");
 
   // Date tracking
   const [statusDate, setStatusDate] = useState("");
@@ -167,7 +182,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
       });
 
       onUpdate({ status: "PHOTOS_DELIVERED", google_drive_link: normalizedLink });
-      setShowDriveForm(false);
+      setShowDriveDialog(false);
       setDeliverDate("");
       toast({ title: "Foto berhasil dikirim!", description: "Status → Photos Delivered" });
     } catch {
@@ -289,76 +304,23 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             {/* SHOOT_DONE → PHOTOS_DELIVERED: need drive link */}
             {booking.status === "SHOOT_DONE" && (
               <>
-                {!showDriveForm && (
-                  <Button
-                    variant="outline"
-                    className="gap-1"
-                    onClick={() => updateStatus("PAID")}
-                    disabled={loading}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Kembali ke Paid
-                  </Button>
-                )}
-                {!showDriveForm ? (
-                  <Button
-                    className="w-full gap-2 bg-maroon-700 hover:bg-maroon-600 text-white"
-                    onClick={() => setShowDriveForm(true)}
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                    Input Link Foto & Deliver
-                  </Button>
-                ) : (
-                  <div className="space-y-2 rounded-lg bg-gray-50 p-3">
-                    <Label>Google Drive Link</Label>
-                    <Input
-                      value={driveLink}
-                      onChange={(e) => setDriveLink(e.target.value)}
-                      placeholder="https://drive.google.com/..."
-                    />
-                    {/* Date input for Photos Delivered */}
-                    <div className="flex items-end gap-2 pt-1">
-                      <div className="flex-1">
-                        <Label className="text-xs text-gray-500 mb-1 block">
-                          Tanggal Photos Delivered (opsional)
-                        </Label>
-                        <input
-                          type="date"
-                          value={deliverDate}
-                          onChange={(e) => setDeliverDate(e.target.value)}
-                          className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 gap-1"
-                        onClick={() => setDeliverDate(todayStr())}
-                      >
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        Today
-                      </Button>
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDriveForm(false)}
-                        className="flex-1"
-                      >
-                        Batal
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-maroon-700 hover:bg-maroon-600 text-white"
-                        onClick={handleDeliver}
-                        disabled={loading}
-                      >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Deliver Foto"}
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <Button
+                  variant="outline"
+                  className="gap-1"
+                  onClick={() => updateStatus("PAID")}
+                  disabled={loading || !hasStatusPermission("SHOOT_DONE", "PAID", currentUser)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Kembali ke Paid
+                </Button>
+                <Button
+                  className="w-full gap-2 bg-maroon-700 hover:bg-maroon-600 text-white disabled:opacity-50"
+                  onClick={() => setShowDriveDialog(true)}
+                  disabled={!hasStatusPermission("SHOOT_DONE", "PHOTOS_DELIVERED", currentUser)}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                  Input Link Foto & Deliver
+                </Button>
               </>
             )}
 
@@ -396,7 +358,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                     variant="outline"
                     className="flex-1 gap-1"
                     onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx - 1])}
-                    disabled={loading}
+                    disabled={loading || !hasStatusPermission(effectiveStatus, BOOKING_FLOW[currentStatusIdx - 1], currentUser)}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     {BOOKING_STATUS_LABEL[BOOKING_FLOW[currentStatusIdx - 1]]}
@@ -404,9 +366,9 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                 )}
                 {currentStatusIdx < BOOKING_FLOW.length - 1 && (
                   <Button
-                    className="flex-1 gap-1 bg-maroon-700 hover:bg-maroon-600 text-white"
+                    className="flex-1 gap-1 bg-maroon-700 hover:bg-maroon-600 text-white disabled:opacity-50"
                     onClick={() => updateStatus(BOOKING_FLOW[currentStatusIdx + 1], statusDate || undefined)}
-                    disabled={loading}
+                    disabled={loading || !hasStatusPermission(effectiveStatus, BOOKING_FLOW[currentStatusIdx + 1], currentUser)}
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -425,9 +387,9 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             {booking.status !== "CLOSED" && booking.status !== "CANCELED" && (
               <Button
                 variant="ghost"
-                className="w-full text-red-500 hover:bg-red-50"
+                className="w-full text-red-500 hover:bg-red-50 disabled:opacity-50"
                 onClick={() => setShowCancelConfirm(true)}
-                disabled={loading}
+                disabled={loading || !canCancel}
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Batalkan Booking
@@ -464,6 +426,61 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Drive Link Dialog */}
+      <Dialog open={showDriveDialog} onOpenChange={(open) => { if (!open) { setShowDriveDialog(false); setDeliverDate(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-maroon-700" />
+              Input Link Foto & Deliver
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <Label className="mb-1 block">Google Drive Link</Label>
+              <Input
+                value={driveLink}
+                onChange={(e) => setDriveLink(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-gray-500 mb-1 block">Tanggal Photos Delivered (opsional)</Label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={deliverDate}
+                  onChange={(e) => setDeliverDate(e.target.value)}
+                  className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => setDeliverDate(todayStr())}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Today
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDriveDialog(false); setDeliverDate(""); }} disabled={loading}>
+              Batal
+            </Button>
+            <Button
+              className="bg-maroon-700 hover:bg-maroon-600 text-white"
+              onClick={handleDeliver}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Deliver Foto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Print Order */}
       <div className="bg-white rounded-xl border p-5 space-y-4">

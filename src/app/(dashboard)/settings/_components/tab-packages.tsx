@@ -34,6 +34,7 @@ const emptyForm = {
   need_extra_time: false,
   extra_time_minutes: "30",
   extra_time_position: "after" as "before" | "after",
+  commission_bonus: "0",
   is_active: true,
 };
 
@@ -61,7 +62,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
     setLoading(true);
     const { data } = await supabase
       .from("packages")
-      .select("id, name, description, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, is_active, created_at, updated_at")
+      .select("id, name, description, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, commission_bonus, is_active, created_at, updated_at")
       .order("sort_order")
       .order("name");
     if (data) setPackages(data);
@@ -104,6 +105,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       need_extra_time: pkg.need_extra_time,
       extra_time_minutes: String(pkg.extra_time_minutes),
       extra_time_position: pkg.extra_time_position ?? "after",
+      commission_bonus: String(pkg.commission_bonus ?? 0),
       is_active: pkg.is_active,
     });
     setModalOpen(true);
@@ -124,6 +126,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       need_extra_time: form.need_extra_time,
       extra_time_minutes: form.need_extra_time ? parseInt(form.extra_time_minutes, 10) : 0,
       extra_time_position: form.need_extra_time ? form.extra_time_position : "after",
+      commission_bonus: Math.max(0, parseInt(form.commission_bonus.replace(/\D/g, ""), 10) || 0),
       is_active: form.is_active,
     };
 
@@ -215,6 +218,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
                         </span>
                       )}
                       {pkg.include_print && <span className="flex items-center gap-1 text-blue-600"><Printer className="h-3 w-3" />Print</span>}
+                      {pkg.commission_bonus > 0 && <span className="text-amber-600 font-medium">Bonus: {formatRupiah(pkg.commission_bonus)}</span>}
                     </div>
                     <div className="flex gap-2 pt-1">
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => openEdit(pkg)}>
@@ -322,6 +326,17 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>Bonus Komisi (Rp)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={form.commission_bonus}
+                onChange={(e) => setForm({ ...form, commission_bonus: e.target.value.replace(/\D/g, "") })}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">Kosongkan atau isi 0 untuk pakai bonus default dari Pengaturan Umum</p>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />

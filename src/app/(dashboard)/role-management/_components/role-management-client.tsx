@@ -312,8 +312,76 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                {form.menu_access.length} dari {MENU_ITEMS.length} menu dipilih
+                {form.menu_access.filter((s) => MENU_ITEMS.some((m) => m.slug === s)).length} dari {MENU_ITEMS.length} menu dipilih
               </p>
+            </div>
+
+            {/* Feature Permissions */}
+            <div className="space-y-2">
+              <Label>Hak Akses Fitur</Label>
+              <div className="border rounded-lg p-3 space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer py-1 hover:bg-gray-50 rounded px-1">
+                  <Checkbox
+                    checked={form.menu_access.includes("booking_full_access")}
+                    onCheckedChange={() => toggleMenu("booking_full_access")}
+                  />
+                  <div>
+                    <span className="text-sm font-medium">Full Access Booking</span>
+                    <p className="text-xs text-gray-500">Edit detail, reschedule, hapus booking, tab Pricing, dan semua perubahan status</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Status Change Permissions */}
+            <div className="space-y-2">
+              <div>
+                <Label>Izin Perubahan Status Booking</Label>
+                <p className="text-xs text-gray-400 mt-0.5">Diabaikan jika role memiliki Full Access Booking</p>
+              </div>
+              <div className="border rounded-lg p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <p className="text-xs font-medium text-gray-500 col-span-2 mb-1">Transisi Maju (Next)</p>
+                  {([
+                    ["sc:BOOKED:PAID", "Booked → Paid"],
+                    ["sc:PAID:SHOOT_DONE", "Paid → Shoot Done"],
+                    ["sc:SHOOT_DONE:PHOTOS_DELIVERED", "Shoot Done → Photos Delivered"],
+                    ["sc:PHOTOS_DELIVERED:CLOSED", "Photos Delivered → Closed"],
+                  ] as [string, string][]).map(([perm, label]) => (
+                    <label key={perm} className="flex items-center gap-2 cursor-pointer py-0.5 hover:bg-gray-50 rounded px-1">
+                      <Checkbox
+                        checked={form.menu_access.includes(perm)}
+                        onCheckedChange={() => toggleMenu(perm)}
+                      />
+                      <span className="text-xs">{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <p className="text-xs font-medium text-gray-500 col-span-2 mb-1">Transisi Mundur (Back)</p>
+                  {([
+                    ["sc:PAID:BOOKED", "Paid → Booked"],
+                    ["sc:SHOOT_DONE:PAID", "Shoot Done → Paid"],
+                    ["sc:PHOTOS_DELIVERED:SHOOT_DONE", "Photos Delivered → Shoot Done"],
+                    ["sc:CLOSED:PHOTOS_DELIVERED", "Closed → Photos Delivered"],
+                  ] as [string, string][]).map(([perm, label]) => (
+                    <label key={perm} className="flex items-center gap-2 cursor-pointer py-0.5 hover:bg-gray-50 rounded px-1">
+                      <Checkbox
+                        checked={form.menu_access.includes(perm)}
+                        onCheckedChange={() => toggleMenu(perm)}
+                      />
+                      <span className="text-xs">{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer py-0.5 hover:bg-gray-50 rounded px-1 border-t pt-2">
+                  <Checkbox
+                    checked={form.menu_access.includes("sc:cancel")}
+                    onCheckedChange={() => toggleMenu("sc:cancel")}
+                  />
+                  <span className="text-xs font-medium text-red-600">Batalkan Booking (Cancel)</span>
+                </label>
+              </div>
             </div>
           </div>
           <DialogFooter>

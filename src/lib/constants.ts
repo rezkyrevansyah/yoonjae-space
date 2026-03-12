@@ -59,6 +59,7 @@ export const MENU_ITEMS = [
   { slug: "dashboard", label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { slug: "bookings", label: "Bookings", href: "/bookings", icon: "CalendarCheck" },
   { slug: "calendar", label: "Calendar", href: "/calendar", icon: "Calendar" },
+  { slug: "photo-delivery", label: "Photo Delivery", href: "/photo-delivery", icon: "Camera" },
   { slug: "customers", label: "Customers", href: "/customers", icon: "Users" },
   { slug: "reminders", label: "Reminders", href: "/reminders", icon: "Bell" },
   { slug: "finance", label: "Finance", href: "/finance", icon: "TrendingUp" },

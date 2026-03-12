@@ -36,6 +36,7 @@ export interface SettingsGeneral {
   default_payment_status: "paid" | "unpaid";
   time_slot_interval: number;
   commission_cutoff_day: number; // day of month (1-28), default 26
+  commission_default_bonus: number; // flat bonus Rp per sale, default 0
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +81,7 @@ export interface Package {
   need_extra_time: boolean;
   extra_time_minutes: number;
   extra_time_position: 'before' | 'after';
+  commission_bonus: number; // per-package override bonus Rp, default 0
   is_active: boolean;
   created_at: string;
   updated_at: string;

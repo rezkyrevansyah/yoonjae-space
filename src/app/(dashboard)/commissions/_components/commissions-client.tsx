@@ -3,11 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ChevronDown, ChevronUp, CheckSquare, Square, Save,
-  User, CalendarDays, ExternalLink
+  User, CalendarDays, ExternalLink, Settings, RotateCcw, Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah, formatDate } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { invalidatePackages, invalidateSettingsGeneral } from "@/lib/cache-invalidation";
 import type { CurrentUser } from "@/lib/types/database";
 
 interface StaffUser {
@@ -21,9 +24,10 @@ interface BookingItem {
   booking_number: string;
   booking_date: string;
   total: number;
-  commissionAmount: number; // per-booking commission in Rp
+  commissionAmount: number;
+  isAutoFilled: boolean;
   customers: { name: string } | null;
-  packages: { name: string } | null;
+  packages: { id: string; name: string; commission_bonus: number } | null;
 }
 
 interface StaffCommission {
@@ -31,11 +35,9 @@ interface StaffCommission {
   staffName: string;
   staffEmail: string;
   bookings: BookingItem[];
-  // current saved commission (if exists)
   commissionId: string | null;
   savedAmount: number;
   savedStatus: "unpaid" | "paid";
-  // local editing state
   isPaid: boolean;
   expanded: boolean;
   saving: boolean;
@@ -45,10 +47,13 @@ export interface InitialCommissionData {
   month: number;
   year: number;
   cutoffDay: number;
+  defaultBonus: number;
+  packages: { id: string; name: string; commission_bonus: number }[];
   bookings: {
     id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null;
     commission_amount: number;
-    customers: { name: string } | null; packages: { name: string } | null;
+    customers: { name: string } | null;
+    packages: { id: string; name: string; commission_bonus: number } | null;
   }[];
   existingCommissions: { id: string; staff_id: string; total_amount: number; status: "unpaid" | "paid" }[];
 }
@@ -76,10 +81,21 @@ function getPeriodRange(month: number, year: number, cutoffDay: number): { start
   return { start, end, label };
 }
 
+function resolveBonus(
+  commissionAmount: number,
+  pkgBonus: number | null | undefined,
+  defaultBonus: number
+): number {
+  if (commissionAmount > 0) return commissionAmount;
+  if (pkgBonus && pkgBonus > 0) return pkgBonus;
+  return defaultBonus;
+}
+
 function buildStaffCards(
   staffUsers: StaffUser[],
   bookings: InitialCommissionData["bookings"],
-  existingCommissions: InitialCommissionData["existingCommissions"]
+  existingCommissions: InitialCommissionData["existingCommissions"],
+  defaultBonus: number
 ): StaffCommission[] {
   const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
   for (const c of existingCommissions) {
@@ -89,12 +105,14 @@ function buildStaffCards(
   for (const b of bookings) {
     const staffId = b.staff_id ?? "__unassigned__";
     const existing = bookingsByStaff.get(staffId) ?? [];
+    const resolved = resolveBonus(b.commission_amount ?? 0, b.packages?.commission_bonus, defaultBonus);
     existing.push({
       id: b.id,
       booking_number: b.booking_number,
       booking_date: b.booking_date,
       total: b.total,
-      commissionAmount: b.commission_amount ?? 0,
+      commissionAmount: resolved,
+      isAutoFilled: (b.commission_amount ?? 0) === 0 && resolved > 0,
       customers: b.customers,
       packages: b.packages,
     });
@@ -117,14 +135,34 @@ function buildStaffCards(
 }
 
 export function CommissionsClient({ currentUser, staffUsers, initialData }: Props) {
+  const { toast } = useToast();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(initialData.month);
   const [selectedYear, setSelectedYear] = useState(initialData.year);
   const [cutoffDay] = useState(initialData.cutoffDay);
   const [staffCards, setStaffCards] = useState<StaffCommission[]>(() =>
-    buildStaffCards(staffUsers, initialData.bookings, initialData.existingCommissions)
+    buildStaffCards(staffUsers, initialData.bookings, initialData.existingCommissions, initialData.defaultBonus)
   );
   const [loading, setLoading] = useState(false);
+
+  // Bonus config panel
+  const [bonusOpen, setBonusOpen] = useState(false);
+  const [defaultBonusInput, setDefaultBonusInput] = useState(String(initialData.defaultBonus));
+  const [pkgBonuses, setPkgBonuses] = useState(
+    initialData.packages.map(p => ({ id: p.id, name: p.name, bonus: String(p.commission_bonus) }))
+  );
+  const [savingBonus, setSavingBonus] = useState(false);
+
+  // Track current default bonus for fetchData (use ref to avoid stale closure)
+  const defaultBonusRef = useRef(initialData.defaultBonus);
+
+  // Reset confirm
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Uncheck paid confirm
+  const [uncheckConfirmCard, setUncheckConfirmCard] = useState<StaffCommission | null>(null);
+  const [unchecking, setUnchecking] = useState(false);
 
   const isInitialMount = useRef(true);
 
@@ -133,65 +171,73 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    try {
+      const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
+      const [{ data: bookings }, { data: existingCommissions }] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(id, name, commission_bonus)")
+          .gte("booking_date", period.start)
+          .lte("booking_date", period.end)
+          .in("status", paidStatuses)
+          .order("booking_date"),
+        supabase
+          .from("commissions")
+          .select("id, staff_id, total_amount, status")
+          .eq("period_start", period.start)
+          .eq("period_end", period.end),
+      ]);
 
-    const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
-    const [{ data: bookings }, { data: existingCommissions }] = await Promise.all([
-      supabase
-        .from("bookings")
-        .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(name)")
-        .gte("booking_date", period.start)
-        .lte("booking_date", period.end)
-        .in("status", paidStatuses)
-        .order("booking_date"),
-      supabase
-        .from("commissions")
-        .select("id, staff_id, total_amount, status")
-        .eq("period_start", period.start)
-        .eq("period_end", period.end),
-    ]);
+      const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
+      for (const c of (existingCommissions ?? [])) {
+        commissionMap.set(c.staff_id, { id: c.id, amount: c.total_amount, status: c.status });
+      }
 
-    const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
-    for (const c of (existingCommissions ?? [])) {
-      commissionMap.set(c.staff_id, { id: c.id, amount: c.total_amount, status: c.status });
-    }
+      const bookingsByStaff = new Map<string, BookingItem[]>();
+      for (const b of (bookings ?? [])) {
+        const raw = b as unknown as {
+          id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null;
+          commission_amount: number; customers: { name: string } | null;
+          packages: { id: string; name: string; commission_bonus: number } | null;
+        };
+        const staffId = raw.staff_id ?? "__unassigned__";
+        const existing = bookingsByStaff.get(staffId) ?? [];
+        const resolved = resolveBonus(raw.commission_amount ?? 0, raw.packages?.commission_bonus, defaultBonusRef.current);
+        existing.push({
+          id: raw.id,
+          booking_number: raw.booking_number,
+          booking_date: raw.booking_date,
+          total: raw.total,
+          commissionAmount: resolved,
+          isAutoFilled: (raw.commission_amount ?? 0) === 0 && resolved > 0,
+          customers: raw.customers,
+          packages: raw.packages,
+        });
+        bookingsByStaff.set(staffId, existing);
+      }
 
-    const bookingsByStaff = new Map<string, BookingItem[]>();
-    for (const b of (bookings ?? [])) {
-      const raw = b as unknown as { id: string; booking_number: string; booking_date: string; total: number; staff_id: string | null; commission_amount: number; customers: { name: string } | null; packages: { name: string } | null };
-      const staffId = raw.staff_id ?? "__unassigned__";
-      const existing = bookingsByStaff.get(staffId) ?? [];
-      existing.push({
-        id: raw.id,
-        booking_number: raw.booking_number,
-        booking_date: raw.booking_date,
-        total: raw.total,
-        commissionAmount: raw.commission_amount ?? 0,
-        customers: raw.customers,
-        packages: raw.packages,
+      const cards: StaffCommission[] = staffUsers.map(s => {
+        const staffBookings = bookingsByStaff.get(s.id) ?? [];
+        const existing = commissionMap.get(s.id);
+        return {
+          staffId: s.id, staffName: s.name, staffEmail: s.email,
+          bookings: staffBookings,
+          commissionId: existing?.id ?? null,
+          savedAmount: existing?.amount ?? 0,
+          savedStatus: existing?.status ?? "unpaid",
+          isPaid: existing?.status === "paid",
+          expanded: false,
+          saving: false,
+        };
       });
-      bookingsByStaff.set(staffId, existing);
+
+      setStaffCards(cards);
+    } catch {
+      toast({ title: "Gagal memuat data", description: "Terjadi kesalahan. Coba lagi.", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-
-    const cards: StaffCommission[] = staffUsers.map(s => {
-      const staffBookings = bookingsByStaff.get(s.id) ?? [];
-      const existing = commissionMap.get(s.id);
-      return {
-        staffId: s.id,
-        staffName: s.name,
-        staffEmail: s.email,
-        bookings: staffBookings,
-        commissionId: existing?.id ?? null,
-        savedAmount: existing?.amount ?? 0,
-        savedStatus: existing?.status ?? "unpaid",
-        isPaid: existing?.status === "paid",
-        expanded: false,
-        saving: false,
-      };
-    });
-
-    setStaffCards(cards);
-    setLoading(false);
-  }, [selectedMonth, selectedYear, period.start, period.end, staffUsers]);
+  }, [selectedMonth, selectedYear, period.start, period.end, staffUsers, toast]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -210,7 +256,7 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
     setStaffCards(prev => prev.map(c => {
       if (c.staffId !== staffId) return c;
       const bookings = c.bookings.map(b =>
-        b.id === bookingId ? { ...b, commissionAmount: amount } : b
+        b.id === bookingId ? { ...b, commissionAmount: amount, isAutoFilled: false } : b
       );
       return { ...c, bookings };
     }));
@@ -250,12 +296,10 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         commissionId = inserted?.id ?? null;
       }
 
-      // Save per-booking commission_amount
       await Promise.all(card.bookings.map(b =>
         supabase.from("bookings").update({ commission_amount: b.commissionAmount }).eq("id", b.id)
       ));
 
-      // If marking as paid: auto-create expense
       if (card.isPaid && card.savedStatus !== "paid" && commissionId) {
         const { data: existingExpense } = await supabase
           .from("expenses")
@@ -276,7 +320,6 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         }
       }
 
-      // Activity log
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
@@ -293,12 +336,138 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
     }
   }
 
+  async function handleSaveBonus() {
+    setSavingBonus(true);
+    try {
+      const newDefault = Math.max(0, parseInt(defaultBonusInput.replace(/\D/g, ""), 10) || 0);
+
+      await supabase
+        .from("settings_general")
+        .upsert({ lock: true, commission_default_bonus: newDefault }, { onConflict: "lock" });
+
+      await Promise.all(pkgBonuses.map(p =>
+        supabase.from("packages")
+          .update({ commission_bonus: Math.max(0, parseInt(p.bonus.replace(/\D/g, ""), 10) || 0) })
+          .eq("id", p.id)
+      ));
+
+      await invalidateSettingsGeneral();
+      await invalidatePackages();
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "commission_bonus_settings",
+        entity_id: null,
+        description: `Update pengaturan bonus komisi — default: ${formatRupiah(newDefault)}`,
+      });
+
+      // Update ref so fetchData uses new default
+      defaultBonusRef.current = newDefault;
+
+      toast({ title: "Berhasil", description: "Pengaturan bonus komisi disimpan." });
+      fetchData();
+    } catch {
+      toast({ title: "Gagal", description: "Terjadi kesalahan.", variant: "destructive" });
+    } finally {
+      setSavingBonus(false);
+    }
+  }
+
+  async function handleReset() {
+    setResetting(true);
+    try {
+      const commissionIds = staffCards
+        .filter(c => c.commissionId)
+        .map(c => c.commissionId!);
+
+      // Delete commission records
+      await supabase.from("commissions")
+        .delete()
+        .eq("period_start", period.start)
+        .eq("period_end", period.end);
+
+      // Reset booking commission_amount
+      const bookingIds = staffCards.flatMap(c => c.bookings.map(b => b.id));
+      if (bookingIds.length > 0) {
+        await supabase.from("bookings")
+          .update({ commission_amount: 0 })
+          .in("id", bookingIds);
+      }
+
+      // Delete related expenses
+      if (commissionIds.length > 0) {
+        await supabase.from("expenses")
+          .delete()
+          .eq("source", "commission")
+          .in("source_id", commissionIds);
+      }
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "DELETE",
+        entity: "commissions",
+        entity_id: null,
+        description: `Reset semua komisi periode ${period.label}`,
+      });
+
+      toast({ title: "Berhasil", description: "Data komisi periode ini telah direset." });
+      setResetConfirmOpen(false);
+      fetchData();
+    } catch {
+      toast({ title: "Gagal", description: "Terjadi kesalahan saat reset.", variant: "destructive" });
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  async function handleUncheckPaid(card: StaffCommission) {
+    setUnchecking(true);
+    try {
+      if (card.commissionId) {
+        await supabase.from("commissions")
+          .update({ status: "unpaid", paid_at: null })
+          .eq("id", card.commissionId);
+
+        await supabase.from("expenses")
+          .delete()
+          .eq("source", "commission")
+          .eq("source_id", card.commissionId);
+      }
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "commissions",
+        entity_id: card.commissionId,
+        description: `Batalkan status Dibayar komisi ${card.staffName} periode ${period.label}`,
+      });
+
+      toast({ title: "Berhasil", description: `Status komisi ${card.staffName} dikembalikan ke Belum Dibayar.` });
+      setUncheckConfirmCard(null);
+      fetchData();
+    } catch {
+      toast({ title: "Gagal", description: "Terjadi kesalahan.", variant: "destructive" });
+    } finally {
+      setUnchecking(false);
+    }
+  }
+
   const totalPaid = staffCards
     .filter(c => c.savedStatus === "paid")
     .reduce((sum, c) => sum + c.savedAmount, 0);
   const totalUnpaid = staffCards
     .filter(c => c.savedStatus === "unpaid" && c.savedAmount > 0)
     .reduce((sum, c) => sum + c.savedAmount, 0);
+
+  const pkgsWithBonus = pkgBonuses.filter(p => Number(p.bonus) > 0).length;
+  const currentDefaultBonus = parseInt(defaultBonusInput.replace(/\D/g, ""), 10) || 0;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -308,7 +477,14 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
           <h1 className="text-xl font-bold text-gray-900">Commissions</h1>
           <p className="text-sm text-gray-500">Periode: {period.label}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setResetConfirmOpen(true)}
+            className="flex items-center gap-1.5 text-sm font-medium text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 rounded-xl px-3 py-2 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset
+          </button>
           <div className="relative">
             <select
               value={selectedMonth}
@@ -344,6 +520,91 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
         </div>
       </div>
 
+      {/* Bonus Config Panel */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <button
+          onClick={() => setBonusOpen(!bonusOpen)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-[#8B1A1A]" />
+            <span className="text-sm font-semibold text-gray-800">Pengaturan Bonus Komisi</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              {currentDefaultBonus > 0 && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                  Default: {formatRupiah(currentDefaultBonus)}
+                </span>
+              )}
+              {pkgsWithBonus > 0 && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
+                  {pkgsWithBonus} paket punya bonus
+                </span>
+              )}
+            </div>
+            {bonusOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </div>
+        </button>
+
+        {bonusOpen && (
+          <div className="px-4 pb-5 space-y-5 border-t border-gray-50">
+            {/* Default bonus */}
+            <div className="space-y-2 pt-4">
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Bonus Default</p>
+              <p className="text-xs text-gray-400">Berlaku untuk semua paket yang tidak punya bonus spesifik</p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Rp</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={defaultBonusInput}
+                  onChange={e => setDefaultBonusInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="0"
+                  className="max-w-[160px] h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
+                />
+              </div>
+            </div>
+
+            {/* Per-package bonuses */}
+            {pkgBonuses.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Bonus Per Paket</p>
+                <p className="text-xs text-gray-400">Jika diisi, override bonus default untuk paket tersebut. Kosongkan atau isi 0 untuk pakai default.</p>
+                <div className="space-y-2 mt-2">
+                  {pkgBonuses.map((p, i) => (
+                    <div key={p.id} className="flex items-center gap-3">
+                      <span className="text-sm text-gray-700 w-36 truncate flex-shrink-0">{p.name}</span>
+                      <span className="text-xs text-gray-400">Rp</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={p.bonus}
+                        onChange={e => setPkgBonuses(prev => prev.map((x, j) => j === i ? { ...x, bonus: e.target.value.replace(/\D/g, "") } : x))}
+                        placeholder="0"
+                        className="w-28 h-8 rounded-lg border border-gray-200 px-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
+                      />
+                      {Number(p.bonus) > 0 && (
+                        <span className="text-[10px] text-amber-600 font-medium">override</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleSaveBonus}
+              disabled={savingBonus}
+              className="flex items-center gap-2 bg-[#8B1A1A] text-white text-sm font-medium rounded-xl px-4 py-2.5 hover:bg-[#B22222] transition-colors disabled:opacity-50"
+            >
+              {savingBonus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {savingBonus ? "Menyimpan..." : "Simpan Pengaturan Bonus"}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Staff cards */}
       {loading ? (
         <div className="space-y-4">
@@ -362,13 +623,63 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
               key={card.staffId}
               card={card}
               onToggleExpand={() => updateCard(card.staffId, { expanded: !card.expanded })}
-              onTogglePaid={() => updateCard(card.staffId, { isPaid: !card.isPaid })}
+              onTogglePaid={() => {
+                if (card.savedStatus === "paid") {
+                  setUncheckConfirmCard(card);
+                } else {
+                  updateCard(card.staffId, { isPaid: !card.isPaid });
+                }
+              }}
               onBookingCommissionChange={(bookingId, val) => updateBookingCommission(card.staffId, bookingId, val)}
               onSave={() => handleSave(card)}
             />
           ))}
         </div>
       )}
+
+      {/* Reset Confirm */}
+      <AlertDialog open={resetConfirmOpen} onOpenChange={o => !o && setResetConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Semua Komisi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Semua record komisi, jumlah bonus yang tersimpan, dan expense terkait untuk periode <strong>{period.label}</strong> akan dihapus. Tindakan ini tidak bisa dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReset}
+              disabled={resetting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {resetting ? "Mereset..." : "Ya, Reset"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Uncheck Paid Confirm */}
+      <AlertDialog open={!!uncheckConfirmCard} onOpenChange={o => !o && setUncheckConfirmCard(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan Status Dibayar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Komisi <strong>{uncheckConfirmCard?.staffName}</strong> akan dikembalikan ke status Belum Dibayar dan expense yang terkait akan dihapus otomatis.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unchecking}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => uncheckConfirmCard && handleUncheckPaid(uncheckConfirmCard)}
+              disabled={unchecking}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {unchecking ? "Memproses..." : "Ya, Batalkan"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -430,10 +741,9 @@ function StaffCard({ card, onToggleExpand, onTogglePaid, onBookingCommissionChan
             <p className="text-xs font-medium text-gray-500 mb-1.5">Status</p>
             <button
               onClick={onTogglePaid}
-              disabled={isPaid}
-              className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl border transition-colors disabled:cursor-not-allowed ${
+              className={`flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl border transition-colors ${
                 card.isPaid
-                  ? "bg-green-50 border-green-200 text-green-700"
+                  ? "bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
                   : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
               }`}
             >
@@ -495,16 +805,21 @@ function StaffCard({ card, onToggleExpand, onTogglePaid, onBookingCommissionChan
                           {isPaid ? (
                             <span className="font-semibold text-gray-700">{formatRupiah(b.commissionAmount)}</span>
                           ) : (
-                            <div className="flex items-center justify-end">
-                              <span className="text-gray-400 mr-1">Rp</span>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={b.commissionAmount > 0 ? String(b.commissionAmount) : ""}
-                                onChange={e => onBookingCommissionChange(b.id, e.target.value)}
-                                placeholder="0"
-                                className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-right text-xs focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
-                              />
+                            <div className="flex flex-col items-end gap-0.5">
+                              {b.isAutoFilled && (
+                                <span className="text-[10px] text-amber-500 font-medium">auto</span>
+                              )}
+                              <div className="flex items-center justify-end">
+                                <span className="text-gray-400 mr-1">Rp</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={b.commissionAmount > 0 ? String(b.commissionAmount) : ""}
+                                  onChange={e => onBookingCommissionChange(b.id, e.target.value)}
+                                  placeholder="0"
+                                  className={`w-24 border rounded-lg px-2 py-1 text-right text-xs focus:outline-none focus:ring-1 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A] ${b.isAutoFilled ? "border-amber-200 bg-amber-50" : "border-gray-200"}`}
+                                />
+                              </div>
                             </div>
                           )}
                         </td>
