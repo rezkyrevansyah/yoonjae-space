@@ -102,6 +102,17 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
     ? formatDate(invoice.invoice_date)
     : formatDate(new Date().toISOString());
 
+  // Extra add-ons breakdown
+  const extraAddonsTotal = booking.booking_addons
+    .filter((a) => a.is_extra)
+    .reduce((s, a) => s + a.price, 0);
+
+  // Sisa tagihan — 0 jika status PAID
+  const sisaTagihan =
+    booking.status === "PAID"
+      ? 0
+      : Math.max(0, booking.total - (booking.dp_amount ?? 0));
+
   // Discount calculation
   let discountLabel = "";
   let discountAmount = 0;
@@ -368,11 +379,19 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
 
             {/* Totals */}
             <div className="border-t border-gray-200 mt-2 pt-4 space-y-2">
-              {/* Subtotal */}
+              {/* Subtotal awal (packages + original addons - discount) */}
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Subtotal</span>
                 <span className="font-mono">{formatRupiah(booking.subtotal)}</span>
               </div>
+
+              {/* Extra Add-on (hanya jika ada) */}
+              {extraAddonsTotal > 0 && (
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Extra Add-on</span>
+                  <span className="font-mono">{formatRupiah(extraAddonsTotal)}</span>
+                </div>
+              )}
 
               {/* Discount */}
               {discountAmount > 0 && (
@@ -394,7 +413,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
               {booking.dp_amount != null && booking.dp_amount > 0 && (
                 <>
                   {booking.dp_paid_at ? (
-                    // Lunas — green, no minus
+                    // Lunas — green
                     <div className="flex justify-between text-sm text-green-700 border-t border-gray-100 pt-2">
                       <span className="flex items-center gap-1.5">
                         DP
@@ -405,17 +424,33 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                       <span className="font-mono">{formatRupiah(booking.dp_amount)}</span>
                     </div>
                   ) : (
-                    // Belum Lunas — blue, with minus
+                    // Belum Lunas — blue
                     <div className="flex justify-between text-sm text-blue-700 border-t border-gray-100 pt-2">
                       <span>DP Dibayar</span>
                       <span className="font-mono">− {formatRupiah(booking.dp_amount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm font-semibold text-gray-800">
+                  <div className={`flex justify-between text-sm font-semibold ${sisaTagihan === 0 ? "text-green-700" : "text-gray-800"}`}>
                     <span>Sisa Tagihan</span>
-                    <span className="font-mono">{formatRupiah(Math.max(0, booking.total - booking.dp_amount))}</span>
+                    <span className="font-mono">
+                      {sisaTagihan === 0 ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">LUNAS</span>
+                          {formatRupiah(0)}
+                        </span>
+                      ) : (
+                        formatRupiah(sisaTagihan)
+                      )}
+                    </span>
                   </div>
                 </>
+              )}
+              {/* Jika tidak ada DP tapi status PAID */}
+              {(booking.dp_amount == null || booking.dp_amount === 0) && booking.status === "PAID" && (
+                <div className="flex justify-between text-sm font-semibold text-green-700 border-t border-gray-100 pt-2">
+                  <span>Status Pembayaran</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">LUNAS</span>
+                </div>
               )}
             </div>
           </div>

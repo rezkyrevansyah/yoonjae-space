@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatRupiah } from "@/lib/utils";
 import type { BookingDetail, BookingAddonRow, AvailableAddon } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
-import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
 
 // Module-level singleton — stable across renders
 const supabase = createClient();
@@ -48,6 +48,9 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const [savingDp, setSavingDp] = useState(false);
   const [togglingDp, setTogglingDp] = useState(false);
   const [deletingDp, setDeletingDp] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
+
+  const isFullyPaid = booking.status === "PAID";
 
   const hasDp = dpAmount != null && dpAmount > 0;
   const dpIsLunas = dpPaidAt != null;
@@ -353,6 +356,54 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     }
   }
 
+  async function handleMarkFullyPaid() {
+    setMarkingPaid(true);
+    try {
+      const now = new Date().toISOString();
+      const bookingUpdate: Record<string, unknown> = { status: "PAID" };
+      if (hasDp) bookingUpdate.dp_paid_at = now;
+
+      const { error: bookingErr } = await supabase
+        .from("bookings")
+        .update(bookingUpdate)
+        .eq("id", booking.id);
+      if (bookingErr) throw bookingErr;
+
+      if (addons.length > 0) {
+        const { error: addonErr } = await supabase
+          .from("booking_addons")
+          .update({ is_paid: true })
+          .eq("booking_id", booking.id);
+        if (addonErr) throw addonErr;
+      }
+
+      if (hasDp) setDpPaidAt(now);
+      const updatedAddons = addons.map((a) => ({ ...a, is_paid: true }));
+      setAddons(updatedAddons);
+      onUpdate({
+        status: "PAID",
+        dp_paid_at: hasDp ? now : booking.dp_paid_at,
+        booking_addons: updatedAddons,
+      });
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Booking ${booking.booking_number} ditandai Lunas Semua`,
+      });
+
+      toast({ title: "Lunas Semua", description: `Booking ${booking.booking_number} sudah lunas` });
+    } catch {
+      toast({ title: "Gagal menandai lunas", variant: "destructive" });
+    } finally {
+      setMarkingPaid(false);
+    }
+  }
+
   return (
     <div className="space-y-5 pt-4">
       {/* Paket & Add-on Awal */}
@@ -617,12 +668,36 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
               <span>DP {dpIsLunas ? "(Lunas)" : "(Belum Lunas)"}</span>
               <span>− {formatRupiah(dpAmount!)}</span>
             </div>
-            <div className="flex justify-between text-sm font-semibold text-maroon-800">
+            <div className={`flex justify-between text-sm font-semibold ${isFullyPaid ? "text-green-700" : "text-maroon-800"}`}>
               <span>Sisa Tagihan</span>
-              <span>{formatRupiah(Math.max(0, total - dpAmount!))}</span>
+              <span>{isFullyPaid ? formatRupiah(0) : formatRupiah(Math.max(0, total - dpAmount!))}</span>
             </div>
           </>
         )}
+
+        {/* Lunas Semua */}
+        <div className="border-t border-maroon-200 pt-3 mt-1">
+          {isFullyPaid ? (
+            <div className="flex items-center gap-2 text-green-700">
+              <BadgeCheck className="h-4 w-4" />
+              <span className="text-sm font-semibold">Lunas Semua</span>
+            </div>
+          ) : (
+            <Button
+              onClick={handleMarkFullyPaid}
+              disabled={markingPaid}
+              className="w-full bg-green-700 hover:bg-green-600 text-white gap-2"
+              size="sm"
+            >
+              {markingPaid ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <BadgeCheck className="h-4 w-4" />
+              )}
+              Lunas Semua
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
