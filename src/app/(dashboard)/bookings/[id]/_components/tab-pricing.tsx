@@ -16,6 +16,16 @@ import { useToast } from "@/hooks/use-toast";
 import { formatRupiah } from "@/lib/utils";
 import type { BookingDetail, BookingAddonRow, AvailableAddon } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
 
 // Module-level singleton — stable across renders
@@ -49,6 +59,8 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const [togglingDp, setTogglingDp] = useState(false);
   const [deletingDp, setDeletingDp] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [cancelingPaid, setCancelingPaid] = useState(false);
+  const [showCancelLunasDialog, setShowCancelLunasDialog] = useState(false);
 
   const isFullyPaid = booking.status === "PAID";
 
@@ -353,6 +365,47 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       toast({ title: "Error", description: "Gagal memperbarui status add-on", variant: "destructive" });
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  async function handleCancelFullyPaid() {
+    setCancelingPaid(true);
+    try {
+      const { error: bookingErr } = await supabase
+        .from("bookings")
+        .update({ status: "BOOKED", dp_paid_at: null })
+        .eq("id", booking.id);
+      if (bookingErr) throw bookingErr;
+
+      if (addons.length > 0) {
+        const { error: addonErr } = await supabase
+          .from("booking_addons")
+          .update({ is_paid: false })
+          .eq("booking_id", booking.id);
+        if (addonErr) throw addonErr;
+      }
+
+      setDpPaidAt(null);
+      const updatedAddons = addons.map((a) => ({ ...a, is_paid: false }));
+      setAddons(updatedAddons);
+      onUpdate({ status: "BOOKED", dp_paid_at: null, booking_addons: updatedAddons });
+
+      await supabase.from("activity_log").insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role_name,
+        action: "UPDATE",
+        entity: "bookings",
+        entity_id: booking.id,
+        description: `Booking ${booking.booking_number} - Lunas Semua dibatalkan, direset ke BOOKED`,
+      });
+
+      toast({ title: "Berhasil", description: "Pembayaran direset. Tandai ulang secara manual." });
+    } catch {
+      toast({ title: "Gagal membatalkan lunas", variant: "destructive" });
+    } finally {
+      setCancelingPaid(false);
+      setShowCancelLunasDialog(false);
     }
   }
 
@@ -678,9 +731,20 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         {/* Lunas Semua */}
         <div className="border-t border-maroon-200 pt-3 mt-1">
           {isFullyPaid ? (
-            <div className="flex items-center gap-2 text-green-700">
-              <BadgeCheck className="h-4 w-4" />
-              <span className="text-sm font-semibold">Lunas Semua</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-700">
+                <BadgeCheck className="h-4 w-4" />
+                <span className="text-sm font-semibold">Lunas Semua</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => setShowCancelLunasDialog(true)}
+                disabled={cancelingPaid}
+              >
+                Batalkan Lunas
+              </Button>
             </div>
           ) : (
             <Button
@@ -699,6 +763,30 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
           )}
         </div>
       </div>
+
+      {/* Dialog: Batalkan Lunas Semua */}
+      <AlertDialog open={showCancelLunasDialog} onOpenChange={setShowCancelLunasDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan Lunas Semua?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Status booking akan direset ke <strong>BOOKED</strong>, DP dan semua add-on akan
+              ditandai belum lunas. Tandai ulang pembayaran secara manual setelahnya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelingPaid}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelFullyPaid}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={cancelingPaid}
+            >
+              {cancelingPaid && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Ya, Batalkan Lunas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
