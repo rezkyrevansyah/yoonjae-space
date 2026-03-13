@@ -192,57 +192,60 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* View toggle */}
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-          {(["day", "week", "month"] as ViewMode[]).map(v => (
+      <div className="flex flex-col gap-2 mb-4">
+        {/* Row 1: view toggle + nav + label */}
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+            {(["day", "week", "month"] as ViewMode[]).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                  view === v
+                    ? "bg-[#8B1A1A] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {v === "day" ? "Hari" : v === "week" ? "Minggu" : "Bulan"}
+              </button>
+            ))}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
-                view === v
-                  ? "bg-[#8B1A1A] text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
+              onClick={() => navigate(-1)}
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             >
-              {v === "day" ? "Hari" : v === "week" ? "Minggu" : "Bulan"}
+              <ChevronLeft className="h-4 w-4" />
             </button>
-          ))}
+            <button
+              onClick={goToday}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Hari Ini
+            </button>
+            <button
+              onClick={() => navigate(1)}
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Label */}
+          <span className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">
+            {formatNavLabel(cursor, view)}
+          </span>
+
+          {loading && (
+            <span className="text-xs text-gray-400 animate-pulse flex-shrink-0">Memuat...</span>
+          )}
         </div>
 
-        {/* Navigation */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate(-1)}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            onClick={goToday}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Hari Ini
-          </button>
-          <button
-            onClick={() => navigate(1)}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Label */}
-        <span className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">
-          {formatNavLabel(cursor, view)}
-        </span>
-
-        {loading && (
-          <span className="text-xs text-gray-400 animate-pulse">Memuat...</span>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 ml-auto">
+        {/* Row 2: actions */}
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -250,7 +253,7 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
             className="flex items-center gap-1.5"
           >
             <CalendarSearch className="h-3.5 w-3.5" />
-            Cek Ketersediaan
+            <span className="hidden sm:inline">Cek Ketersediaan</span>
           </Button>
           <Link
             href="/mua"
@@ -258,9 +261,9 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
             className="flex items-center gap-1.5 text-sm border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            MUA Page
+            <span className="hidden sm:inline">MUA Page</span>
           </Link>
-          <Button asChild size="sm" className="bg-[#8B1A1A] hover:bg-[#B22222]">
+          <Button asChild size="sm" className="bg-[#8B1A1A] hover:bg-[#B22222] ml-auto">
             <Link href="/bookings/new">
               <Plus className="h-4 w-4 mr-1" />
               New Booking
