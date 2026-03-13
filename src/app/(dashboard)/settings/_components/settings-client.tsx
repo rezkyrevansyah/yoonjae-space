@@ -1,19 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { TabGeneral } from "./tab-general";
-import { TabReminders } from "./tab-reminders";
-import { TabStudioInfo } from "./tab-studio-info";
-import { TabPackages } from "./tab-packages";
-import { TabBackgrounds } from "./tab-backgrounds";
-import { TabAddons } from "./tab-addons";
-import { TabVouchers } from "./tab-vouchers";
-import { TabCustomFields } from "./tab-custom-fields";
-import { TabSimpleCrud } from "./tab-simple-crud";
-import { TabCategories } from "./tab-categories";
-import { TabDomiciles } from "./tab-domiciles";
 import type { CurrentUser } from "@/lib/types/database";
+
+// Lazy-load semua tab kecuali tab pertama (General) yang langsung visible
+const TabReminders   = dynamic(() => import("./tab-reminders").then(m => ({ default: m.TabReminders })));
+const TabStudioInfo  = dynamic(() => import("./tab-studio-info").then(m => ({ default: m.TabStudioInfo })));
+const TabPackages    = dynamic(() => import("./tab-packages").then(m => ({ default: m.TabPackages })));
+const TabBackgrounds = dynamic(() => import("./tab-backgrounds").then(m => ({ default: m.TabBackgrounds })));
+const TabAddons      = dynamic(() => import("./tab-addons").then(m => ({ default: m.TabAddons })));
+const TabVouchers    = dynamic(() => import("./tab-vouchers").then(m => ({ default: m.TabVouchers })));
+const TabCustomFields = dynamic(() => import("./tab-custom-fields").then(m => ({ default: m.TabCustomFields })));
+const TabSimpleCrud  = dynamic(() => import("./tab-simple-crud").then(m => ({ default: m.TabSimpleCrud })));
+const TabCategories  = dynamic(() => import("./tab-categories").then(m => ({ default: m.TabCategories })));
+const TabDomiciles   = dynamic(() => import("./tab-domiciles").then(m => ({ default: m.TabDomiciles })));
 
 interface SettingsClientProps {
   currentUser: CurrentUser;
@@ -33,6 +37,10 @@ const TABS = [
   { value: "photo-for",      label: "Photo For" },
   { value: "domiciles",      label: "Domisili" },
 ];
+
+const TabFallback = () => (
+  <div className="h-32 rounded-lg bg-gray-100 animate-pulse" />
+);
 
 export function SettingsClient({ currentUser }: SettingsClientProps) {
   return (
@@ -65,57 +73,79 @@ export function SettingsClient({ currentUser }: SettingsClientProps) {
           </TabsContent>
 
           <TabsContent value="reminders" className="mt-0">
-            <TabReminders currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabReminders currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="studio-info" className="mt-0">
-            <TabStudioInfo currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabStudioInfo currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="packages" className="mt-0">
-            <TabPackages currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabPackages currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="backgrounds" className="mt-0">
-            <TabBackgrounds currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabBackgrounds currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="addons" className="mt-0">
-            <TabAddons currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabAddons currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="categories" className="mt-0">
-            <TabCategories currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabCategories currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="vouchers" className="mt-0">
-            <TabVouchers currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabVouchers currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="custom-fields" className="mt-0">
-            <TabCustomFields currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabCustomFields currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="leads" className="mt-0">
-            <TabSimpleCrud
-              currentUser={currentUser}
-              tableName="leads"
-              entityLabel="Lead"
-              addLabel="Tambah Lead"
-            />
+            <Suspense fallback={<TabFallback />}>
+              <TabSimpleCrud
+                currentUser={currentUser}
+                tableName="leads"
+                entityLabel="Lead"
+                addLabel="Tambah Lead"
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="photo-for" className="mt-0">
-            <TabSimpleCrud
-              currentUser={currentUser}
-              tableName="photo_for"
-              entityLabel="Photo For"
-              addLabel="Tambah Photo For"
-            />
+            <Suspense fallback={<TabFallback />}>
+              <TabSimpleCrud
+                currentUser={currentUser}
+                tableName="photo_for"
+                entityLabel="Photo For"
+                addLabel="Tambah Photo For"
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="domiciles" className="mt-0">
-            <TabDomiciles currentUser={currentUser} />
+            <Suspense fallback={<TabFallback />}>
+              <TabDomiciles currentUser={currentUser} />
+            </Suspense>
           </TabsContent>
         </div>
       </Tabs>

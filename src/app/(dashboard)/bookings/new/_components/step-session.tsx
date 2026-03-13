@@ -79,20 +79,21 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   // Fetch bookings for selected date
   useEffect(() => {
     if (!sessionData.booking_date) { setExistingBookings([]); setConflictInfo(null); onExistingBookingsLoaded?.([]); return; }
-    supabase
-      .from("bookings")
-      .select("start_time, end_time, customers(name), booking_addons(addons(name, need_extra_time, extra_time_minutes, extra_time_position))")
-      .eq("booking_date", sessionData.booking_date)
-      .neq("status", "CANCELED")
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("bookings")
+          .select("start_time, end_time, customers(name), booking_addons(addons(name, need_extra_time, extra_time_minutes, extra_time_position))")
+          .eq("booking_date", sessionData.booking_date)
+          .neq("status", "CANCELED");
         const bookings = (data ?? []) as unknown as ExistingBooking[];
         setExistingBookings(bookings as (ExistingBooking & { customers: { name: string } | null })[]);
         onExistingBookingsLoaded?.(bookings);
-      })
-      .catch(() => {
+      } catch {
         setExistingBookings([]);
         onExistingBookingsLoaded?.([]);
-      });
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionData.booking_date]);
 

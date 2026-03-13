@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion, type Variants } from "framer-motion";
 import { formatDate, formatTime } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
@@ -72,14 +71,17 @@ const BOOKING_FLOW: BookingStatus[] = [
 const canViewPhotos = (status: BookingStatus) =>
   ["PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"].includes(status);
 
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-  }),
-};
+/** Staggered fade-up using CSS animation (no framer-motion) */
+function FadeUp({ i, children, className }: { i: number; children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`animate-fade-up${className ? ` ${className}` : ""}`}
+      style={{ animationDelay: `${i * 0.08}s` }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
   const [timelineExpanded, setTimelineExpanded] = useState(false);
@@ -132,26 +134,14 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
       <main className="px-4 pb-16 max-w-md mx-auto space-y-4">
 
         {/* Greeting */}
-        <motion.div
-          custom={0}
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          className="bg-white rounded-2xl p-5 text-center shadow-lg"
-        >
+        <FadeUp i={0} className="bg-white rounded-2xl p-5 text-center shadow-lg">
           <p className="text-gray-500 text-sm">Halo,</p>
           <h2 className="text-2xl font-bold text-gray-900 mt-1">{customerName} 👋</h2>
           <p className="text-xs text-gray-400 mt-1 font-mono">{booking.booking_number}</p>
-        </motion.div>
+        </FadeUp>
 
         {/* Status Timeline */}
-        <motion.div
-          custom={1}
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          className="bg-white rounded-2xl p-5 shadow-lg"
-        >
+        <FadeUp i={1} className="bg-white rounded-2xl p-5 shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-800">Status Booking</h3>
             <button
@@ -201,12 +191,11 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
               );
             })}
           </div>
-
-        </motion.div>
+        </FadeUp>
 
         {/* View Photos button */}
         {canViewPhotos(booking.status) && booking.google_drive_link && (
-          <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp}>
+          <FadeUp i={2}>
             <a
               href={/^https?:\/\//i.test(booking.google_drive_link) ? booking.google_drive_link : `https://${booking.google_drive_link}`}
               target="_blank"
@@ -216,17 +205,11 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
               <Images className="h-5 w-5" />
               Lihat Foto Kamu
             </a>
-          </motion.div>
+          </FadeUp>
         )}
 
         {/* Booking Details */}
-        <motion.div
-          custom={3}
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          className="bg-white rounded-2xl p-5 shadow-lg space-y-3"
-        >
+        <FadeUp i={3} className="bg-white rounded-2xl p-5 shadow-lg space-y-3">
           <h3 className="font-semibold text-gray-800 mb-1">Detail Booking</h3>
 
           <div className="flex items-center gap-3">
@@ -257,17 +240,11 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
               ))}
             </div>
           )}
-        </motion.div>
+        </FadeUp>
 
         {/* Invoice section */}
         {invoiceNumber && (
-          <motion.div
-            custom={4}
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            className="bg-white rounded-2xl p-5 shadow-lg"
-          >
+          <FadeUp i={4} className="bg-white rounded-2xl p-5 shadow-lg">
             <h3 className="font-semibold text-gray-800 mb-3">Invoice</h3>
             <div className="flex items-center justify-between">
               <div>
@@ -283,18 +260,12 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
                 Lihat Invoice
               </Link>
             </div>
-          </motion.div>
+          </FadeUp>
         )}
 
         {/* Studio Info */}
         {studio && (
-          <motion.div
-            custom={5}
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            className="rounded-2xl overflow-hidden shadow-lg"
-          >
+          <FadeUp i={5} className="rounded-2xl overflow-hidden shadow-lg">
             {/* Studio front photo */}
             {studio.front_photo_url && (
               <div className="relative h-40 w-full">
@@ -369,17 +340,11 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
                 )}
               </div>
             </div>
-          </motion.div>
+          </FadeUp>
         )}
 
         {/* Thank you + Book Again */}
-        <motion.div
-          custom={6}
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          className="text-center space-y-4 pt-2"
-        >
+        <FadeUp i={6} className="text-center space-y-4 pt-2">
           <p className="text-white/80 text-sm">
             {studio?.footer_text ?? "Terima kasih telah mempercayakan momen spesialmu bersama kami 🤍"}
           </p>
@@ -395,7 +360,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
               Book Again
             </a>
           )}
-        </motion.div>
+        </FadeUp>
 
       </main>
     </div>

@@ -52,35 +52,37 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
   // Fetch settings once
   useEffect(() => {
     if (!open) return;
-    supabase
-      .from("settings_general")
-      .select("open_time, close_time, time_slot_interval")
-      .eq("lock", true)
-      .maybeSingle()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("settings_general")
+          .select("open_time, close_time, time_slot_interval")
+          .eq("lock", true)
+          .maybeSingle();
         setSettingsGeneral(data ?? { open_time: "09:00", close_time: "21:00", time_slot_interval: 30 });
-      })
-      .catch(() => {
+      } catch {
         setSettingsGeneral({ open_time: "09:00", close_time: "21:00", time_slot_interval: 30 });
-      });
+      }
+    })();
   }, [open]);
 
   // Fetch bookings for selected date (exclude current booking)
   useEffect(() => {
     if (!selectedDate) { setExistingSlots([]); return; }
     const dateStr = toDateStr(selectedDate);
-    supabase
-      .from("bookings")
-      .select("id, start_time, end_time, customers(name)")
-      .eq("booking_date", dateStr)
-      .neq("status", "CANCELED")
-      .neq("id", booking.id)
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("bookings")
+          .select("id, start_time, end_time, customers(name)")
+          .eq("booking_date", dateStr)
+          .neq("status", "CANCELED")
+          .neq("id", booking.id);
         setExistingSlots((data ?? []) as unknown as ExistingSlot[]);
-      })
-      .catch(() => {
+      } catch {
         setExistingSlots([]);
-      });
+      }
+    })();
   }, [selectedDate, booking.id]);
 
   const openTime = settingsGeneral?.open_time ?? "09:00";
