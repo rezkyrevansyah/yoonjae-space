@@ -248,7 +248,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Paket" : "Tambah Paket"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 overflow-y-auto max-h-[65vh] pr-1">
             <div className="space-y-2">
               <Label>Nama Paket <span className="text-red-500">*</span></Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Basic Package" />
