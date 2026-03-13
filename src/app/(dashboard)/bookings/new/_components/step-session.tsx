@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Label } from "@/components/ui/label";
-import { generateTimeSlots, formatTime } from "@/lib/utils";
+import { generateTimeSlots, formatTime, toDateStr } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { SessionFormData } from "./new-booking-client";
 import type { SettingsGeneral, StudioHoliday } from "@/lib/types/database";
@@ -43,13 +43,6 @@ function isHoliday(dateStr: string, holidays: StudioHoliday[]): StudioHoliday | 
     const end = new Date(h.end_date);
     return d >= start && d <= end;
   });
-}
-
-function toDateStr(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }
 
 function timeToMinutes(t: string) {

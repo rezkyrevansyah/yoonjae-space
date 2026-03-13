@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime, toDateStr } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, CurrentUser } from "@/lib/types/database";
 import { Bell, MessageCircle, Heart, CheckCircle, Clock, X } from "lucide-react";
@@ -38,10 +38,6 @@ interface Props {
 type TabType = "today" | "week" | "month";
 
 const supabase = createClient();
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function getDateRange(tab: TabType): { from: string; to: string } {
   const today = new Date();

@@ -113,13 +113,19 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
 
   async function handleSave() {
     if (!form.name || !form.price || !form.duration_minutes) return;
+    const parsedPrice = parseInt(form.price.replace(/\D/g, ""), 10);
+    const parsedDuration = parseInt(form.duration_minutes, 10);
+    if (parsedPrice <= 0 || parsedDuration <= 0) {
+      toast({ title: "Validasi gagal", description: "Harga dan durasi harus lebih dari 0.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     const payload = {
       name: form.name,
       description: form.description || "",
-      price: parseInt(form.price.replace(/\D/g, ""), 10),
-      duration_minutes: parseInt(form.duration_minutes, 10),
+      price: parsedPrice,
+      duration_minutes: parsedDuration,
       category: form.category.trim(),
       sort_order: parseInt(form.sort_order, 10) || 0,
       include_print: form.include_print,

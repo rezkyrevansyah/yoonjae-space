@@ -2,9 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-
-// Module-level singleton — stable across renders
-const supabase = createClient();
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +17,9 @@ import { formatRupiah } from "@/lib/utils";
 import type { BookingDetail, BookingAddonRow, AvailableAddon } from "./booking-detail-client";
 import type { CurrentUser } from "@/lib/types/database";
 import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard } from "lucide-react";
+
+// Module-level singleton — stable across renders
+const supabase = createClient();
 
 interface Props {
   booking: BookingDetail;

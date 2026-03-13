@@ -86,6 +86,9 @@ function resolveBonus(
   pkgBonus: number | null | undefined,
   defaultBonus: number
 ): number {
+  // commissionAmount === 0 means "use default" (no per-booking override set).
+  // If commission should be waived, set commission_amount to a negative value
+  // or add a separate commission_override boolean column.
   if (commissionAmount > 0) return commissionAmount;
   if (pkgBonus && pkgBonus > 0) return pkgBonus;
   return defaultBonus;
@@ -172,8 +175,8 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
-      const [{ data: bookings }, { data: existingCommissions }] = await Promise.all([
+      const paidStatuses = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"]; // ADDON_UNPAID intentional: addon debt does not block commission
+      const [bookingsResult, commissionsResult] = await Promise.all([
         supabase
           .from("bookings")
           .select("id, booking_number, booking_date, total, staff_id, commission_amount, customers(name), packages(id, name, commission_bonus)")
@@ -187,6 +190,10 @@ export function CommissionsClient({ currentUser, staffUsers, initialData }: Prop
           .eq("period_start", period.start)
           .eq("period_end", period.end),
       ]);
+      if (bookingsResult.error) throw bookingsResult.error;
+      if (commissionsResult.error) throw commissionsResult.error;
+      const bookings = bookingsResult.data;
+      const existingCommissions = commissionsResult.data;
 
       const commissionMap = new Map<string, { id: string; amount: number; status: "unpaid" | "paid" }>();
       for (const c of (existingCommissions ?? [])) {

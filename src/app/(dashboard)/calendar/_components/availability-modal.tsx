@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { generateTimeSlots } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { generateTimeSlots, toDateStr, cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -31,13 +30,6 @@ interface Props {
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
 }
 
 export function AvailabilityModal({ open, onClose, date, openTime, closeTime, timeSlotInterval }: Props) {

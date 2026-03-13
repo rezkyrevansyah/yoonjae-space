@@ -69,6 +69,10 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
 
   async function handleSave() {
     if (!form.name.trim()) return;
+    if (!currentUser.is_primary) {
+      toast({ title: "Tidak diizinkan", description: "Hanya primary user yang dapat mengelola role.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -133,6 +137,11 @@ export function RoleManagementClient({ currentUser, initialRoles }: RoleManageme
   }
 
   async function handleDelete(id: string) {
+    if (!currentUser.is_primary) {
+      toast({ title: "Tidak diizinkan", description: "Hanya primary user yang dapat menghapus role.", variant: "destructive" });
+      setDeleteId(null);
+      return;
+    }
     setDeleting(true);
     const { count } = await supabase
       .from("users")

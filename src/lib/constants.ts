@@ -55,6 +55,8 @@ export const PRINT_ORDER_STATUS_LABEL: Record<PrintOrderStatus, string> = {
   DONE: "Done",
 };
 
+export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
 export const MENU_ITEMS = [
   { slug: "dashboard", label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { slug: "bookings", label: "Bookings", href: "/bookings", icon: "CalendarCheck" },

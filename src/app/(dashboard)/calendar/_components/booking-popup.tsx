@@ -59,6 +59,8 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
   const canNext = currentIdx < BOOKING_FLOW.length - 1;
   const canBack = currentIdx > 0;
 
+  // Permission key format: "sc:FROM:TO" (e.g. "sc:BOOKED:PAID")
+  // Hierarchy: is_primary → booking_full_access → granular sc:FROM:TO keys
   function hasStatusPermission(from: BookingStatus, to: BookingStatus): boolean {
     if (currentUser.is_primary) return true;
     if (currentUser.menu_access.includes("booking_full_access")) return true;
@@ -126,6 +128,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
   }
 
   const durationMin = (() => {
+    if (!booking.start_time || !booking.end_time) return 0;
     const [sh, sm] = booking.start_time.split(":").map(Number);
     const [eh, em] = booking.end_time.split(":").map(Number);
     return (eh * 60 + em) - (sh * 60 + sm);

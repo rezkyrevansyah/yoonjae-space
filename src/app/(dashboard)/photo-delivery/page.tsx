@@ -49,7 +49,6 @@ export default async function PhotoDeliveryPage() {
 
   return (
     <PhotoDeliveryClient
-      currentUser={currentUser}
       initialData={{
         rows: (initialResult.data as unknown as PhotoDeliveryRow[]) ?? [],
         total: initialResult.count ?? 0,

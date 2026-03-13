@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BOOKING_STATUS_COLOR } from "@/lib/constants";
-import { formatTime } from "@/lib/utils";
+import { formatTime, toDateStr } from "@/lib/utils";
 import type { CalendarBooking } from "./calendar-client";
 
 interface Props {
@@ -12,10 +12,6 @@ interface Props {
 }
 
 const DAYS_ID = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export function CalendarMonthView({ month, bookings, onSelectBooking }: Props) {
   const todayStr = toDateStr(new Date());

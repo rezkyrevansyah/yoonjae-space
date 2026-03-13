@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime, toDateStr } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Package, User } from "lucide-react";
@@ -32,10 +32,6 @@ interface MuaBooking {
 
 interface Props {
   studioInfo: StudioInfo | null;
-}
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function startOfWeek(d: Date) {

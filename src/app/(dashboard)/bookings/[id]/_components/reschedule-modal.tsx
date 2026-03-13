@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { createClient } from "@/utils/supabase/client";
-import { generateTimeSlots, formatTime, formatDate } from "@/lib/utils";
+import { generateTimeSlots, formatTime, formatDate, toDateStr } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,13 +38,6 @@ function timeToMinutes(t: string): number {
 function minutesToTime(mins: number): string {
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
-
 export function RescheduleModal({ open, onClose, booking, currentUser, onRescheduled }: Props) {
   const { toast } = useToast();
   const now = new Date();

@@ -26,9 +26,10 @@ import {
   BOOKING_STATUS_LABEL,
   BOOKING_STATUS_COLOR,
   PRINT_ORDER_STATUS_LABEL,
+  PAGE_SIZE_OPTIONS,
 } from "@/lib/constants";
 import { formatDate, formatTime } from "@/lib/utils";
-import type { CurrentUser, BookingStatus, PrintOrderStatus } from "@/lib/types/database";
+import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
 import {
   Search,
   Eye,
@@ -41,10 +42,10 @@ import {
 import type { PhotoDeliveryRow } from "../page";
 
 const supabase = createClient();
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+// UUID v4 validation — guards against injection if the ID source type ever changes
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface Props {
-  currentUser: CurrentUser;
   initialData: { rows: PhotoDeliveryRow[]; total: number };
 }
 
@@ -94,7 +95,9 @@ export function PhotoDeliveryClient({ initialData }: Props) {
           .from("customers")
           .select("id")
           .ilike("name", `%${search.trim()}%`);
-        const customerIds = matchingCustomers?.map((c) => c.id) ?? [];
+        // Validate UUID format to prevent injection if the ID source type ever changes
+        const customerIds = (matchingCustomers?.map((c) => c.id) ?? [])
+          .filter((id) => UUID_RE.test(id));
         const conditions = [`booking_number.ilike.%${search.trim()}%`];
         if (customerIds.length > 0) {
           conditions.push(`customer_id.in.(${customerIds.join(",")})`);
