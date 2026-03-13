@@ -145,24 +145,26 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/bookings")}>
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/bookings")} className="flex-shrink-0 mt-0.5">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <p className="font-mono text-sm text-gray-500">{booking.booking_number}</p>
-            <h1 className="text-xl font-bold text-gray-900">
-              {booking.customers?.name ?? "Customer"}
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">
+                {booking.customers?.name ?? "Customer"}
+              </h1>
+              <Badge className={BOOKING_STATUS_COLOR[booking.status]}>
+                {BOOKING_STATUS_LABEL[booking.status]}
+              </Badge>
+              {booking.is_rescheduled && (
+                <Badge className="bg-orange-100 text-orange-700 border-orange-200">
+                  Rescheduled
+                </Badge>
+              )}
+            </div>
           </div>
-          <Badge className={BOOKING_STATUS_COLOR[booking.status]}>
-            {BOOKING_STATUS_LABEL[booking.status]}
-          </Badge>
-          {booking.is_rescheduled && (
-            <Badge className="bg-orange-100 text-orange-700 border-orange-200">
-              Rescheduled
-            </Badge>
-          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -177,13 +179,13 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
           <Link href={`/customer/${booking.id}`} target="_blank">
             <Button variant="outline" size="sm" className="gap-1.5">
               <User className="h-4 w-4" />
-              Customer Page
+              <span className="hidden sm:inline">Customer Page</span>
             </Button>
           </Link>
           <Link href={`/invoice/${booking.id}`} target="_blank">
             <Button variant="outline" size="sm" className="gap-1.5">
               <FileText className="h-4 w-4" />
-              Invoice
+              <span className="hidden sm:inline">Invoice</span>
             </Button>
           </Link>
           {hasFullAccess && (
@@ -195,7 +197,7 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
                 onClick={() => setShowEditDetail(true)}
               >
                 <Pencil className="h-4 w-4" />
-                Edit Detail
+                <span className="hidden sm:inline">Edit Detail</span>
               </Button>
               <Button
                 variant="outline"
@@ -204,7 +206,7 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
                 onClick={() => setShowReschedule(true)}
               >
                 <CalendarClock className="h-4 w-4" />
-                Reschedule
+                <span className="hidden sm:inline">Reschedule</span>
               </Button>
               <Button
                 variant="outline"

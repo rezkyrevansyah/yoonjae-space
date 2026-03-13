@@ -181,8 +181,8 @@ export function PhotoDeliveryClient({ initialData }: Props) {
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border bg-white overflow-hidden">
+      {/* Table — desktop only */}
+      <div className="hidden md:block rounded-xl border bg-white overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
@@ -268,6 +268,67 @@ export function PhotoDeliveryClient({ initialData }: Props) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="text-center py-12 text-gray-400 text-sm">Memuat data...</div>
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 text-gray-400 py-12">
+            <Camera className="h-10 w-10 opacity-30" />
+            <p className="text-sm">Belum ada booking yang perlu di-deliver</p>
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="rounded-xl border bg-white p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-mono text-xs text-gray-400">{row.booking_number}</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-0.5">{row.customers?.name ?? "—"}</p>
+                  <p className="text-xs text-gray-500">{row.packages?.name ?? "—"}</p>
+                </div>
+                <Badge className={BOOKING_STATUS_COLOR[row.status as BookingStatus]}>
+                  {BOOKING_STATUS_LABEL[row.status as BookingStatus]}
+                </Badge>
+              </div>
+              <div className="text-sm text-gray-600">
+                <span>{formatDate(row.booking_date)}</span>
+                <span className="mx-1.5 text-gray-300">·</span>
+                <span className="text-xs">{formatTime(row.start_time)} — {formatTime(row.end_time)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 text-xs">
+                  {row.google_drive_link ? (
+                    <a
+                      href={/^https?:\/\//i.test(row.google_drive_link) ? row.google_drive_link : `https://${row.google_drive_link}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-blue-600 hover:underline"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      Drive
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Belum ada link</span>
+                  )}
+                  {row.print_order_status && (
+                    <span className="flex items-center gap-1 text-blue-600">
+                      <Printer className="h-3 w-3" />
+                      {PRINT_ORDER_STATUS_LABEL[row.print_order_status as PrintOrderStatus]}
+                    </span>
+                  )}
+                </div>
+                <Button asChild size="sm" variant="outline" className="gap-1.5 flex-shrink-0">
+                  <Link href={`/photo-delivery/${row.id}`}>
+                    <Eye className="h-3.5 w-3.5" />
+                    Lihat
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Pagination */}
