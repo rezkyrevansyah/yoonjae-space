@@ -25,7 +25,6 @@ import {
   ArrowLeft,
   MessageCircle,
   User,
-  Camera,
   Link as LinkIcon,
   Printer,
   ChevronLeft,
@@ -213,26 +212,26 @@ export function PhotoDeliveryDetailClient({ booking: initialBooking, currentUser
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <Button asChild variant="ghost" size="sm" className="shrink-0 mt-0.5">
-          <Link href="/photo-delivery">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Kembali
-          </Link>
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Camera className="h-5 w-5 text-maroon-700 shrink-0" />
-            <h1 className="text-xl font-bold text-gray-900 truncate">
-              {booking.customers?.name ?? "—"}
-            </h1>
-            <Badge className={BOOKING_STATUS_COLOR[booking.status as BookingStatus]}>
-              {BOOKING_STATUS_LABEL[booking.status as BookingStatus]}
-            </Badge>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-start gap-3">
+          <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5">
+            <Link href="/photo-delivery">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <div>
+            <p className="font-mono text-sm text-gray-500">{booking.booking_number}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">
+                {booking.customers?.name ?? "—"}
+              </h1>
+              <Badge className={BOOKING_STATUS_COLOR[booking.status as BookingStatus]}>
+                {BOOKING_STATUS_LABEL[booking.status as BookingStatus]}
+              </Badge>
+            </div>
           </div>
-          <p className="text-xs font-mono text-gray-400 mt-0.5 ml-7">{booking.booking_number}</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           {waPhone && (
             <Button asChild size="sm" variant="outline" className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50">
               <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer">
@@ -244,7 +243,7 @@ export function PhotoDeliveryDetailClient({ booking: initialBooking, currentUser
           <Button asChild size="sm" variant="outline" className="gap-1.5">
             <Link href={`/customer/${booking.id}`} target="_blank">
               <User className="h-3.5 w-3.5" />
-              Customer
+              <span className="hidden sm:inline">Customer</span>
               <ExternalLink className="h-3 w-3" />
             </Link>
           </Button>
