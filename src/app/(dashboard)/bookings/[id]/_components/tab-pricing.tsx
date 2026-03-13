@@ -87,6 +87,10 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   async function handleSaveDp() {
     const amount = parseInt(dpInput.replace(/\D/g, ""), 10);
     if (!amount || amount <= 0) return;
+    if (amount > total) {
+      toast({ title: "DP melebihi total", description: `DP tidak boleh lebih dari ${formatRupiah(total)}`, variant: "destructive" });
+      return;
+    }
     setSavingDp(true);
     const isNew = !hasDp;
     try {

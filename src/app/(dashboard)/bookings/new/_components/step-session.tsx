@@ -88,6 +88,10 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
         const bookings = (data ?? []) as unknown as ExistingBooking[];
         setExistingBookings(bookings as (ExistingBooking & { customers: { name: string } | null })[]);
         onExistingBookingsLoaded?.(bookings);
+      })
+      .catch(() => {
+        setExistingBookings([]);
+        onExistingBookingsLoaded?.([]);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionData.booking_date]);

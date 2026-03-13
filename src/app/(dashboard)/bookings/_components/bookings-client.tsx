@@ -212,15 +212,19 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
       if (error) throw error;
 
       const u = currentUserRef.current;
-      await supabase.from("activity_log").insert({
-        user_id: u.id,
-        user_name: u.name,
-        user_role: u.role_name,
-        action: "DELETE",
-        entity: "bookings",
-        entity_id: deleteId,
-        description: `Menghapus booking ${deleteNumber}`,
-      });
+      try {
+        await supabase.from("activity_log").insert({
+          user_id: u.id,
+          user_name: u.name,
+          user_role: u.role_name,
+          action: "DELETE",
+          entity: "bookings",
+          entity_id: deleteId,
+          description: `Menghapus booking ${deleteNumber}`,
+        });
+      } catch {
+        console.error("Failed to log delete activity for booking", deleteId);
+      }
 
       toast({ title: "Berhasil", description: `Booking ${deleteNumber} berhasil dihapus` });
       fetchBookings();

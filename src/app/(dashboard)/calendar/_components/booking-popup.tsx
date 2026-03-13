@@ -164,7 +164,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
             icon={<Clock className="h-4 w-4" />}
             value={`${formatTime(booking.start_time)} — ${formatTime(booking.end_time)} (${durationMin} menit)`}
           />
-          {booking.booking_packages.length > 0 ? (
+          {(booking.booking_packages?.length ?? 0) > 0 ? (
             <div className="flex gap-2 text-sm text-gray-700">
               <span className="text-gray-400 flex-shrink-0 mt-0.5"><Package className="h-4 w-4" /></span>
               <div className="flex flex-col gap-0.5">
@@ -187,7 +187,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           )}
 
           {/* Backgrounds */}
-          {booking.booking_backgrounds.length > 0 && (
+          {(booking.booking_backgrounds?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {booking.booking_backgrounds.map((b, i) => (
                 <span key={i} className="text-xs bg-[#FEF2F2] text-[#8B1A1A] px-2 py-0.5 rounded-full border border-[#8B1A1A]/20">
@@ -198,7 +198,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           )}
 
           {/* Add-ons */}
-          {booking.booking_addons.length > 0 && (
+          {(booking.booking_addons?.length ?? 0) > 0 && (
             <div className="pt-1">
               <p className="text-xs text-gray-500 mb-1">Add-ons</p>
               <div className="flex flex-wrap gap-1.5">
@@ -223,7 +223,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           )}
 
           {/* Custom Fields */}
-          {booking.booking_custom_fields.length > 0 && (
+          {(booking.booking_custom_fields?.length ?? 0) > 0 && (
             <div className="pt-1 border-t border-gray-100">
               <p className="text-xs text-gray-500 mb-2">Informasi Tambahan</p>
               <div className="space-y-1.5">

@@ -59,6 +59,9 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
       .maybeSingle()
       .then(({ data }) => {
         setSettingsGeneral(data ?? { open_time: "09:00", close_time: "21:00", time_slot_interval: 30 });
+      })
+      .catch(() => {
+        setSettingsGeneral({ open_time: "09:00", close_time: "21:00", time_slot_interval: 30 });
       });
   }, [open]);
 
@@ -74,6 +77,9 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
       .neq("id", booking.id)
       .then(({ data }) => {
         setExistingSlots((data ?? []) as unknown as ExistingSlot[]);
+      })
+      .catch(() => {
+        setExistingSlots([]);
       });
   }, [selectedDate, booking.id]);
 
