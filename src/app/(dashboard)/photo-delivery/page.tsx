@@ -1,15 +1,16 @@
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { createClient } from "@/utils/supabase/server";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
 
-const PhotoDeliveryClient = dynamic(
+const PhotoDeliveryClient = nextDynamic(
   () => import("./_components/photo-delivery-client").then((m) => ({ default: m.PhotoDeliveryClient })),
   { ssr: false }
 );
 
 export const metadata = { title: "Photo Delivery — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export interface PhotoDeliveryRow {
   id: string;

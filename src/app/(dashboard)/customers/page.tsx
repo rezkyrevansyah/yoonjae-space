@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { CustomersClient, type CustomerRow } from "./_components/customers-client";
 
 export const metadata = { title: "Customers — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
 

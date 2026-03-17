@@ -13,6 +13,7 @@ import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
 
 export const metadata = { title: "Dashboard — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 // ── Helpers ────────────────────────────────────────────────
 

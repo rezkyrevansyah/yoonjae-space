@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { ActivitiesClient } from "./_components/activities-client";
 
 export const metadata = { title: "Activities — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function ActivitiesPage() {
   const supabase = await createClient();

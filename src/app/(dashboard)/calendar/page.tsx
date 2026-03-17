@@ -6,6 +6,7 @@ import { CalendarClient, type CalendarBooking } from "./_components/calendar-cli
 import { toDateStr } from "@/lib/utils";
 
 export const metadata = { title: "Calendar — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
   const supabase = await createClient();

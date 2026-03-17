@@ -6,6 +6,7 @@ import { RemindersClient, type ReminderBooking } from "./_components/reminders-c
 import { toDateStr } from "@/lib/utils";
 
 export const metadata = { title: "Reminders — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function RemindersPage() {
   const supabase = await createClient();

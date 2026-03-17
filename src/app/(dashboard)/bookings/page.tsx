@@ -1,16 +1,17 @@
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { createClient } from "@/utils/supabase/server";
 import type { BookingStatus } from "@/lib/types/database";
 
 // Load as client-only to avoid SSR hydration mismatch with Radix UI Select
-const BookingsClient = dynamic(
+const BookingsClient = nextDynamic(
   () => import("./_components/bookings-client").then((m) => ({ default: m.BookingsClient })),
   { ssr: false }
 );
 
 export const metadata = { title: "Bookings — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 interface BookingRow {
   id: string;

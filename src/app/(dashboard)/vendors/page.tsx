@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { VendorsClient, type VendorWithStats } from "./_components/vendors-client";
 
 export const metadata = { title: "Vendors — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function VendorsPage() {
   const supabase = await createClient();

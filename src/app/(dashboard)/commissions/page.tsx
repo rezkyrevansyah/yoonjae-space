@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { CommissionsClient, type InitialCommissionData } from "./_components/commissions-client";
 
 export const metadata = { title: "Commissions — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 function getPeriodRange(month: number, year: number, cutoffDay: number) {
   const prevMonth = month === 0 ? 11 : month - 1;

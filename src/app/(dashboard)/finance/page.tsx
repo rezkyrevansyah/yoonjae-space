@@ -6,6 +6,7 @@ import { FinanceClient, type IncomeBooking, type PackageStat } from "./_componen
 import type { Expense } from "@/lib/types/database";
 
 export const metadata = { title: "Finance — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 const PAID_STATUSES = ["PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"];
 

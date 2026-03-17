@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { LoginClient } from "./_components/login-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   const supabase = await createClient();
   const { data: studioInfo } = await supabase

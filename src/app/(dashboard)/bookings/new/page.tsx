@@ -16,6 +16,7 @@ import {
 import type { Package, Background, Addon, Lead, PhotoFor, CustomField, SettingsGeneral, StudioHoliday } from "@/lib/types/database";
 
 export const metadata = { title: "Buat Booking — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function NewBookingPage() {
   const [

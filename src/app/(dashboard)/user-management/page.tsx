@@ -5,6 +5,8 @@ import { getCachedRoles } from "@/lib/cached-queries";
 import { UserManagementClient, type UserRow } from "./_components/user-management-client";
 import type { Role } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function UserManagementPage() {
   const [currentUser, supabase] = await Promise.all([
     getCurrentUser(),

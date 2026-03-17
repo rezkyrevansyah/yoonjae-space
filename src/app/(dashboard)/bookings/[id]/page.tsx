@@ -5,6 +5,7 @@ import { getCachedPackages, getCachedBackgrounds, getCachedPhotoFor, getCachedAc
 import { BookingDetailClient } from "./_components/booking-detail-client";
 
 export const metadata = { title: "Detail Booking — Yoonjaespace" };
+export const dynamic = "force-dynamic";
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
   // getCurrentUser uses React.cache() — no duplicate DB hit vs layout.tsx

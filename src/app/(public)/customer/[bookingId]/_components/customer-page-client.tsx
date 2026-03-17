@@ -1,17 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatDate, formatTime } from "@/lib/utils";
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
+import { BOOKING_STATUS_LABEL, PRINT_ORDER_STATUS_LABEL } from "@/lib/constants";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
 import {
   CalendarDays,
   Clock,
   Package,
-  ChevronDown,
-  ChevronUp,
   Images,
   FileText,
   MapPin,
@@ -19,6 +16,11 @@ import {
   Instagram,
   MessageCircle,
   Map,
+  CheckCircle2,
+  Circle,
+  XCircle,
+  AlertCircle,
+  Printer,
 } from "lucide-react";
 
 // ---- Types ----
@@ -63,10 +65,29 @@ interface Props {
   settings: { open_time: string; close_time: string } | null;
 }
 
-// Booking flow for stepper
+// Booking flow for stepper (same as booking detail — ADDON_UNPAID maps to PHOTOS_DELIVERED)
 const BOOKING_FLOW: BookingStatus[] = [
-  "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED",
+  "BOOKED", "PAID", "SHOOT_DONE", "PHOTOS_DELIVERED", "CLOSED",
 ];
+
+// Customer-facing print flow (excludes internal: VENDOR, RECEIVE)
+const CUSTOMER_PRINT_FLOW: PrintOrderStatus[] = [
+  "SELECTION", "PRINTING", "PACKING", "SHIPPED", "DONE",
+];
+
+// Map internal print status → customer-visible index
+function getCustomerPrintIndex(status: PrintOrderStatus): number {
+  const map: Record<PrintOrderStatus, number> = {
+    SELECTION: 0,
+    VENDOR: 0,    // internal → still at SELECTION
+    PRINTING: 1,
+    RECEIVE: 1,   // internal → still at PRINTING
+    PACKING: 2,
+    SHIPPED: 3,
+    DONE: 4,
+  };
+  return map[status];
+}
 
 const canViewPhotos = (status: BookingStatus) =>
   ["PHOTOS_DELIVERED", "ADDON_UNPAID", "CLOSED"].includes(status);
@@ -84,20 +105,22 @@ function FadeUp({ i, children, className }: { i: number; children: React.ReactNo
 }
 
 export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
-  const [timelineExpanded, setTimelineExpanded] = useState(false);
-
   const studio = studioInfo;
   const customerName = booking.customers?.name ?? "Customer";
   const invoiceNumber = Array.isArray(booking.invoices)
     ? booking.invoices[0]?.invoice_number
     : (booking.invoices as { invoice_number: string } | null)?.invoice_number;
 
-  const currentStatusIdx = BOOKING_FLOW.indexOf(booking.status);
+  // Map ADDON_UNPAID to PHOTOS_DELIVERED for stepper position
+  const effectiveStatus: BookingStatus =
+    booking.status === "ADDON_UNPAID" ? "PHOTOS_DELIVERED" : booking.status;
+  const currentStatusIdx = BOOKING_FLOW.indexOf(effectiveStatus);
+  const isCanceled = booking.status === "CANCELED";
 
-  // Show last 2 statuses collapsed, all expanded
-  const visibleStatuses = timelineExpanded
-    ? BOOKING_FLOW
-    : BOOKING_FLOW.slice(Math.max(0, currentStatusIdx - 1), currentStatusIdx + 2);
+  // Print order
+  const currentPrintIdx = booking.print_order_status
+    ? getCustomerPrintIndex(booking.print_order_status)
+    : -1;
 
   const waLink = studio?.whatsapp_number
     ? `https://wa.me/${studio.whatsapp_number.replace(/^0/, "62").replace(/\D/g, "")}`
@@ -140,62 +163,120 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
           <p className="text-xs text-gray-400 mt-1 font-mono">{booking.booking_number}</p>
         </FadeUp>
 
-        {/* Status Timeline */}
-        <FadeUp i={1} className="bg-white rounded-2xl p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-800">Status Booking</h3>
-            <button
-              onClick={() => setTimelineExpanded((v) => !v)}
-              className="text-xs text-[#8B1A1A] flex items-center gap-1 hover:underline"
-            >
-              {timelineExpanded ? (
-                <><ChevronUp className="h-3 w-3" />Ringkas</>
-              ) : (
-                <><ChevronDown className="h-3 w-3" />Lihat Semua</>
-              )}
-            </button>
-          </div>
+        {/* Status Booking — Horizontal Stepper */}
+        <FadeUp i={1} className="bg-white rounded-2xl p-5 shadow-lg space-y-4">
+          <h3 className="font-semibold text-gray-800">Status Booking</h3>
 
-          {/* Booking stepper */}
-          <div className="space-y-2">
-            {visibleStatuses.map((status) => {
-              const absIdx = BOOKING_FLOW.indexOf(status);
-              const isPast = absIdx < currentStatusIdx;
-              const isCurrent = absIdx === currentStatusIdx && booking.status !== "CANCELED";
-              return (
-                <div key={status} className="flex items-center gap-3">
-                  <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isCurrent ? "bg-[#8B1A1A]" : isPast ? "bg-[#8B1A1A]/20" : "bg-gray-100"
-                  }`}>
-                    {isPast ? (
-                      <span className="text-[#8B1A1A] text-xs">✓</span>
-                    ) : isCurrent ? (
-                      <span className="text-white text-xs">●</span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">{absIdx + 1}</span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <span className={`text-sm font-medium ${
-                      isCurrent ? "text-[#8B1A1A]" : isPast ? "text-gray-500" : "text-gray-300"
+          <div className="relative">
+            {/* Background line */}
+            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+            {/* Progress line */}
+            <div
+              className="absolute top-4 left-4 h-0.5 bg-[#8B1A1A] transition-all"
+              style={{
+                width: isCanceled
+                  ? "0%"
+                  : `${(Math.max(0, currentStatusIdx) / (BOOKING_FLOW.length - 1)) * 100}%`,
+              }}
+            />
+            <div className="relative flex justify-between">
+              {BOOKING_FLOW.map((status, idx) => {
+                const isPast = idx < currentStatusIdx && !isCanceled;
+                const isCurrent = idx === currentStatusIdx && !isCanceled;
+                return (
+                  <div key={status} className="flex flex-col items-center gap-1">
+                    <div
+                      className={`h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10 ${
+                        isPast || isCurrent ? "border-[#8B1A1A]" : "border-gray-300"
+                      }`}
+                    >
+                      {isPast ? (
+                        <CheckCircle2 className="h-5 w-5 text-[#8B1A1A]" />
+                      ) : isCurrent ? (
+                        <Circle className="h-3 w-3 fill-[#8B1A1A] text-[#8B1A1A]" />
+                      ) : (
+                        <Circle className="h-3 w-3 text-gray-300" />
+                      )}
+                    </div>
+                    <span className={`text-[10px] text-center leading-tight max-w-[56px] ${
+                      isCurrent ? "text-[#8B1A1A] font-semibold" : isPast ? "text-[#8B1A1A]/70" : "text-gray-400"
                     }`}>
                       {BOOKING_STATUS_LABEL[status]}
                     </span>
-                    {isCurrent && (
-                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${BOOKING_STATUS_COLOR[status]}`}>
-                        Sekarang
-                      </span>
-                    )}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+
+          {isCanceled && (
+            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-red-700">
+              <XCircle className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-medium">Booking ini telah dibatalkan</span>
+            </div>
+          )}
+
+          {booking.status === "ADDON_UNPAID" && (
+            <div className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 p-3 text-orange-700 text-sm">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Ada tambahan yang belum dibayar
+            </div>
+          )}
         </FadeUp>
+
+        {/* Print Order — Horizontal Stepper (customer-facing, no VENDOR/RECEIVE) */}
+        {booking.print_order_status && (
+          <FadeUp i={2} className="bg-white rounded-2xl p-5 shadow-lg space-y-4">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Printer className="h-4 w-4 text-blue-600" />
+              Print Order
+            </h3>
+
+            <div className="relative">
+              {/* Background line */}
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+              {/* Progress line */}
+              <div
+                className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all"
+                style={{
+                  width: `${(Math.max(0, currentPrintIdx) / (CUSTOMER_PRINT_FLOW.length - 1)) * 100}%`,
+                }}
+              />
+              <div className="relative flex justify-between">
+                {CUSTOMER_PRINT_FLOW.map((status, idx) => {
+                  const isPast = idx < currentPrintIdx;
+                  const isCurrent = idx === currentPrintIdx;
+                  return (
+                    <div key={status} className="flex flex-col items-center gap-1">
+                      <div
+                        className={`h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10 ${
+                          isPast || isCurrent ? "border-blue-500" : "border-gray-300"
+                        }`}
+                      >
+                        {isPast ? (
+                          <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                        ) : isCurrent ? (
+                          <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
+                        ) : (
+                          <Circle className="h-3 w-3 text-gray-300" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] text-center leading-tight max-w-[56px] ${
+                        isCurrent ? "text-blue-700 font-semibold" : isPast ? "text-blue-400" : "text-gray-400"
+                      }`}>
+                        {PRINT_ORDER_STATUS_LABEL[status]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </FadeUp>
+        )}
 
         {/* View Photos button */}
         {canViewPhotos(booking.status) && booking.google_drive_link && (
-          <FadeUp i={2}>
+          <FadeUp i={3}>
             <a
               href={/^https?:\/\//i.test(booking.google_drive_link) ? booking.google_drive_link : `https://${booking.google_drive_link}`}
               target="_blank"
@@ -209,7 +290,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
         )}
 
         {/* Booking Details */}
-        <FadeUp i={3} className="bg-white rounded-2xl p-5 shadow-lg space-y-3">
+        <FadeUp i={4} className="bg-white rounded-2xl p-5 shadow-lg space-y-3">
           <h3 className="font-semibold text-gray-800 mb-1">Detail Booking</h3>
 
           <div className="flex items-center gap-3">
@@ -244,7 +325,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
 
         {/* Invoice section */}
         {invoiceNumber && (
-          <FadeUp i={4} className="bg-white rounded-2xl p-5 shadow-lg">
+          <FadeUp i={5} className="bg-white rounded-2xl p-5 shadow-lg">
             <h3 className="font-semibold text-gray-800 mb-3">Invoice</h3>
             <div className="flex items-center justify-between">
               <div>
@@ -265,7 +346,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
 
         {/* Studio Info */}
         {studio && (
-          <FadeUp i={5} className="rounded-2xl overflow-hidden shadow-lg">
+          <FadeUp i={6} className="rounded-2xl overflow-hidden shadow-lg">
             {/* Studio front photo */}
             {studio.front_photo_url && (
               <div className="relative h-40 w-full">
@@ -344,7 +425,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
         )}
 
         {/* Thank you + Book Again */}
-        <FadeUp i={6} className="text-center space-y-4 pt-2">
+        <FadeUp i={7} className="text-center space-y-4 pt-2">
           <p className="text-white/80 text-sm">
             {studio?.footer_text ?? "Terima kasih telah mempercayakan momen spesialmu bersama kami 🤍"}
           </p>
