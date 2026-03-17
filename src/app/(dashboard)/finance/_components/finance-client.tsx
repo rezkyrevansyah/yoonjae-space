@@ -20,6 +20,7 @@ export interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
+  created_at: string;
   status: string;
   total: number;
   customers: { name: string } | null;
@@ -83,11 +84,11 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const [{ data: bookings }, { data: expenseData }] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, booking_number, booking_date, status, total, customers(name), packages(name)")
-        .gte("booking_date", startDate)
-        .lte("booking_date", endDate)
+        .select("id, booking_number, booking_date, created_at, status, total, customers(name), packages(name)")
+        .gte("created_at", `${startDate}T00:00:00`)
+        .lte("created_at", `${endDate}T23:59:59`)
         .in("status", PAID_STATUSES)
-        .order("booking_date"),
+        .order("created_at"),
       supabase
         .from("expenses")
         .select("id, date, description, amount, category, notes, source, source_id, vendor_id, vendors(id, name)")
@@ -245,7 +246,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const incomeRows = incomeBookings.map((b) => ({
       "Booking ID": b.booking_number,
       "Customer": b.customers?.name ?? "-",
-      "Tanggal": formatDate(b.booking_date),
+      "Tanggal": formatDate(b.created_at),
       "Paket": b.packages?.name ?? "-",
       "Status": b.status,
       "Total": b.total,

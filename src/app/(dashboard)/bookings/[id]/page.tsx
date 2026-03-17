@@ -29,7 +29,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
         staff:users!bookings_staff_id_fkey(id, name),
         creator:users!bookings_created_by_fkey(id, name),
         booking_backgrounds(background_id, backgrounds(id, name)),
-        booking_addons(addon_id, price, is_paid, is_extra, addons(id, name, need_extra_time, extra_time_minutes)),
+        booking_addons(addon_id, price, quantity, is_paid, is_extra, addons(id, name, need_extra_time, extra_time_minutes)),
         booking_custom_fields(custom_field_id, value, custom_fields(id, label, field_type, options)),
         booking_packages(id, package_id, quantity, price_snapshot, packages(id, name, price, duration_minutes, need_extra_time, extra_time_minutes))
       `)

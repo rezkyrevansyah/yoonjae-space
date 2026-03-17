@@ -31,6 +31,7 @@ import type { PackageOption, BackgroundOption, PhotoForOption, UserOption, Custo
 export interface BookingAddonRow {
   addon_id: string;
   price: number;
+  quantity: number;
   is_paid: boolean;
   is_extra: boolean;
   addons: { id: string; name: string; need_extra_time: boolean; extra_time_minutes: number } | null;

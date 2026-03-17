@@ -19,7 +19,7 @@ export default async function InvoicePage({ params }: { params: { bookingId: str
         customers(name, phone, email),
         packages(name, price),
         vouchers(code, discount_type, discount_value),
-        booking_addons(addon_id, price, is_paid, is_extra, addons(name)),
+        booking_addons(addon_id, price, quantity, is_paid, is_extra, addons(name)),
         booking_packages(package_id, quantity, price_snapshot, packages(name)),
         invoices(invoice_number, invoice_date)
       `)

@@ -37,6 +37,7 @@ interface BookingData {
   booking_addons: {
     addon_id: string;
     price: number;
+    quantity: number;
     is_paid: boolean;
     is_extra: boolean;
     addons: { name: string } | null;
@@ -105,7 +106,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
   // Extra add-ons breakdown
   const extraAddonsTotal = booking.booking_addons
     .filter((a) => a.is_extra)
-    .reduce((s, a) => s + a.price, 0);
+    .reduce((s, a) => s + a.price * (a.quantity ?? 1), 0);
 
   // Sisa tagihan — 0 jika status PAID
   const sisaTagihan =
@@ -358,6 +359,11 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                   <tr key={i}>
                     <td className="py-3 text-gray-800">
                       <span>{ba.addons?.name ?? "Add-on"}</span>
+                      {(ba.quantity ?? 1) > 1 && (
+                        <span className="ml-1 text-xs text-gray-400">
+                          ({ba.quantity}x @ {formatRupiah(ba.price)})
+                        </span>
+                      )}
                       {ba.is_extra && (
                         <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
                           Extra
@@ -370,7 +376,7 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                       )}
                     </td>
                     <td className="py-3 text-right text-gray-800 font-mono">
-                      {formatRupiah(ba.price)}
+                      {formatRupiah(ba.price * (ba.quantity ?? 1))}
                     </td>
                   </tr>
                 ))}

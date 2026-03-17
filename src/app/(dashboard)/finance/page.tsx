@@ -23,11 +23,11 @@ export default async function FinancePage() {
     getCachedActiveVendors(),
     supabase
       .from("bookings")
-      .select("id, booking_number, booking_date, status, total, customers(name), packages(name)")
-      .gte("booking_date", startDate)
-      .lte("booking_date", endDate)
+      .select("id, booking_number, booking_date, created_at, status, total, customers(name), packages(name)")
+      .gte("created_at", `${startDate}T00:00:00`)
+      .lte("created_at", `${endDate}T23:59:59`)
       .in("status", PAID_STATUSES)
-      .order("booking_date"),
+      .order("created_at"),
     supabase
       .from("expenses")
       .select("id, date, description, amount, category, notes, source, source_id, vendor_id, vendors(id, name)")

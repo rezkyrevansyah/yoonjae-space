@@ -80,11 +80,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     (sum, bp) => sum + bp.price_snapshot * bp.quantity, 0
   );
   const originalAddonsTotal = useMemo(
-    () => originalAddons.reduce((s, a) => s + a.price, 0),
+    () => originalAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0),
     [originalAddons]
   );
   const extraAddonsTotal = useMemo(
-    () => extraAddons.reduce((s, a) => s + a.price, 0),
+    () => extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0),
     [extraAddons]
   );
   const discount = booking.manual_discount > 0
@@ -241,7 +241,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       });
       if (error) throw error;
 
-      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) + addon.price;
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addon.price;
       const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
@@ -253,6 +253,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       const newAddon: BookingAddonRow = {
         addon_id: addon.id,
         price: addon.price,
+        quantity: 1,
         is_paid: false,
         is_extra: true,
         addons: {
@@ -290,7 +291,8 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     setRemovingId(addonId);
     try {
       const addonName = addons.find((a) => a.addon_id === addonId)?.addons?.name ?? addonId;
-      const removedPrice = addons.find((a) => a.addon_id === addonId && a.is_extra)?.price ?? 0;
+      const removedAddon = addons.find((a) => a.addon_id === addonId && a.is_extra);
+      const removedPrice = removedAddon ? removedAddon.price * (removedAddon.quantity ?? 1) : 0;
       const { error } = await supabase
         .from("booking_addons")
         .delete()
@@ -299,7 +301,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         .eq("is_extra", true);
       if (error) throw error;
 
-      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price, 0) - removedPrice;
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) - removedPrice;
       const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
@@ -482,8 +484,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
           )}
           {originalAddons.map((a) => (
             <div key={a.addon_id} className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
-              <span className="text-gray-600">{a.addons?.name ?? a.addon_id}</span>
-              <span className="font-medium">{formatRupiah(a.price)}</span>
+              <span className="text-gray-600">
+                {a.addons?.name ?? a.addon_id}
+                {(a.quantity ?? 1) > 1 && <span className="text-gray-400 ml-1">({a.quantity}x @ {formatRupiah(a.price)})</span>}
+              </span>
+              <span className="font-medium">{formatRupiah(a.price * (a.quantity ?? 1))}</span>
             </div>
           ))}
           {discount > 0 && (
@@ -627,8 +632,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 className="flex items-center justify-between rounded-lg border p-3"
               >
                 <div>
-                  <p className="font-medium text-sm">{a.addons?.name ?? a.addon_id}</p>
-                  <p className="text-xs text-gray-500">{formatRupiah(a.price)}</p>
+                  <p className="font-medium text-sm">
+                    {a.addons?.name ?? a.addon_id}
+                    {(a.quantity ?? 1) > 1 && <span className="text-gray-400 ml-1">({a.quantity}x)</span>}
+                  </p>
+                  <p className="text-xs text-gray-500">{formatRupiah(a.price * (a.quantity ?? 1))}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge

@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
 
-type IncomeSortField = "booking_date" | "total";
+type IncomeSortField = "created_at" | "total";
+
+const PAGE_SIZE = 10;
 
 interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
+  created_at: string;
   status: string;
   total: number;
   customers: { name: string } | null;
@@ -25,23 +28,28 @@ interface Props {
 }
 
 export function IncomeTable({ bookings, loading }: Props) {
-  const [sortField, setSortField] = useState<IncomeSortField>("booking_date");
+  const [sortField, setSortField] = useState<IncomeSortField>("created_at");
   const [sortAsc, setSortAsc] = useState(false);
+  const [page, setPage] = useState(0);
 
   const total = bookings.reduce((sum, b) => sum + b.total, 0);
 
   const sorted = [...bookings].sort((a, b) => {
-    if (sortField === "booking_date") {
+    if (sortField === "created_at") {
       return sortAsc
-        ? a.booking_date.localeCompare(b.booking_date)
-        : b.booking_date.localeCompare(a.booking_date);
+        ? a.created_at.localeCompare(b.created_at)
+        : b.created_at.localeCompare(a.created_at);
     }
     return sortAsc ? a.total - b.total : b.total - a.total;
   });
 
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   function handleSort(field: IncomeSortField) {
     if (sortField === field) setSortAsc(v => !v);
     else { setSortField(field); setSortAsc(false); }
+    setPage(0);
   }
 
   function SortIcon({ field }: { field: IncomeSortField }) {
@@ -77,11 +85,11 @@ export function IncomeTable({ bookings, loading }: Props) {
                   <th className="px-4 py-2.5 text-left font-medium">Customer</th>
                   <th
                     className="px-4 py-2.5 text-left font-medium cursor-pointer select-none hover:text-gray-700"
-                    onClick={() => handleSort("booking_date")}
+                    onClick={() => handleSort("created_at")}
                   >
                     <span className="inline-flex items-center gap-1">
                       Tanggal
-                      <SortIcon field="booking_date" />
+                      <SortIcon field="created_at" />
                     </span>
                   </th>
                   <th className="px-4 py-2.5 text-left font-medium">Paket</th>
@@ -99,7 +107,7 @@ export function IncomeTable({ bookings, loading }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {sorted.map((b) => (
+                {paginated.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">
                       {b.booking_number}
@@ -108,7 +116,7 @@ export function IncomeTable({ bookings, loading }: Props) {
                       {b.customers?.name ?? "-"}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {formatDate(b.booking_date)}
+                      {formatDate(b.created_at)}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {b.packages?.name ?? "-"}
@@ -149,7 +157,7 @@ export function IncomeTable({ bookings, loading }: Props) {
 
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-50">
-            {sorted.map((b) => (
+            {paginated.map((b) => (
               <Link
                 key={b.id}
                 href={`/bookings/${b.id}`}
@@ -161,7 +169,7 @@ export function IncomeTable({ bookings, loading }: Props) {
                       {b.customers?.name ?? "-"}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {b.booking_number} · {formatDate(b.booking_date)}
+                      {b.booking_number} · {formatDate(b.created_at)}
                     </p>
                     <p className="text-xs text-gray-500">{b.packages?.name ?? "-"}</p>
                   </div>
@@ -179,6 +187,34 @@ export function IncomeTable({ bookings, loading }: Props) {
               <span className="text-sm font-bold text-green-700">{formatRupiah(total)}</span>
             </div>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs text-gray-500">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => p - 1)}
+                  disabled={page === 0}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1.5 text-xs font-medium text-gray-600">
+                  {page + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= totalPages - 1}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

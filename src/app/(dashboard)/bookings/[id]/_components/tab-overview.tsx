@@ -155,17 +155,28 @@ export function TabOverview({ booking }: Props) {
             {addons.map((a) => (
               <Row
                 key={a.addon_id}
-                label={a.addons?.name ?? a.addon_id}
-                value={formatRupiah(a.price)}
+                label={
+                  <span>
+                    {a.addons?.name ?? a.addon_id}
+                    {(a.quantity ?? 1) > 1 && <span className="text-gray-400 ml-1">({a.quantity}x)</span>}
+                  </span>
+                }
+                value={formatRupiah(a.price * (a.quantity ?? 1))}
               />
             ))}
             {extraAddons.map((a) => (
               <Row
                 key={a.addon_id}
-                label={<span className="text-amber-600">{a.addons?.name ?? a.addon_id} <span className="text-xs">(extra)</span></span>}
+                label={
+                  <span className="text-amber-600">
+                    {a.addons?.name ?? a.addon_id}
+                    {(a.quantity ?? 1) > 1 && <span className="text-xs ml-1">({a.quantity}x)</span>}
+                    {" "}<span className="text-xs">(extra)</span>
+                  </span>
+                }
                 value={
                   <span className={a.is_paid ? "text-green-600" : "text-red-500"}>
-                    {formatRupiah(a.price)} · {a.is_paid ? "Lunas" : "Belum Lunas"}
+                    {formatRupiah(a.price * (a.quantity ?? 1))} · {a.is_paid ? "Lunas" : "Belum Lunas"}
                   </span>
                 }
               />

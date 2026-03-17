@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Bot, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Bot, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import type { Expense } from "@/lib/types/database";
 
 type ExpenseSortField = "date" | "amount";
+
+const PAGE_SIZE = 10;
 
 interface Props {
   expenses: Expense[];
@@ -18,6 +20,7 @@ interface Props {
 export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Props) {
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [page, setPage] = useState(0);
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -30,9 +33,13 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
     return sortAsc ? a.amount - b.amount : b.amount - a.amount;
   });
 
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   function handleSort(field: ExpenseSortField) {
     if (sortField === field) setSortAsc(v => !v);
     else { setSortField(field); setSortAsc(false); }
+    setPage(0);
   }
 
   function SortIcon({ field }: { field: ExpenseSortField }) {
@@ -95,7 +102,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {sorted.map((e) => {
+                {paginated.map((e) => {
                   const isAuto = e.source === "commission";
                   const vendor = e.vendors as { name: string } | null | undefined;
                   return (
@@ -166,7 +173,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
 
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-50">
-            {sorted.map((e) => {
+            {paginated.map((e) => {
               const isAuto = e.source === "commission";
               const vendor = e.vendors as { name: string } | null | undefined;
               return (
@@ -219,6 +226,34 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
               <span className="text-sm font-bold text-red-600">{formatRupiah(total)}</span>
             </div>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs text-gray-500">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => p - 1)}
+                  disabled={page === 0}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1.5 text-xs font-medium text-gray-600">
+                  {page + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= totalPages - 1}
+                  className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
