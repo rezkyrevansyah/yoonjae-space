@@ -26,7 +26,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
   // General form
   const [openTime, setOpenTime] = useState("08:00");
   const [closeTime, setCloseTime] = useState("20:00");
-  const [interval, setInterval] = useState(60);
+  const [interval, setInterval] = useState("60");
   const [defaultStatus, setDefaultStatus] = useState<"paid" | "unpaid">("paid");
   const [cutoffDay, setCutoffDay] = useState("26");
 
@@ -52,7 +52,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
     if (generalRes.data) {
       setOpenTime(generalRes.data.open_time);
       setCloseTime(generalRes.data.close_time);
-      setInterval(generalRes.data.time_slot_interval);
+      setInterval(String(generalRes.data.time_slot_interval));
       setDefaultStatus(generalRes.data.default_payment_status as "paid" | "unpaid");
       if (generalRes.data.commission_cutoff_day) setCutoffDay(String(generalRes.data.commission_cutoff_day));
     }
@@ -67,7 +67,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
         lock: true,
         open_time: openTime,
         close_time: closeTime,
-        time_slot_interval: interval,
+        time_slot_interval: Number(interval) || 60,
         default_payment_status: defaultStatus,
         commission_cutoff_day: Math.min(28, Math.max(1, Number(cutoffDay) || 26)),
         updated_at: new Date().toISOString(),
@@ -198,7 +198,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
               max={240}
               step={15}
               value={interval}
-              onChange={(e) => setInterval(Number(e.target.value))}
+              onChange={(e) => setInterval(e.target.value)}
               className="max-w-[160px]"
             />
           </div>
