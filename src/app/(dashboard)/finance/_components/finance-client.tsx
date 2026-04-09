@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Download, ChevronDown } from "lucide-react";
+import { Download, ChevronDown, Package } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import type { CurrentUser, Expense } from "@/lib/types/database";
@@ -10,6 +10,7 @@ import { IncomeTable } from "./income-table";
 import { ExpenseTable } from "./expense-table";
 import { PopularPackages } from "./popular-packages";
 import { ExpenseModal } from "./expense-modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Vendor {
   id: string;
@@ -65,7 +66,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialData.expenses);
   const [packageStats, setPackageStats] = useState<PackageStat[]>(initialData.packageStats);
   const [loading, setLoading] = useState(false);
-  const [packageFilter, setPackageFilter] = useState<string>("");
+  const [packageFilter, setPackageFilter] = useState<string>("all");
 
   const isInitialMount = useRef(true);
 
@@ -143,7 +144,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     new Set(incomeBookings.map((b) => b.packages?.name).filter(Boolean))
   ) as string[];
 
-  const filteredIncomeBookings = packageFilter
+  const filteredIncomeBookings = packageFilter && packageFilter !== "all"
     ? incomeBookings.filter((b) => b.packages?.name === packageFilter)
     : incomeBookings;
 
@@ -338,33 +339,32 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
 
       {/* Package filter */}
       {packageOptions.length > 0 && (
-        <div className="flex items-center gap-2 -mt-1">
-          <span className="text-xs text-gray-500">Filter paket:</span>
-          <div className="flex flex-wrap gap-1">
-            <button
-              onClick={() => setPackageFilter("")}
-              className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                !packageFilter
-                  ? "bg-maroon-700 text-white border-maroon-700"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              Semua
-            </button>
-            {packageOptions.map((pkg) => (
-              <button
-                key={pkg}
-                onClick={() => setPackageFilter(pkg === packageFilter ? "" : pkg)}
-                className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                  packageFilter === pkg
-                    ? "bg-maroon-700 text-white border-maroon-700"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                {pkg}
-              </button>
-            ))}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filter Paket</span>
           </div>
+          <Select value={packageFilter} onValueChange={setPackageFilter}>
+            <SelectTrigger className="w-48 h-9 bg-white border-gray-200 hover:border-gray-300 focus:border-maroon-500 focus:ring-maroon-500/20">
+              <SelectValue placeholder="Pilih paket..." />
+            </SelectTrigger>
+            <SelectContent className="bg-white border border-gray-200 shadow-lg">
+              <SelectItem value="all" className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                  <span className="font-medium">Semua Paket</span>
+                </div>
+              </SelectItem>
+              {packageOptions.map((pkg) => (
+                <SelectItem key={pkg} value={pkg} className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-maroon-500"></span>
+                    <span className="font-medium">{pkg}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
