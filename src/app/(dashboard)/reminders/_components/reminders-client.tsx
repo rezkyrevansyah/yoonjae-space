@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime, toDateStr } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus, CurrentUser } from "@/lib/types/database";
-import { Bell, MessageCircle, Heart, CheckCircle, Clock, X } from "lucide-react";
+import { Bell, MessageCircle, Heart, CheckCircle, Clock, X, Sparkles } from "lucide-react";
 
 // ---- Types ----
 export interface ReminderBooking {
@@ -26,6 +26,7 @@ interface Templates {
   reminder_message: string | null;
   thank_you_message: string | null;
   thank_you_payment_message: string | null;
+  custom_message: string | null;
 }
 
 interface Props {
@@ -138,7 +139,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
     return map;
   }, [bookings]);
 
-  async function markReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment") {
+  async function markReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment" | "custom") {
     // Optimistic update immediately (before await)
     setMarkedIds(prev => ({
       ...prev,
@@ -176,7 +177,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
     toast({ title: "Ditandai sudah di-remind ✓" });
   }
 
-  async function unmarkReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment") {
+  async function unmarkReminded(booking: ReminderBooking, type: "reminder" | "thank_you" | "thank_you_payment" | "custom") {
     // Optimistic update
     setMarkedIds(prev => ({
       ...prev,
@@ -280,7 +281,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
       </div>
 
       {/* No template warning */}
-      {(!templates.reminder_message && !templates.thank_you_message && !templates.thank_you_payment_message) && (
+      {(!templates.reminder_message && !templates.thank_you_message && !templates.thank_you_payment_message && !templates.custom_message) && (
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
           <Bell className="h-4 w-4 flex-shrink-0" />
           <span>Template pesan belum diatur. Silakan atur di <strong>Settings → Reminder Templates</strong>.</span>
@@ -321,6 +322,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                   const reminderLink = buildWaLink(b, templates.reminder_message);
                   const tyPayLink = buildWaLink(b, templates.thank_you_payment_message);
                   const tyLink = buildWaLink(b, templates.thank_you_message);
+                  const customLink = buildWaLink(b, templates.custom_message);
 
                   return (
                     <tr key={b.id} className="hover:bg-gray-50/60 transition-colors">
@@ -345,10 +347,11 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
                           <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" onCancel={() => unmarkReminded(b, "reminder")} />
                           <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" onCancel={() => unmarkReminded(b, "thank_you_payment")} />
                           <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" onCancel={() => unmarkReminded(b, "thank_you")} />
+                          <RemindedBadge active={isMarked(b.id, "custom")} label="Custom" onCancel={() => unmarkReminded(b, "custom")} />
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
@@ -360,6 +363,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-blue-500 hover:bg-blue-600"
                             marked={isMarked(b.id, "reminder")}
                             onMark={() => markReminded(b, "reminder")}
+                            onUnmark={() => unmarkReminded(b, "reminder")}
                           />
                           <ActionButton
                             href={tyPayLink}
@@ -368,6 +372,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-green-500 hover:bg-green-600"
                             marked={isMarked(b.id, "thank_you_payment")}
                             onMark={() => markReminded(b, "thank_you_payment")}
+                            onUnmark={() => unmarkReminded(b, "thank_you_payment")}
                           />
                           <ActionButton
                             href={tyLink}
@@ -376,6 +381,16 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-pink-500 hover:bg-pink-600"
                             marked={isMarked(b.id, "thank_you")}
                             onMark={() => markReminded(b, "thank_you")}
+                            onUnmark={() => unmarkReminded(b, "thank_you")}
+                          />
+                          <ActionButton
+                            href={customLink}
+                            icon={<Sparkles className="h-3.5 w-3.5" />}
+                            label="Custom"
+                            color="bg-purple-500 hover:bg-purple-600"
+                            marked={isMarked(b.id, "custom")}
+                            onMark={() => markReminded(b, "custom")}
+                            onUnmark={() => unmarkReminded(b, "custom")}
                           />
                         </div>
                       </td>
@@ -392,6 +407,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
               const reminderLink = buildWaLink(b, templates.reminder_message);
               const tyPayLink = buildWaLink(b, templates.thank_you_payment_message);
               const tyLink = buildWaLink(b, templates.thank_you_message);
+              const customLink = buildWaLink(b, templates.custom_message);
 
               return (
                 <div key={b.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
@@ -428,10 +444,11 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                     <RemindedBadge active={isMarked(b.id, "reminder")} label="Reminder" onCancel={() => unmarkReminded(b, "reminder")} />
                     <RemindedBadge active={isMarked(b.id, "thank_you_payment")} label="TY Payment" onCancel={() => unmarkReminded(b, "thank_you_payment")} />
                     <RemindedBadge active={isMarked(b.id, "thank_you")} label="Thank You" onCancel={() => unmarkReminded(b, "thank_you")} />
+                    <RemindedBadge active={isMarked(b.id, "custom")} label="Custom" onCancel={() => unmarkReminded(b, "custom")} />
                   </div>
 
                   {/* Action buttons */}
-                  <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-gray-50">
+                  <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-gray-50">
                     <MobileActionButton
                       href={reminderLink}
                       icon={<Bell className="h-3.5 w-3.5" />}
@@ -439,6 +456,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-blue-600 bg-blue-50 hover:bg-blue-100"
                       marked={isMarked(b.id, "reminder")}
                       onMark={() => markReminded(b, "reminder")}
+                      onUnmark={() => unmarkReminded(b, "reminder")}
                     />
                     <MobileActionButton
                       href={tyPayLink}
@@ -447,6 +465,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-green-600 bg-green-50 hover:bg-green-100"
                       marked={isMarked(b.id, "thank_you_payment")}
                       onMark={() => markReminded(b, "thank_you_payment")}
+                      onUnmark={() => unmarkReminded(b, "thank_you_payment")}
                     />
                     <MobileActionButton
                       href={tyLink}
@@ -455,6 +474,16 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-pink-600 bg-pink-50 hover:bg-pink-100"
                       marked={isMarked(b.id, "thank_you")}
                       onMark={() => markReminded(b, "thank_you")}
+                      onUnmark={() => unmarkReminded(b, "thank_you")}
+                    />
+                    <MobileActionButton
+                      href={customLink}
+                      icon={<Sparkles className="h-3.5 w-3.5" />}
+                      label="Custom"
+                      color="text-purple-600 bg-purple-50 hover:bg-purple-100"
+                      marked={isMarked(b.id, "custom")}
+                      onMark={() => markReminded(b, "custom")}
+                      onUnmark={() => unmarkReminded(b, "custom")}
                     />
                   </div>
                 </div>
@@ -496,6 +525,7 @@ function ActionButton({
   color,
   marked,
   onMark,
+  onUnmark,
 }: {
   href: string | null;
   icon: React.ReactNode;
@@ -503,6 +533,7 @@ function ActionButton({
   color: string;
   marked: boolean;
   onMark: () => void;
+  onUnmark: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -517,19 +548,19 @@ function ActionButton({
           {label}
         </a>
       ) : (
-        <span className={`inline-flex items-center gap-1 text-white text-xs px-2.5 py-1.5 rounded-lg bg-gray-300 cursor-not-allowed opacity-60`}>
+        <span className="inline-flex items-center gap-1 text-white text-xs px-2.5 py-1.5 rounded-lg bg-gray-300 cursor-not-allowed opacity-60">
           {icon}
           {label}
         </span>
       )}
       <button
-        onClick={onMark}
-        disabled={marked}
+        onClick={marked ? onUnmark : onMark}
         className={`text-xs px-2 py-0.5 rounded transition-colors ${
           marked
-            ? "text-green-600 cursor-default"
+            ? "text-green-600 hover:text-red-500"
             : "text-gray-400 hover:text-green-600"
         }`}
+        title={marked ? "Batalkan tandai" : "Tandai sudah dikirim"}
       >
         {marked ? "✓ Sent" : "Tandai"}
       </button>
@@ -544,6 +575,7 @@ function MobileActionButton({
   color,
   marked,
   onMark,
+  onUnmark,
 }: {
   href: string | null;
   icon: React.ReactNode;
@@ -551,6 +583,7 @@ function MobileActionButton({
   color: string;
   marked: boolean;
   onMark: () => void;
+  onUnmark: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
@@ -571,9 +604,11 @@ function MobileActionButton({
         </span>
       )}
       <button
-        onClick={onMark}
-        disabled={marked}
-        className={`text-xs ${marked ? "text-green-600" : "text-gray-400 hover:text-green-600"} transition-colors`}
+        onClick={marked ? onUnmark : onMark}
+        className={`text-xs transition-colors ${
+          marked ? "text-green-600 hover:text-red-500" : "text-gray-400 hover:text-green-600"
+        }`}
+        title={marked ? "Batalkan tandai" : "Tandai sudah dikirim"}
       >
         {marked ? "✓ Sent" : "Tandai"}
       </button>

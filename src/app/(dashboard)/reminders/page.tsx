@@ -36,7 +36,7 @@ export default async function RemindersPage() {
   return (
     <RemindersClient
       currentUser={currentUser}
-      templates={templates ?? { reminder_message: null, thank_you_message: null, thank_you_payment_message: null }}
+      templates={templates ?? { reminder_message: null, thank_you_message: null, thank_you_payment_message: null, custom_message: null }}
       studioName={studioInfo?.studio_name ?? "Studio"}
       initialBookings={(initialResult.data ?? []) as unknown as ReminderBooking[]}
     />

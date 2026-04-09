@@ -27,6 +27,16 @@ interface ConflictInfo {
   addonNames: string[];
 }
 
+interface SelectedPkg {
+  package: { duration_minutes: number; need_extra_time: boolean; extra_time_minutes: number; extra_time_position: string | null };
+  quantity: number;
+}
+
+interface SelectedAddon {
+  addon: { need_extra_time: boolean; extra_time_minutes: number; extra_time_position: string };
+  quantity: number;
+}
+
 interface Props {
   sessionData: SessionFormData;
   onChange: (data: SessionFormData) => void;
@@ -34,6 +44,8 @@ interface Props {
   holidays: StudioHoliday[];
   onExistingBookingsLoaded?: (bookings: ExistingBooking[]) => void;
   allowPastDates?: boolean;
+  selectedPackages?: SelectedPkg[];
+  selectedAddons?: SelectedAddon[];
 }
 
 function isHoliday(dateStr: string, holidays: StudioHoliday[]): StudioHoliday | undefined {
@@ -64,7 +76,7 @@ function getEffectiveStartMinutes(b: ExistingBooking): number {
   return start;
 }
 
-export function StepSession({ sessionData, onChange, settingsGeneral, holidays, onExistingBookingsLoaded, allowPastDates = false }: Props) {
+export function StepSession({ sessionData, onChange, settingsGeneral, holidays, onExistingBookingsLoaded, allowPastDates = false, selectedPackages = [], selectedAddons = [] }: Props) {
   const supabase = createClient();
   const now = new Date();
   const initDate = sessionData.booking_date ? new Date(sessionData.booking_date + "T00:00:00") : undefined;
@@ -161,6 +173,29 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
     }
   }
 
+  // Compute new booking's occupied range based on selected packages/addons
+  function getNewBookingRange(selectedSlot: string): { effStart: number; effEnd: number } | null {
+    if (!selectedSlot || selectedPackages.length === 0) return null;
+    const [h, m] = selectedSlot.split(":").map(Number);
+    let effStart = h * 60 + m;
+    let effEnd = h * 60 + m;
+    for (const { package: pkg, quantity } of selectedPackages) {
+      if (pkg.need_extra_time && pkg.extra_time_position === "before")
+        effStart -= pkg.extra_time_minutes * quantity;
+      effEnd += pkg.duration_minutes * quantity;
+      if (pkg.need_extra_time && pkg.extra_time_position === "after")
+        effEnd += pkg.extra_time_minutes * quantity;
+    }
+    for (const { addon, quantity } of selectedAddons) {
+      if (!addon.need_extra_time) continue;
+      if (addon.extra_time_position === "before") effStart -= addon.extra_time_minutes * quantity;
+      else effEnd += addon.extra_time_minutes * quantity;
+    }
+    return { effStart, effEnd };
+  }
+
+  const newBookingRange = sessionData.start_time ? getNewBookingRange(sessionData.start_time) : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -250,21 +285,26 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
             {timeSlots.map((slot) => {
               const slotMins = timeToMinutes(slot);
-              const isBooked = existingBookings.some(
+              const isExistingBooked = existingBookings.some(
                 (b) => slotMins >= timeToMinutes(b.start_time) && slotMins < timeToMinutes(b.end_time)
               );
               const isSelected = sessionData.start_time === slot;
+              // Slot falls within new booking's duration range (but not the start slot itself)
+              const isInNewRange = !isSelected && newBookingRange != null &&
+                slotMins >= newBookingRange.effStart && slotMins < newBookingRange.effEnd;
               return (
                 <button
                   key={slot}
                   onClick={() => handleTimeSelect(slot)}
                   className={cn(
-                    "rounded-lg border px-2 py-2 text-sm font-medium transition-colors",
+                    "rounded-lg border-2 px-2 py-2 text-sm font-medium transition-colors",
                     isSelected
                       ? "bg-maroon-700 text-white border-maroon-700"
-                      : isBooked
-                        ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                        : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
+                      : isInNewRange
+                        ? "bg-maroon-100 text-maroon-700 border-maroon-200"
+                        : isExistingBooked
+                          ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
                   )}
                 >
                   {formatTime(slot)}
@@ -272,19 +312,24 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               );
             })}
           </div>
-          {existingBookings.length > 0 && (
-            <div className="flex items-center justify-center gap-4 text-xs text-gray-500 mt-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-gray-500 mt-4">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded bg-maroon-700 border-2 border-maroon-700 inline-block" /> Dipilih
+            </span>
+            {newBookingRange && (
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-maroon-700 inline-block" /> Dipilih
+                <span className="w-3 h-3 rounded bg-maroon-100 border-2 border-maroon-200 inline-block" /> Durasi booking ini
               </span>
+            )}
+            {existingBookings.length > 0 && (
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-gray-200 inline-block" /> Sudah ada booking
+                <span className="w-3 h-3 rounded bg-gray-200 border-2 border-gray-200 inline-block" /> Sudah ada booking
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-white border border-gray-200 inline-block" /> Tersedia
-              </span>
-            </div>
-          )}
+            )}
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded bg-white border-2 border-gray-200 inline-block" /> Tersedia
+            </span>
+          </div>
         </div>
       )}
 

@@ -20,6 +20,7 @@ export interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
+  transaction_date: string | null;
   created_at: string;
   status: string;
   total: number;
@@ -64,6 +65,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialData.expenses);
   const [packageStats, setPackageStats] = useState<PackageStat[]>(initialData.packageStats);
   const [loading, setLoading] = useState(false);
+  const [packageFilter, setPackageFilter] = useState<string>("");
 
   const isInitialMount = useRef(true);
 
@@ -84,7 +86,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const [{ data: bookings }, { data: expenseData }] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, booking_number, booking_date, created_at, status, total, customers(name), packages(name)")
+        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, customers(name), packages(name)")
         .gte("created_at", `${startDate}T00:00:00`)
         .lte("created_at", `${endDate}T23:59:59`)
         .in("status", PAID_STATUSES)
@@ -136,7 +138,16 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     fetchData();
   }, [fetchData]);
 
-  const totalIncome = incomeBookings.reduce((sum, b) => sum + b.total, 0);
+  // Unique packages for filter
+  const packageOptions = Array.from(
+    new Set(incomeBookings.map((b) => b.packages?.name).filter(Boolean))
+  ) as string[];
+
+  const filteredIncomeBookings = packageFilter
+    ? incomeBookings.filter((b) => b.packages?.name === packageFilter)
+    : incomeBookings;
+
+  const totalIncome = filteredIncomeBookings.reduce((sum, b) => sum + b.total, 0);
   const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
   const grossProfit = totalIncome - totalExpense;
 
@@ -278,7 +289,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -325,6 +336,38 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
         </div>
       </div>
 
+      {/* Package filter */}
+      {packageOptions.length > 0 && (
+        <div className="flex items-center gap-2 -mt-1">
+          <span className="text-xs text-gray-500">Filter paket:</span>
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setPackageFilter("")}
+              className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                !packageFilter
+                  ? "bg-maroon-700 text-white border-maroon-700"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              Semua
+            </button>
+            {packageOptions.map((pkg) => (
+              <button
+                key={pkg}
+                onClick={() => setPackageFilter(pkg === packageFilter ? "" : pkg)}
+                className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                  packageFilter === pkg
+                    ? "bg-maroon-700 text-white border-maroon-700"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {pkg}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <SummaryCards
         totalIncome={totalIncome}
@@ -335,7 +378,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
       />
 
       {/* Income from Bookings */}
-      <IncomeTable bookings={incomeBookings} loading={loading} />
+      <IncomeTable bookings={filteredIncomeBookings} loading={loading} />
 
       {/* Expenses */}
       <ExpenseTable

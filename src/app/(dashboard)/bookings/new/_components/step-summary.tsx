@@ -43,6 +43,7 @@ interface Props {
     discount: number;
     total: number;
   };
+  actualStartTime: string;
   endTime: string;
   totalDuration: number;
   customFields: CustomField[];
@@ -72,6 +73,7 @@ export function StepSummary({
   photoFors,
   users,
   pricing,
+  actualStartTime,
   endTime,
   totalDuration,
   customFields,
@@ -125,7 +127,7 @@ export function StepSummary({
           <Row label="Tanggal" value={formatDate(sessionData.booking_date)} />
           <Row
             label="Waktu"
-            value={`${formatTime(sessionData.start_time)} — ${endTime} (${totalDuration} mnt)`}
+            value={`${formatTime(actualStartTime || sessionData.start_time)} — ${endTime} (${totalDuration} mnt)`}
           />
           <Row label="Jumlah Orang" value={`${detailData.person_count} orang`} />
           {selectedPhotoFor && <Row label="Photo For" value={selectedPhotoFor.name} />}

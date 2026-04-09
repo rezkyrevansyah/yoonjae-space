@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime, toDateStr } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
@@ -69,8 +68,6 @@ function isTodayInRange(cursor: Date, view: ViewMode): boolean {
   return today >= from && today <= to;
 }
 
-const supabase = createClient();
-
 export function MuaClient({ studioInfo }: Props) {
   const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("day");
@@ -96,30 +93,16 @@ export function MuaClient({ studioInfo }: Props) {
       to = toDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
     }
 
-    const { data, error } = await supabase
-      .from("bookings")
-      .select(`
-        id, booking_number, booking_date, start_time, end_time, status,
-        customers(name),
-        packages(name),
-        booking_addons(addons(name))
-      `)
-      .gte("booking_date", from)
-      .lte("booking_date", to)
-      .neq("status", "CANCELED")
-      .order("booking_date")
-      .order("start_time");
-
-    setLoading(false);
-    if (error) {
+    try {
+      const res = await fetch(`/api/mua-bookings?from=${from}&to=${to}`);
+      if (!res.ok) throw new Error("fetch failed");
+      const data: MuaBooking[] = await res.json();
+      setBookings(data);
+    } catch {
       toast({ title: "Error", description: "Gagal memuat data", variant: "destructive" });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    const muaBookings = ((data ?? []) as unknown as MuaBooking[]).filter(b =>
-      b.booking_addons.some(ba => ba.addons?.name?.toLowerCase().includes("mua"))
-    );
-    setBookings(muaBookings);
   }, [toast]);
 
   useEffect(() => {
