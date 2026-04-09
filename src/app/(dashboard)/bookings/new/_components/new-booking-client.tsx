@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { formatRupiah } from "@/lib/utils";
 
 import type {
   CurrentUser,
@@ -25,6 +26,7 @@ import { StepSession } from "./step-session";
 import { StepDetail } from "./step-detail";
 import { StepTimeEstimate } from "./step-time-estimate";
 import { StepDiscount } from "./step-discount";
+import { StepPayment, type PaymentFormData } from "./step-payment";
 import { StepStaff } from "./step-staff";
 import { StepSummary } from "./step-summary";
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
@@ -79,11 +81,12 @@ const STEPS = [
   { id: 2, label: "Data Customer" },
   { id: 3, label: "Paket & Add-on" },
   { id: 4, label: "Sesi & Waktu" },
-  { id: 5, label: "Detail" },
-  { id: 6, label: "Estimasi Waktu" },
+  { id: 5, label: "Estimasi Waktu" },
+  { id: 6, label: "Detail" },
   { id: 7, label: "Diskon" },
-  { id: 8, label: "Staff" },
-  { id: 9, label: "Ringkasan" },
+  { id: 8, label: "Pembayaran" },
+  { id: 9, label: "Staff" },
+  { id: 10, label: "Ringkasan" },
 ];
 
 interface Props {
@@ -172,6 +175,12 @@ export function NewBookingClient({
 
   const [staffData, setStaffData] = useState<StaffFormData>({
     staff_id: currentUser.id,
+  });
+
+  const [paymentData, setPaymentData] = useState<PaymentFormData>({
+    transaction_date: "",
+    payment_method: "",
+    payment_account_name: "",
   });
 
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
@@ -358,6 +367,9 @@ export function NewBookingClient({
           total: pricing.total,
           dp_amount: dpAmount > 0 ? dpAmount : null,
           dp_paid_at: dpAmount > 0 ? new Date().toISOString() : null,
+          transaction_date: paymentData.transaction_date || null,
+          payment_method: paymentData.payment_method || null,
+          payment_account_name: paymentData.payment_account_name || null,
           staff_id: staffData.staff_id || null,
           created_by: currentUser.id,
         })
@@ -467,18 +479,20 @@ export function NewBookingClient({
       case 4:
         return !!(sessionData.booking_date && sessionData.start_time);
       case 5:
-        return detailData.person_count > 0;
+        return true; // Estimasi Waktu — informational
       case 6:
+        return detailData.person_count > 0;
       case 7:
       case 8:
       case 9:
+      case 10:
         return true;
       default:
         return false;
     }
   }
 
-  const isLast = step === STEPS.length;
+  const isLast = step === 10;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -549,20 +563,11 @@ export function NewBookingClient({
             holidays={holidays}
             onExistingBookingsLoaded={setExistingBookings}
             allowPastDates={customerData.isExisting}
+            selectedPackages={selectedPackages}
+            selectedAddons={selectedAddons}
           />
         )}
         {step === 5 && (
-          <StepDetail
-            detailData={detailData}
-            onChange={setDetailData}
-            backgrounds={backgrounds}
-            photoFors={photoFors}
-            customFields={customFields}
-            customFieldValues={customFieldValues}
-            onCustomFieldChange={setCustomFieldValues}
-          />
-        )}
-        {step === 6 && (
           <StepTimeEstimate
             sessionData={sessionData}
             selectedPackages={selectedPackages}
@@ -573,6 +578,17 @@ export function NewBookingClient({
             conflictingBookings={conflictingBookings}
           />
         )}
+        {step === 6 && (
+          <StepDetail
+            detailData={detailData}
+            onChange={setDetailData}
+            backgrounds={backgrounds}
+            photoFors={photoFors}
+            customFields={customFields}
+            customFieldValues={customFieldValues}
+            onCustomFieldChange={setCustomFieldValues}
+          />
+        )}
         {step === 7 && (
           <StepDiscount
             discountData={discountData}
@@ -581,6 +597,12 @@ export function NewBookingClient({
           />
         )}
         {step === 8 && (
+          <StepPayment
+            data={paymentData}
+            onChange={setPaymentData}
+          />
+        )}
+        {step === 9 && (
           <StepStaff
             staffData={staffData}
             onChange={setStaffData}
@@ -588,7 +610,7 @@ export function NewBookingClient({
             currentUser={currentUser}
           />
         )}
-        {step === 9 && (
+        {step === 10 && (
           <StepSummary
             customerData={customerData}
             sessionData={sessionData}
@@ -601,6 +623,7 @@ export function NewBookingClient({
             photoFors={photoFors}
             users={users}
             pricing={pricing}
+            actualStartTime={actualStartTime}
             endTime={endTime}
             totalDuration={totalDuration}
             customFields={customFields}
@@ -610,6 +633,19 @@ export function NewBookingClient({
           />
         )}
       </div>
+
+      {/* Sticky price bar — visible after packages are selected */}
+      {pricing.subtotal > 0 && step < 10 && (
+        <div className="sticky bottom-0 -mx-0 bg-white border-t border-maroon-100 rounded-b-xl px-4 py-2.5 flex items-center justify-between shadow-sm">
+          <span className="text-xs text-gray-500">Estimasi total</span>
+          <div className="text-right">
+            {pricing.discount > 0 && (
+              <p className="text-xs text-gray-400 line-through">{formatRupiah(pricing.subtotal)}</p>
+            )}
+            <p className="text-base font-bold text-maroon-900">{formatRupiah(pricing.total)}</p>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex gap-3">

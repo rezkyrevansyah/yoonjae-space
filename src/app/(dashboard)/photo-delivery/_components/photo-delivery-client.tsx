@@ -38,6 +38,7 @@ import {
   Camera,
   Link as LinkIcon,
   Printer,
+  CalendarCheck,
 } from "lucide-react";
 import type { PhotoDeliveryRow } from "../page";
 
@@ -59,6 +60,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY">("ALL");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
@@ -90,6 +92,11 @@ export function PhotoDeliveryClient({ initialData }: Props) {
         query = query.in("status", ["SHOOT_DONE", "PHOTOS_DELIVERED"]);
       }
 
+      if (dateFilter === "TODAY") {
+        const today = new Date().toISOString().slice(0, 10);
+        query = query.eq("booking_date", today);
+      }
+
       if (search.trim()) {
         const { data: matchingCustomers } = await supabase
           .from("customers")
@@ -119,7 +126,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, search, page, pageSize, toast]);
+  }, [statusFilter, dateFilter, search, page, pageSize, toast]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -131,7 +138,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
 
   useEffect(() => {
     setPage(0);
-  }, [search, statusFilter, pageSize]);
+  }, [search, statusFilter, dateFilter, pageSize]);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -169,6 +176,17 @@ export function PhotoDeliveryClient({ initialData }: Props) {
             <SelectItem value="PHOTOS_DELIVERED">Photos Delivered</SelectItem>
           </SelectContent>
         </Select>
+        <button
+          onClick={() => setDateFilter(dateFilter === "TODAY" ? "ALL" : "TODAY")}
+          className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
+            dateFilter === "TODAY"
+              ? "bg-maroon-700 text-white border-maroon-700"
+              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+          }`}
+        >
+          <CalendarCheck className="h-4 w-4" />
+          Hari Ini
+        </button>
         <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
           <SelectTrigger className="w-[100px]">
             <SelectValue />

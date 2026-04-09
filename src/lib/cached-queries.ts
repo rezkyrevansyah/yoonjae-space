@@ -61,7 +61,7 @@ const _getCachedReminderTemplates = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("settings_reminder_templates")
-      .select("reminder_message, thank_you_message, thank_you_payment_message")
+      .select("reminder_message, thank_you_message, thank_you_payment_message, custom_message")
       .eq("lock", true)
       .maybeSingle();
     return data ?? null;

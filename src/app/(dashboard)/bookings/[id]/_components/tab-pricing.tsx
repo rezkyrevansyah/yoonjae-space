@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
+import { Plus, Minus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
 
 // Module-level singleton — stable across renders
 const supabase = createClient();
@@ -44,6 +44,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   // --- Add-on state ---
   const [addons, setAddons] = useState<BookingAddonRow[]>(booking.booking_addons);
   const [selectedAddonId, setSelectedAddonId] = useState("__none__");
+  const [extraQty, setExtraQty] = useState(1);
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -72,9 +73,10 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const extraAddons = useMemo(() => addons.filter((a) => a.is_extra), [addons]);
 
   const availableToAdd = useMemo(() => {
-    const usedIds = new Set(addons.map((a) => a.addon_id));
-    return availableAddons.filter((a) => !usedIds.has(a.id));
-  }, [addons, availableAddons]);
+    // Only exclude add-ons already added as EXTRA (not originals — client can re-add same addon as extra)
+    const extraIds = new Set(extraAddons.map((a) => a.addon_id));
+    return availableAddons.filter((a) => !extraIds.has(a.id));
+  }, [extraAddons, availableAddons]);
 
   const packagesTotal = booking.booking_packages.reduce(
     (sum, bp) => sum + bp.price_snapshot * bp.quantity, 0
@@ -229,6 +231,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     if (!selectedAddonId || selectedAddonId === "__none__") return;
     const addon = availableAddons.find((a) => a.id === selectedAddonId);
     if (!addon) return;
+    const qty = Math.max(1, extraQty);
 
     setAdding(true);
     try {
@@ -236,12 +239,14 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         booking_id: booking.id,
         addon_id: addon.id,
         price: addon.price,
+        quantity: qty,
         is_paid: false,
         is_extra: true,
       });
       if (error) throw error;
 
-      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addon.price;
+      const addedTotal = addon.price * qty;
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addedTotal;
       const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
@@ -253,7 +258,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       const newAddon: BookingAddonRow = {
         addon_id: addon.id,
         price: addon.price,
-        quantity: 1,
+        quantity: qty,
         is_paid: false,
         is_extra: true,
         addons: {
@@ -268,6 +273,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       setAddons(updated);
       onUpdate({ booking_addons: updated });
       setSelectedAddonId("__none__");
+      setExtraQty(1);
 
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -276,7 +282,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         action: "CREATE",
         entity: "booking_addons",
         entity_id: booking.id,
-        description: `Menambah extra add-on ${addon.name} ke booking ${booking.booking_number}`,
+        description: `Menambah extra add-on ${addon.name}${qty > 1 ? ` (${qty}x)` : ""} ke booking ${booking.booking_number}`,
       });
 
       toast({ title: "Add-on ditambahkan", description: addon.name });
@@ -680,28 +686,73 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         )}
 
         {availableToAdd.length > 0 && (
-          <div className="flex gap-2 pt-1">
-            <Select value={selectedAddonId} onValueChange={setSelectedAddonId}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Tambah add-on extra..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" disabled>Pilih add-on...</SelectItem>
-                {availableToAdd.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name} — {formatRupiah(a.price)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2 pt-1">
+            <div className="flex gap-2">
+              <Select value={selectedAddonId} onValueChange={(v) => { setSelectedAddonId(v); setExtraQty(1); }}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Tambah add-on extra..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" disabled>Pilih add-on...</SelectItem>
+                  {(() => {
+                    // Group by category preserving sort_order
+                    const groups = new Map<string, typeof availableToAdd>();
+                    const orderMap = new Map<string, number>();
+                    let idx = 0;
+                    for (const a of availableToAdd) {
+                      const cat = a.category || "";
+                      if (!groups.has(cat)) { groups.set(cat, []); orderMap.set(cat, idx++); }
+                      groups.get(cat)!.push(a);
+                    }
+                    const sorted = Array.from(groups.entries()).sort(([a], [b]) => {
+                      if (!a && b) return 1;
+                      if (a && !b) return -1;
+                      return (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999);
+                    });
+                    return sorted.map(([cat, items]) => (
+                      <div key={cat || "__none"}>
+                        {cat && (
+                          <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">
+                            {cat}
+                          </div>
+                        )}
+                        {items.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} — {formatRupiah(a.price)}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ));
+                  })()}
+                </SelectContent>
+              </Select>
+              {/* Quantity */}
+              <div className="flex items-center border rounded-md overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExtraQty((q) => Math.max(1, q - 1))}
+                  className="px-2 h-full text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-8 text-center text-sm font-semibold">{extraQty}</span>
+                <button
+                  type="button"
+                  onClick={() => setExtraQty((q) => q + 1)}
+                  className="px-2 h-full text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
             <Button
               variant="outline"
               onClick={addExtraAddon}
               disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
-              className="gap-1"
+              className="w-full gap-1"
             >
               {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Tambah
+              Tambah Add-on
             </Button>
           </div>
         )}
