@@ -65,6 +65,14 @@ export function TabVouchers({ currentUser }: TabVouchersProps) {
 
   async function handleSave() {
     if (!form.code || !form.discount_value) return;
+    if (form.valid_until && !form.valid_from) {
+      toast({
+        title: "Periksa tanggal",
+        description: "Tanggal 'Berlaku Dari' harus diisi jika 'Berlaku Sampai' diisi.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     const payload = {
       code: form.code.toUpperCase(),
