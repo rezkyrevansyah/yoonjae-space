@@ -336,7 +336,10 @@ export function NewBookingClient({
 
       // 3. Determine initial status
       let initialStatus: string;
-      if (dpAmount > 0) {
+      if (pricing.total === 0) {
+        // Voucher 100% or full discount — automatically PAID
+        initialStatus = "PAID";
+      } else if (dpAmount > 0) {
         initialStatus = "DP_PAID";
       } else {
         initialStatus = settingsGeneral?.default_payment_status === "paid" ? "PAID" : "BOOKED";

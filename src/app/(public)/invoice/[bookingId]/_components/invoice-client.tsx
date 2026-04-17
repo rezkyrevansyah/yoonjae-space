@@ -108,9 +108,9 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
     .filter((a) => a.is_extra)
     .reduce((s, a) => s + a.price * (a.quantity ?? 1), 0);
 
-  // Sisa tagihan — 0 jika status PAID
+  // Sisa tagihan — 0 jika status PAID atau CLOSED
   const sisaTagihan =
-    booking.status === "PAID"
+    booking.status === "PAID" || booking.status === "CLOSED"
       ? 0
       : Math.max(0, booking.total - (booking.dp_amount ?? 0));
 
@@ -415,47 +415,42 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                 </span>
               </div>
 
-              {/* DP & Remaining */}
+              {/* Bagian DP — hanya tampil jika ada DP */}
               {booking.dp_amount != null && booking.dp_amount > 0 && (
-                <>
-                  {booking.dp_paid_at ? (
-                    // Lunas — green
-                    <div className="flex justify-between text-sm text-green-700 border-t border-gray-100 pt-2">
-                      <span className="flex items-center gap-1.5">
-                        DP
-                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
-                          ✓ Sudah Dibayar
-                        </span>
+                booking.dp_paid_at ? (
+                  <div className="flex justify-between text-sm text-green-700 border-t border-gray-100 pt-2">
+                    <span className="flex items-center gap-1.5">
+                      DP
+                      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                        ✓ Sudah Dibayar
                       </span>
-                      <span className="font-mono">{formatRupiah(booking.dp_amount)}</span>
-                    </div>
-                  ) : (
-                    // Belum Lunas — blue
-                    <div className="flex justify-between text-sm text-blue-700 border-t border-gray-100 pt-2">
-                      <span>DP Dibayar</span>
-                      <span className="font-mono">− {formatRupiah(booking.dp_amount)}</span>
-                    </div>
-                  )}
-                  <div className={`flex justify-between text-sm font-semibold ${sisaTagihan === 0 ? "text-green-700" : "text-gray-800"}`}>
-                    <span>Sisa Tagihan</span>
-                    <span className="font-mono">
-                      {sisaTagihan === 0 ? (
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">LUNAS</span>
-                          {formatRupiah(0)}
-                        </span>
-                      ) : (
-                        formatRupiah(sisaTagihan)
-                      )}
                     </span>
+                    <span className="font-mono">{formatRupiah(booking.dp_amount)}</span>
                   </div>
-                </>
+                ) : (
+                  <div className="flex justify-between text-sm text-blue-700 border-t border-gray-100 pt-2">
+                    <span>DP Dibayar</span>
+                    <span className="font-mono">− {formatRupiah(booking.dp_amount)}</span>
+                  </div>
+                )
               )}
-              {/* Jika tidak ada DP tapi status PAID */}
-              {(booking.dp_amount == null || booking.dp_amount === 0) && booking.status === "PAID" && (
+
+              {/* Sisa Tagihan — tampil jika belum PAID/CLOSED dan masih ada yang harus dibayar */}
+              {booking.status !== "PAID" && booking.status !== "CLOSED" && sisaTagihan > 0 && (
+                <div className="flex justify-between text-sm font-semibold text-gray-800 border-t border-gray-100 pt-2">
+                  <span>Sisa Tagihan</span>
+                  <span className="font-mono">{formatRupiah(sisaTagihan)}</span>
+                </div>
+              )}
+
+              {/* LUNAS indicator — tampil jika PAID atau CLOSED */}
+              {(booking.status === "PAID" || booking.status === "CLOSED") && (
                 <div className="flex justify-between text-sm font-semibold text-green-700 border-t border-gray-100 pt-2">
-                  <span>Status Pembayaran</span>
-                  <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">LUNAS</span>
+                  <span>Sisa Tagihan</span>
+                  <span className="font-mono flex items-center gap-1.5">
+                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">LUNAS</span>
+                    {formatRupiah(0)}
+                  </span>
                 </div>
               )}
             </div>

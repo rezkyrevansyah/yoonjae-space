@@ -149,15 +149,36 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
     setConflictInfo(null);
     if (!existingBookings.length) return;
 
-    // New booking: we don't know end time yet (no package selected),
-    // so check if slot overlaps with any existing booking's effective window
-    const newStart = timeToMinutes(slot);
+    const newRange = getNewBookingRange(slot);
 
+    if (!newRange) {
+      // Package not yet selected — simple check: does start time fall inside an existing booking?
+      const newStart = timeToMinutes(slot);
+      for (const b of existingBookings) {
+        const existingEffStart = getEffectiveStartMinutes(b);
+        const existingEnd = timeToMinutes(b.end_time);
+        if (newStart >= existingEffStart && newStart < existingEnd) {
+          const beforeAddons = b.booking_addons.filter(
+            ba => ba.addons?.need_extra_time && ba.addons.extra_time_position === "before"
+          );
+          setConflictInfo({
+            customerName: b.customers?.name ?? "Customer lain",
+            startTime: b.start_time,
+            endTime: b.end_time,
+            effectiveStart: minutesToTime(existingEffStart),
+            addonNames: beforeAddons.map(ba => ba.addons!.name ?? "add-on"),
+          });
+          return;
+        }
+      }
+      return;
+    }
+
+    // Package selected — check full range overlap: A.start < B.end && A.end > B.start
     for (const b of existingBookings) {
       const existingEffStart = getEffectiveStartMinutes(b);
       const existingEnd = timeToMinutes(b.end_time);
-      // New booking starts inside an existing booking's effective window
-      if (newStart >= existingEffStart && newStart < existingEnd) {
+      if (newRange.effStart < existingEnd && newRange.effEnd > existingEffStart) {
         const beforeAddons = b.booking_addons.filter(
           ba => ba.addons?.need_extra_time && ba.addons.extra_time_position === "before"
         );
@@ -195,6 +216,7 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   }
 
   const newBookingRange = sessionData.start_time ? getNewBookingRange(sessionData.start_time) : null;
+  const estimatedEndTime = newBookingRange ? minutesToTime(newBookingRange.effEnd) : null;
 
   return (
     <div className="space-y-6">
@@ -292,6 +314,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               // Slot falls within new booking's duration range (but not the start slot itself)
               const isInNewRange = !isSelected && newBookingRange != null &&
                 slotMins >= newBookingRange.effStart && slotMins < newBookingRange.effEnd;
+              const roundedEffEnd = newBookingRange
+                ? Math.round(newBookingRange.effEnd / interval) * interval
+                : null;
+              const isEndTimeSlot = !isSelected && !isInNewRange && roundedEffEnd != null &&
+                slotMins === roundedEffEnd;
               return (
                 <button
                   key={slot}
@@ -302,9 +329,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
                       ? "bg-maroon-700 text-white border-maroon-700"
                       : isInNewRange
                         ? "bg-maroon-100 text-maroon-700 border-maroon-200"
-                        : isExistingBooked
-                          ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                          : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
+                        : isEndTimeSlot
+                          ? "bg-white text-maroon-400 border-maroon-300 border-dashed"
+                          : isExistingBooked
+                            ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
                   )}
                 >
                   {formatTime(slot)}
@@ -312,6 +341,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               );
             })}
           </div>
+          {sessionData.start_time && estimatedEndTime && (
+            <p className="text-xs text-maroon-700 font-medium mt-1 text-center">
+              Estimasi sesi: {sessionData.start_time} — {estimatedEndTime}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-gray-500 mt-4">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-maroon-700 border-2 border-maroon-700 inline-block" /> Dipilih
