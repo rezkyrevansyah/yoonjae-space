@@ -108,9 +108,9 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
     .filter((a) => a.is_extra)
     .reduce((s, a) => s + a.price * (a.quantity ?? 1), 0);
 
-  // Sisa tagihan — 0 jika status PAID
+  // Sisa tagihan — 0 jika status PAID atau CLOSED
   const sisaTagihan =
-    booking.status === "PAID"
+    booking.status === "PAID" || booking.status === "CLOSED"
       ? 0
       : Math.max(0, booking.total - (booking.dp_amount ?? 0));
 
@@ -443,8 +443,8 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                 </div>
               )}
 
-              {/* LUNAS indicator — tampil jika PAID atau sisa tagihan = 0 */}
-              {(booking.status === "PAID" || (booking.status !== "CLOSED" && sisaTagihan === 0 && booking.total > 0)) && (
+              {/* LUNAS indicator — tampil jika PAID/CLOSED atau sisa tagihan = 0 */}
+              {(booking.status === "PAID" || booking.status === "CLOSED" || (sisaTagihan === 0 && booking.total > 0)) && (
                 <div className="flex justify-between text-sm font-semibold text-green-700 border-t border-gray-100 pt-2">
                   <span>Sisa Tagihan</span>
                   <span className="font-mono flex items-center gap-1.5">
