@@ -90,14 +90,26 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
   const interval = settingsGeneral?.time_slot_interval ?? 30;
   const timeSlots = generateTimeSlots(openTime, closeTime, interval);
 
-  // Multi-package duration: sum all packages' duration + extra_time
-  const durationMins = booking.booking_packages?.length > 0
-    ? booking.booking_packages.reduce((sum, bp) => {
-        const dur = (bp.packages?.duration_minutes ?? 0) * bp.quantity;
-        const extra = bp.packages?.need_extra_time ? (bp.packages.extra_time_minutes ?? 0) * bp.quantity : 0;
-        return sum + dur + extra;
-      }, 0)
-    : booking.packages?.duration_minutes ?? 60;
+  // Multi-package duration: sum all packages' duration + extra_time + addon extra times
+  const durationMins = (() => {
+    const packagesMins = booking.booking_packages?.length > 0
+      ? booking.booking_packages.reduce((sum, bp) => {
+          const dur = (bp.packages?.duration_minutes ?? 0) * bp.quantity;
+          const extra = bp.packages?.need_extra_time ? (bp.packages.extra_time_minutes ?? 0) * bp.quantity : 0;
+          return sum + dur + extra;
+        }, 0)
+      : booking.packages?.duration_minutes ?? 60;
+
+    // Include addon extra times (before and after)
+    const addonsMins = (booking.booking_addons ?? []).reduce((sum, ba) => {
+      if (ba.addons?.need_extra_time && ba.addons.extra_time_minutes) {
+        return sum + ba.addons.extra_time_minutes * (ba.quantity ?? 1);
+      }
+      return sum;
+    }, 0);
+
+    return packagesMins + addonsMins;
+  })();
 
   function handleMonthChange(month: Date) {
     setDisplayMonth(month);
@@ -303,13 +315,21 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
                 </span>
               </div>
 
-              {/* Selected summary */}
+              {/* Schedule comparison */}
               {selectedTime && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
-                  <p className="font-medium text-gray-700">
-                    Jadwal baru: {formatDate(dateStr)}, {formatTime(selectedTime)} – {formatTime(newEndTime)}
-                    {" "}({durationMins} mnt)
-                  </p>
+                <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden text-sm">
+                  <div className="grid grid-cols-2 divide-x divide-gray-200">
+                    <div className="p-3 bg-gray-50">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Jadwal Saat Ini</p>
+                      <p className="font-medium text-gray-700">{formatDate(booking.booking_date)}</p>
+                      <p className="text-gray-500">{formatTime(booking.start_time)}–{formatTime(booking.end_time)}</p>
+                    </div>
+                    <div className="p-3 bg-maroon-50">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-maroon-400 mb-1">Jadwal Baru</p>
+                      <p className="font-medium text-maroon-800">{formatDate(dateStr)}</p>
+                      <p className="text-maroon-600">{formatTime(selectedTime)}–{formatTime(newEndTime)} ({durationMins} mnt)</p>
+                    </div>
+                  </div>
                 </div>
               )}
 

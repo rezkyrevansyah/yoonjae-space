@@ -233,54 +233,56 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
       <div className="bg-white rounded-xl border p-5 space-y-4">
         <h3 className="font-semibold text-gray-800">Status Booking</h3>
 
-        {/* Stepper */}
-        <div className="relative">
-          <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
-          <div
-            className="absolute top-4 left-4 h-0.5 bg-maroon-600 transition-all"
-            style={{
-              width: isCanceled
-                ? "0%"
-                : `${(currentStatusIdx / (BOOKING_FLOW.length - 1)) * 100}%`,
-            }}
-          />
-          <div className="relative flex justify-between">
-            {BOOKING_FLOW.map((status, idx) => {
-              const isPast = idx < currentStatusIdx;
-              const isCurrent = idx === currentStatusIdx && !isCanceled;
-              const savedDate = statusDates[status]
-                ?? (status === "BOOKED" ? booking.created_at.slice(0, 10) : undefined)
-                ?? (status === "PAID" ? booking.booking_date : undefined);
-              return (
-                <div key={status} className="flex flex-col items-center gap-1">
-                  <div
-                    className={cn(
-                      "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
-                      isPast || isCurrent ? "border-maroon-600" : "border-gray-300"
-                    )}
-                  >
-                    {isPast ? (
-                      <CheckCircle2 className="h-5 w-5 text-maroon-600" />
-                    ) : isCurrent ? (
-                      <Circle className="h-3 w-3 fill-maroon-600 text-maroon-600" />
-                    ) : (
-                      <Circle className="h-3 w-3 text-gray-300" />
+        {/* Stepper — scrollable on mobile */}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <div className="relative min-w-[340px]">
+            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+            <div
+              className="absolute top-4 left-4 h-0.5 bg-maroon-600 transition-all"
+              style={{
+                width: isCanceled
+                  ? "0%"
+                  : `${(currentStatusIdx / (BOOKING_FLOW.length - 1)) * 100}%`,
+              }}
+            />
+            <div className="relative flex justify-between">
+              {BOOKING_FLOW.map((status, idx) => {
+                const isPast = idx < currentStatusIdx;
+                const isCurrent = idx === currentStatusIdx && !isCanceled;
+                const savedDate = statusDates[status]
+                  ?? (status === "BOOKED" ? booking.created_at.slice(0, 10) : undefined)
+                  ?? (status === "PAID" ? booking.booking_date : undefined);
+                return (
+                  <div key={status} className="flex flex-col items-center gap-1">
+                    <div
+                      className={cn(
+                        "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
+                        isPast || isCurrent ? "border-maroon-600" : "border-gray-300"
+                      )}
+                    >
+                      {isPast ? (
+                        <CheckCircle2 className="h-5 w-5 text-maroon-600" />
+                      ) : isCurrent ? (
+                        <Circle className="h-3 w-3 fill-maroon-600 text-maroon-600" />
+                      ) : (
+                        <Circle className="h-3 w-3 text-gray-300" />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-xs text-center leading-tight max-w-[60px]",
+                      isCurrent ? "text-maroon-700 font-semibold" : isPast ? "text-maroon-500" : "text-gray-400"
+                    )}>
+                      {BOOKING_STATUS_LABEL[status]}
+                    </span>
+                    {savedDate && (
+                      <span className="text-[10px] text-gray-400 leading-none text-center max-w-[60px]">
+                        {formatDate(savedDate)}
+                      </span>
                     )}
                   </div>
-                  <span className={cn(
-                    "text-xs text-center leading-tight max-w-[60px]",
-                    isCurrent ? "text-maroon-700 font-semibold" : isPast ? "text-maroon-500" : "text-gray-400"
-                  )}>
-                    {BOOKING_STATUS_LABEL[status]}
-                  </span>
-                  {savedDate && (
-                    <span className="text-[10px] text-gray-400 leading-none text-center max-w-[60px]">
-                      {formatDate(savedDate)}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -345,7 +347,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   onClick={() => setStatusDate(todayStr())}
                 >
                   <CalendarDays className="h-3.5 w-3.5" />
-                  Today
+                  <span className="hidden sm:inline">Today</span>
                 </Button>
               </div>
             )}
@@ -453,7 +455,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   type="date"
                   value={deliverDate}
                   onChange={(e) => setDeliverDate(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                  className="flex-1 min-w-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
                 />
                 <Button
                   variant="outline"
@@ -462,7 +464,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   onClick={() => setDeliverDate(todayStr())}
                 >
                   <CalendarDays className="h-3.5 w-3.5" />
-                  Today
+                  <span className="hidden sm:inline">Today</span>
                 </Button>
               </div>
             </div>
@@ -502,7 +504,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   type="date"
                   value={printDate}
                   onChange={(e) => setPrintDate(e.target.value)}
-                  className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="w-full min-w-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                 />
               </div>
               <Button
@@ -512,7 +514,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                 onClick={() => setPrintDate(todayStr())}
               >
                 <CalendarDays className="h-3.5 w-3.5" />
-                Today
+                <span className="hidden sm:inline">Today</span>
               </Button>
             </div>
             <Button
@@ -527,50 +529,52 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Print stepper */}
-            <div className="relative">
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
-              <div
-                className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all"
-                style={{
-                  width: `${(currentPrintIdx / (PRINT_FLOW.length - 1)) * 100}%`,
-                }}
-              />
-              <div className="relative flex justify-between">
-                {PRINT_FLOW.map((status, idx) => {
-                  const isPast = idx < currentPrintIdx;
-                  const isCurrent = idx === currentPrintIdx;
-                  const savedDate = statusDates[status];
-                  return (
-                    <div key={status} className="flex flex-col items-center gap-1">
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
-                          isPast || isCurrent ? "border-blue-500" : "border-gray-300"
-                        )}
-                      >
-                        {isPast ? (
-                          <CheckCircle2 className="h-5 w-5 text-blue-500" />
-                        ) : isCurrent ? (
-                          <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
-                        ) : (
-                          <Circle className="h-3 w-3 text-gray-300" />
+            {/* Print stepper — scrollable on mobile */}
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="relative min-w-[420px]">
+                <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+                <div
+                  className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all"
+                  style={{
+                    width: `${(currentPrintIdx / (PRINT_FLOW.length - 1)) * 100}%`,
+                  }}
+                />
+                <div className="relative flex justify-between">
+                  {PRINT_FLOW.map((status, idx) => {
+                    const isPast = idx < currentPrintIdx;
+                    const isCurrent = idx === currentPrintIdx;
+                    const savedDate = statusDates[status];
+                    return (
+                      <div key={status} className="flex flex-col items-center gap-1">
+                        <div
+                          className={cn(
+                            "h-8 w-8 rounded-full border-2 flex items-center justify-center bg-white z-10",
+                            isPast || isCurrent ? "border-blue-500" : "border-gray-300"
+                          )}
+                        >
+                          {isPast ? (
+                            <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                          ) : isCurrent ? (
+                            <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
+                          ) : (
+                            <Circle className="h-3 w-3 text-gray-300" />
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-xs text-center leading-tight max-w-[50px]",
+                          isCurrent ? "text-blue-700 font-semibold" : isPast ? "text-blue-400" : "text-gray-400"
+                        )}>
+                          {PRINT_ORDER_STATUS_LABEL[status]}
+                        </span>
+                        {savedDate && (
+                          <span className="text-[10px] text-gray-400 leading-none text-center max-w-[50px]">
+                            {formatDate(savedDate)}
+                          </span>
                         )}
                       </div>
-                      <span className={cn(
-                        "text-xs text-center leading-tight max-w-[50px]",
-                        isCurrent ? "text-blue-700 font-semibold" : isPast ? "text-blue-400" : "text-gray-400"
-                      )}>
-                        {PRINT_ORDER_STATUS_LABEL[status]}
-                      </span>
-                      {savedDate && (
-                        <span className="text-[10px] text-gray-400 leading-none text-center max-w-[50px]">
-                          {formatDate(savedDate)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -585,7 +589,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                     type="date"
                     value={printDate}
                     onChange={(e) => setPrintDate(e.target.value)}
-                    className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="w-full min-w-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                   />
                 </div>
                 <Button
@@ -595,7 +599,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
                   onClick={() => setPrintDate(todayStr())}
                 >
                   <CalendarDays className="h-3.5 w-3.5" />
-                  Today
+                  <span className="hidden sm:inline">Today</span>
                 </Button>
               </div>
             )}

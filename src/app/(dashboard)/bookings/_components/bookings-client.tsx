@@ -288,9 +288,9 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
             ))}
           </SelectContent>
         </Select>
-        {/* Date range — side by side on mobile, individual on desktop */}
-        <div className="flex gap-2 sm:contents">
-          <div className="flex-1 sm:flex-none flex flex-col gap-0.5">
+        {/* Date range — stacked labels on mobile */}
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <div className="flex flex-col gap-0.5 sm:flex-none">
             <label className="text-xs text-gray-500 sm:hidden px-0.5">Dari</label>
             <Input
               type="date"
@@ -299,7 +299,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
               onChange={(e) => setDateFrom(e.target.value)}
             />
           </div>
-          <div className="flex-1 sm:flex-none flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 sm:flex-none">
             <label className="text-xs text-gray-500 sm:hidden px-0.5">Sampai</label>
             <Input
               type="date"
@@ -329,14 +329,14 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
-              <TableHead>Booking ID</TableHead>
+              <TableHead>Booking</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>
                 <button
                   onClick={() => setSortAsc((v) => !v)}
                   className="flex items-center gap-1 hover:text-gray-900 transition-colors"
                 >
-                  Tanggal
+                  Tanggal & Jam
                   {sortAsc ? (
                     <ChevronUp className="h-3.5 w-3.5" />
                   ) : (
@@ -344,8 +344,6 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
                   )}
                 </button>
               </TableHead>
-              <TableHead>Waktu</TableHead>
-              <TableHead>Paket</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Print Status</TableHead>
               <TableHead>Handled By</TableHead>
@@ -357,7 +355,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 10 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}>
                       <div className="h-4 bg-gray-100 rounded animate-pulse" />
                     </TableCell>
@@ -366,7 +364,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
               ))
             ) : bookings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-16 text-center">
+                <TableCell colSpan={8} className="py-16 text-center">
                   <CalendarCheck className="mx-auto h-10 w-10 text-gray-300 mb-2" />
                   <p className="text-gray-500">Belum ada booking</p>
                 </TableCell>
@@ -374,11 +372,15 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
             ) : (
               bookings.map((b) => (
                 <TableRow key={b.id} className="hover:bg-gray-50">
-                  <TableCell className="font-mono text-xs font-medium">{b.booking_number}</TableCell>
+                  <TableCell>
+                    <p className="font-mono text-xs text-gray-500">{b.booking_number}</p>
+                    <p className="text-sm font-medium text-gray-800">{b.packages?.name ?? "-"}</p>
+                  </TableCell>
                   <TableCell className="font-medium">{b.customers?.name ?? "-"}</TableCell>
-                  <TableCell className="text-sm">{formatDate(b.booking_date)}</TableCell>
-                  <TableCell className="text-sm">{formatTime(b.start_time)}</TableCell>
-                  <TableCell className="text-sm">{b.packages?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    <p className="text-sm">{formatDate(b.booking_date)}</p>
+                    <p className="text-xs text-gray-500">{formatTime(b.start_time)}</p>
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       <Badge className={BOOKING_STATUS_COLOR[b.status]}>

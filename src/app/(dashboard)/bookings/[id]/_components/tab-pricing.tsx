@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -44,6 +46,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   // --- Add-on state ---
   const [addons, setAddons] = useState<BookingAddonRow[]>(booking.booking_addons);
   const [selectedAddonId, setSelectedAddonId] = useState("__none__");
+  const [extraQty, setExtraQty] = useState(1);
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -71,10 +74,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const originalAddons = useMemo(() => addons.filter((a) => !a.is_extra), [addons]);
   const extraAddons = useMemo(() => addons.filter((a) => a.is_extra), [addons]);
 
+  // Only exclude addons already added as EXTRA (allow re-adding original addons as extra)
   const availableToAdd = useMemo(() => {
-    const usedIds = new Set(addons.map((a) => a.addon_id));
-    return availableAddons.filter((a) => !usedIds.has(a.id));
-  }, [addons, availableAddons]);
+    const usedExtraIds = new Set(extraAddons.map((a) => a.addon_id));
+    return availableAddons.filter((a) => !usedExtraIds.has(a.id));
+  }, [extraAddons, availableAddons]);
 
   const packagesTotal = booking.booking_packages.reduce(
     (sum, bp) => sum + bp.price_snapshot * bp.quantity, 0
@@ -229,6 +233,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     if (!selectedAddonId || selectedAddonId === "__none__") return;
     const addon = availableAddons.find((a) => a.id === selectedAddonId);
     if (!addon) return;
+    const qty = Math.max(1, extraQty);
 
     setAdding(true);
     try {
@@ -236,12 +241,13 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         booking_id: booking.id,
         addon_id: addon.id,
         price: addon.price,
+        quantity: qty,
         is_paid: false,
         is_extra: true,
       });
       if (error) throw error;
 
-      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addon.price;
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addon.price * qty;
       const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
@@ -253,7 +259,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       const newAddon: BookingAddonRow = {
         addon_id: addon.id,
         price: addon.price,
-        quantity: 1,
+        quantity: qty,
         is_paid: false,
         is_extra: true,
         addons: {
@@ -268,6 +274,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       setAddons(updated);
       onUpdate({ booking_addons: updated });
       setSelectedAddonId("__none__");
+      setExtraQty(1);
 
       await supabase.from("activity_log").insert({
         user_id: currentUser.id,
@@ -680,29 +687,72 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         )}
 
         {availableToAdd.length > 0 && (
-          <div className="flex gap-2 pt-1">
-            <Select value={selectedAddonId} onValueChange={setSelectedAddonId}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Tambah add-on extra..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" disabled>Pilih add-on...</SelectItem>
-                {availableToAdd.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name} — {formatRupiah(a.price)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={addExtraAddon}
-              disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
-              className="gap-1"
-            >
-              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Tambah
-            </Button>
+          <div className="space-y-2 pt-1">
+            <div className="flex gap-2">
+              <Select value={selectedAddonId} onValueChange={(v) => { setSelectedAddonId(v); setExtraQty(1); }}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Pilih add-on..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(() => {
+                    // Group by category
+                    const grouped = new Map<string, typeof availableToAdd>();
+                    for (const a of availableToAdd) {
+                      const cat = a.category ?? "";
+                      if (!grouped.has(cat)) grouped.set(cat, []);
+                      grouped.get(cat)!.push(a);
+                    }
+                    const entries = Array.from(grouped.entries()).sort(([a], [b]) => {
+                      if (!a && b) return 1;
+                      if (a && !b) return -1;
+                      return a.localeCompare(b);
+                    });
+                    return entries.map(([cat, items]) =>
+                      cat ? (
+                        <SelectGroup key={cat}>
+                          <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-gray-400">{cat}</SelectLabel>
+                          {items.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name} — {formatRupiah(a.price)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ) : (
+                        items.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name} — {formatRupiah(a.price)}
+                          </SelectItem>
+                        ))
+                      )
+                    );
+                  })()}
+                </SelectContent>
+              </Select>
+              {selectedAddonId && selectedAddonId !== "__none__" && (
+                <div className="flex items-center border rounded-md overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExtraQty(q => Math.max(1, q - 1))}
+                    className="px-2 h-9 hover:bg-gray-100 transition-colors text-gray-600"
+                  >−</button>
+                  <span className="px-2 text-sm font-semibold min-w-[32px] text-center">{extraQty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setExtraQty(q => q + 1)}
+                    className="px-2 h-9 hover:bg-gray-100 transition-colors text-gray-600"
+                  >+</button>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={addExtraAddon}
+                disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
+                className="gap-1 shrink-0"
+              >
+                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Tambah
+              </Button>
+            </div>
           </div>
         )}
       </div>

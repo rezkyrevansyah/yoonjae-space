@@ -28,9 +28,9 @@ function SummaryCard({ label, value, sub, icon, iconBg, valueColor = "text-gray-
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
           {loading ? (
-            <div className="mt-2 h-7 w-32 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="mt-2 h-6 w-32 bg-gray-100 rounded-lg animate-pulse" />
           ) : (
-            <p className={`mt-1 text-xl font-bold truncate ${valueColor}`}>{value}</p>
+            <p className={`mt-1 text-base font-bold leading-tight break-all ${valueColor}`}>{value}</p>
           )}
           {sub && !loading && (
             <p className="mt-0.5 text-xs text-gray-400">{sub}</p>

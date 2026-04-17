@@ -10,9 +10,9 @@ interface Props {
 
 function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
-      <span className="text-gray-500 flex-shrink-0 mr-4">{label}</span>
-      <span className="text-gray-900 text-right">{value ?? "—"}</span>
+    <div className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0 gap-3">
+      <span className="text-gray-500 min-w-0 break-words">{label}</span>
+      <span className="text-gray-900 text-right flex-shrink-0 max-w-[55%] break-words">{value ?? "—"}</span>
     </div>
   );
 }

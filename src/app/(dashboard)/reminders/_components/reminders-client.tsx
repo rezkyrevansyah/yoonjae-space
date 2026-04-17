@@ -360,6 +360,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-blue-500 hover:bg-blue-600"
                             marked={isMarked(b.id, "reminder")}
                             onMark={() => markReminded(b, "reminder")}
+                            onUnmark={() => unmarkReminded(b, "reminder")}
                           />
                           <ActionButton
                             href={tyPayLink}
@@ -368,6 +369,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-green-500 hover:bg-green-600"
                             marked={isMarked(b.id, "thank_you_payment")}
                             onMark={() => markReminded(b, "thank_you_payment")}
+                            onUnmark={() => unmarkReminded(b, "thank_you_payment")}
                           />
                           <ActionButton
                             href={tyLink}
@@ -376,6 +378,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                             color="bg-pink-500 hover:bg-pink-600"
                             marked={isMarked(b.id, "thank_you")}
                             onMark={() => markReminded(b, "thank_you")}
+                            onUnmark={() => unmarkReminded(b, "thank_you")}
                           />
                         </div>
                       </td>
@@ -439,6 +442,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-blue-600 bg-blue-50 hover:bg-blue-100"
                       marked={isMarked(b.id, "reminder")}
                       onMark={() => markReminded(b, "reminder")}
+                      onUnmark={() => unmarkReminded(b, "reminder")}
                     />
                     <MobileActionButton
                       href={tyPayLink}
@@ -447,6 +451,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-green-600 bg-green-50 hover:bg-green-100"
                       marked={isMarked(b.id, "thank_you_payment")}
                       onMark={() => markReminded(b, "thank_you_payment")}
+                      onUnmark={() => unmarkReminded(b, "thank_you_payment")}
                     />
                     <MobileActionButton
                       href={tyLink}
@@ -455,6 +460,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
                       color="text-pink-600 bg-pink-50 hover:bg-pink-100"
                       marked={isMarked(b.id, "thank_you")}
                       onMark={() => markReminded(b, "thank_you")}
+                      onUnmark={() => unmarkReminded(b, "thank_you")}
                     />
                   </div>
                 </div>
@@ -496,6 +502,7 @@ function ActionButton({
   color,
   marked,
   onMark,
+  onUnmark,
 }: {
   href: string | null;
   icon: React.ReactNode;
@@ -503,6 +510,7 @@ function ActionButton({
   color: string;
   marked: boolean;
   onMark: () => void;
+  onUnmark: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -523,13 +531,13 @@ function ActionButton({
         </span>
       )}
       <button
-        onClick={onMark}
-        disabled={marked}
+        onClick={marked ? onUnmark : onMark}
         className={`text-xs px-2 py-0.5 rounded transition-colors ${
           marked
-            ? "text-green-600 cursor-default"
+            ? "text-green-600 hover:text-red-500"
             : "text-gray-400 hover:text-green-600"
         }`}
+        title={marked ? "Batalkan tandai" : "Tandai sudah dikirim"}
       >
         {marked ? "✓ Sent" : "Tandai"}
       </button>
@@ -544,6 +552,7 @@ function MobileActionButton({
   color,
   marked,
   onMark,
+  onUnmark,
 }: {
   href: string | null;
   icon: React.ReactNode;
@@ -551,6 +560,7 @@ function MobileActionButton({
   color: string;
   marked: boolean;
   onMark: () => void;
+  onUnmark: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
@@ -571,9 +581,9 @@ function MobileActionButton({
         </span>
       )}
       <button
-        onClick={onMark}
-        disabled={marked}
-        className={`text-xs ${marked ? "text-green-600" : "text-gray-400 hover:text-green-600"} transition-colors`}
+        onClick={marked ? onUnmark : onMark}
+        className={`text-xs transition-colors ${marked ? "text-green-600 hover:text-red-500" : "text-gray-400 hover:text-green-600"}`}
+        title={marked ? "Batalkan tandai" : "Tandai sudah dikirim"}
       >
         {marked ? "✓ Sent" : "Tandai"}
       </button>

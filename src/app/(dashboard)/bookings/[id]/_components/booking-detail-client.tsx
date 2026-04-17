@@ -83,6 +83,7 @@ export interface AvailableAddon {
   id: string;
   name: string;
   price: number;
+  category: string | null;
   need_extra_time: boolean;
   extra_time_minutes: number;
   is_active: boolean;

@@ -117,6 +117,7 @@ export function MuaClient({ studioInfo }: Props) {
     }
 
     const muaBookings = ((data ?? []) as unknown as MuaBooking[]).filter(b =>
+      b.packages?.name?.toLowerCase().includes("mua") ||
       b.booking_addons.some(ba => ba.addons?.name?.toLowerCase().includes("mua"))
     );
     setBookings(muaBookings);
