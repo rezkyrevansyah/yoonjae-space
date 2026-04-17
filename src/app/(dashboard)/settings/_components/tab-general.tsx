@@ -179,7 +179,7 @@ export function TabGeneral({ currentUser }: TabGeneralProps) {
           <CardTitle className="text-base">Jam Operasional & Pengaturan Booking</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Jam Buka</Label>
               <Input type="time" value={openTime} onChange={(e) => setOpenTime(e.target.value)} />
