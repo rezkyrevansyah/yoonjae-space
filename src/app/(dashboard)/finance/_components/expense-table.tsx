@@ -7,6 +7,7 @@ import type { Expense } from "@/lib/types/database";
 
 type ExpenseSortField = "date" | "amount";
 
+const PREVIEW_SIZE = 5;
 const PAGE_SIZE = 10;
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Props) {
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -34,7 +36,10 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
   });
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const paginated = expanded
+    ? sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+    : sorted.slice(0, PREVIEW_SIZE);
+  const hiddenCount = sorted.length - PREVIEW_SIZE;
 
   function handleSort(field: ExpenseSortField) {
     if (sortField === field) setSortAsc(v => !v);
@@ -49,7 +54,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900">Pengeluaran</h2>
         <button
           onClick={onAdd}
@@ -78,7 +83,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
               <thead>
                 <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                   <th
-                    className="px-4 py-2.5 text-left font-medium cursor-pointer select-none hover:text-gray-700"
+                    className="px-4 py-2 text-left font-medium cursor-pointer select-none hover:text-gray-700"
                     onClick={() => handleSort("date")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -86,11 +91,11 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
                       <SortIcon field="date" />
                     </span>
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium">Deskripsi</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Kategori</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Vendor</th>
+                  <th className="px-4 py-2 text-left font-medium">Deskripsi</th>
+                  <th className="px-4 py-2 text-left font-medium">Kategori</th>
+                  <th className="px-4 py-2 text-left font-medium">Vendor</th>
                   <th
-                    className="px-4 py-2.5 text-right font-medium cursor-pointer select-none hover:text-gray-700"
+                    className="px-4 py-2 text-right font-medium cursor-pointer select-none hover:text-gray-700"
                     onClick={() => handleSort("amount")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 w-full">
@@ -98,7 +103,7 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
                       <SortIcon field="amount" />
                     </span>
                   </th>
-                  <th className="px-4 py-2.5 w-20 text-center font-medium">Aksi</th>
+                  <th className="px-4 py-2 w-20 text-center font-medium">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -107,10 +112,10 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
                   const vendor = e.vendors as { name: string } | null | undefined;
                   return (
                     <tr key={e.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">
                         {formatDate(e.date)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-900">{e.description}</span>
                           {isAuto && (
@@ -124,16 +129,16 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
                           <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{e.notes}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="px-4 py-2.5 text-gray-600">
                         {e.category ?? <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">
+                      <td className="px-4 py-2.5 text-gray-600">
                         {vendor?.name ?? <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                      <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
                         {formatRupiah(e.amount)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-2.5">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => onEdit(e)}
@@ -227,12 +232,27 @@ export function ExpenseTable({ expenses, loading, onAdd, onEdit, onDelete }: Pro
             </div>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Show more / pagination */}
+          {!expanded && hiddenCount > 0 ? (
+            <button
+              onClick={() => setExpanded(true)}
+              className="w-full px-4 py-3 border-t border-gray-100 text-xs text-center text-[#8B1A1A] font-medium hover:bg-gray-50 transition-colors"
+            >
+              Tampilkan {hiddenCount} lainnya ↓
+            </button>
+          ) : expanded && totalPages > 1 && (
             <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-500">
-                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-gray-500">
+                  {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
+                </p>
+                <button
+                  onClick={() => { setExpanded(false); setPage(0); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  Sembunyikan
+                </button>
+              </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setPage(p => p - 1)}

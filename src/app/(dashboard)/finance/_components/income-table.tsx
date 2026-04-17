@@ -9,12 +9,14 @@ import type { BookingStatus } from "@/lib/types/database";
 
 type IncomeSortField = "created_at" | "total";
 
+const PREVIEW_SIZE = 5;
 const PAGE_SIZE = 10;
 
 interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
+  transaction_date: string | null;
   created_at: string;
   status: string;
   total: number;
@@ -30,6 +32,7 @@ interface Props {
 export function IncomeTable({ bookings, loading }: Props) {
   const [sortField, setSortField] = useState<IncomeSortField>("created_at");
   const [sortAsc, setSortAsc] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
 
   const total = bookings.reduce((sum, b) => sum + b.total, 0);
@@ -44,7 +47,10 @@ export function IncomeTable({ bookings, loading }: Props) {
   });
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const paginated = expanded
+    ? sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+    : sorted.slice(0, PREVIEW_SIZE);
+  const hiddenCount = sorted.length - PREVIEW_SIZE;
 
   function handleSort(field: IncomeSortField) {
     if (sortField === field) setSortAsc(v => !v);
@@ -59,7 +65,7 @@ export function IncomeTable({ bookings, loading }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900">Income dari Booking</h2>
         <span className="text-xs text-gray-500">{bookings.length} booking</span>
       </div>
@@ -81,10 +87,10 @@ export function IncomeTable({ bookings, loading }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left font-medium">Booking ID</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Customer</th>
+                  <th className="px-4 py-2 text-left font-medium">Booking ID</th>
+                  <th className="px-4 py-2 text-left font-medium">Customer</th>
                   <th
-                    className="px-4 py-2.5 text-left font-medium cursor-pointer select-none hover:text-gray-700"
+                    className="px-4 py-2 text-left font-medium cursor-pointer select-none hover:text-gray-700"
                     onClick={() => handleSort("created_at")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -92,10 +98,10 @@ export function IncomeTable({ bookings, loading }: Props) {
                       <SortIcon field="created_at" />
                     </span>
                   </th>
-                  <th className="px-4 py-2.5 text-left font-medium">Paket</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Status</th>
+                  <th className="px-4 py-2 text-left font-medium">Paket</th>
+                  <th className="px-4 py-2 text-left font-medium">Status</th>
                   <th
-                    className="px-4 py-2.5 text-right font-medium cursor-pointer select-none hover:text-gray-700"
+                    className="px-4 py-2 text-right font-medium cursor-pointer select-none hover:text-gray-700"
                     onClick={() => handleSort("total")}
                   >
                     <span className="inline-flex items-center justify-end gap-1 w-full">
@@ -103,33 +109,33 @@ export function IncomeTable({ bookings, loading }: Props) {
                       <SortIcon field="total" />
                     </span>
                   </th>
-                  <th className="px-4 py-2.5 w-8" />
+                  <th className="px-4 py-2 w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {paginated.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-600">
                       {b.booking_number}
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
+                    <td className="px-4 py-2.5 font-medium text-gray-900">
                       {b.customers?.name ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {formatDate(b.created_at)}
+                    <td className="px-4 py-2.5 text-gray-600">
+                      {formatDate(b.transaction_date ?? b.created_at)}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-2.5 text-gray-600">
                       {b.packages?.name ?? "-"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BOOKING_STATUS_COLOR[b.status as BookingStatus] ?? ""}`}>
                         {BOOKING_STATUS_LABEL[b.status as BookingStatus] ?? b.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
                       {formatRupiah(b.total)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <Link
                         href={`/bookings/${b.id}`}
                         target="_blank"
@@ -143,10 +149,10 @@ export function IncomeTable({ bookings, loading }: Props) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-gray-200 bg-gray-50">
-                  <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-gray-700">
+                  <td colSpan={5} className="px-4 py-2.5 text-sm font-semibold text-gray-700">
                     Total
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-green-700">
+                  <td className="px-4 py-2.5 text-right text-sm font-bold text-green-700">
                     {formatRupiah(total)}
                   </td>
                   <td />
@@ -169,7 +175,7 @@ export function IncomeTable({ bookings, loading }: Props) {
                       {b.customers?.name ?? "-"}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {b.booking_number} · {formatDate(b.created_at)}
+                      {b.booking_number} · {formatDate(b.transaction_date ?? b.created_at)}
                     </p>
                     <p className="text-xs text-gray-500">{b.packages?.name ?? "-"}</p>
                   </div>
@@ -188,12 +194,27 @@ export function IncomeTable({ bookings, loading }: Props) {
             </div>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Show more / pagination */}
+          {!expanded && hiddenCount > 0 ? (
+            <button
+              onClick={() => setExpanded(true)}
+              className="w-full px-4 py-3 border-t border-gray-100 text-xs text-center text-[#8B1A1A] font-medium hover:bg-gray-50 transition-colors"
+            >
+              Tampilkan {hiddenCount} lainnya ↓
+            </button>
+          ) : expanded && totalPages > 1 && (
             <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-xs text-gray-500">
-                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-gray-500">
+                  {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} dari {sorted.length}
+                </p>
+                <button
+                  onClick={() => { setExpanded(false); setPage(0); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  Sembunyikan
+                </button>
+              </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setPage(p => p - 1)}

@@ -44,7 +44,7 @@ export function PopularPackages({ stats, loading }: Props) {
           <p className="text-sm text-gray-400">Belum ada data booking bulan ini</p>
         </div>
       ) : (
-        <div className="p-4 space-y-3">
+        <div className="p-3 space-y-2.5">
           {stats.map((stat, idx) => {
             const color = RANK_COLORS[idx] ?? RANK_COLORS[4];
             const pct = Math.round((stat.booking_count / maxCount) * 100);

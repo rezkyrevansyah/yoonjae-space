@@ -329,7 +329,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             {/* Date input for next status (non SHOOT_DONE) */}
             {booking.status !== "SHOOT_DONE" && currentStatusIdx < BOOKING_FLOW.length - 1 && (
               <div className="flex items-end gap-2">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <Label className="text-xs text-gray-500 mb-1 block">
                     Tanggal {BOOKING_STATUS_LABEL[BOOKING_FLOW[currentStatusIdx + 1]]} (opsional)
                   </Label>
@@ -440,7 +440,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div>
-              <Label className="mb-1 block">Google Drive Link</Label>
+              <Label className="mb-2 block">Google Drive Link</Label>
               <Input
                 value={driveLink}
                 onChange={(e) => setDriveLink(e.target.value)}
@@ -581,7 +581,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             {/* Date input for next print step */}
             {currentPrintIdx < PRINT_FLOW.length - 1 && (
               <div className="flex items-end gap-2">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <Label className="text-xs text-gray-500 mb-1 block">
                     Tanggal {PRINT_ORDER_STATUS_LABEL[PRINT_FLOW[currentPrintIdx + 1]]} (opsional)
                   </Label>

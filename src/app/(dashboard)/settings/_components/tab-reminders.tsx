@@ -34,12 +34,14 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
   const [reminderMsg, setReminderMsg] = useState("");
   const [thankYouMsg, setThankYouMsg] = useState("");
   const [thankYouPaymentMsg, setThankYouPaymentMsg] = useState("");
+  const [customMsg, setCustomMsg] = useState("");
 
   const reminderRef = useRef<HTMLTextAreaElement>(null);
   const thankYouRef = useRef<HTMLTextAreaElement>(null);
   const thankYouPaymentRef = useRef<HTMLTextAreaElement>(null);
+  const customRef = useRef<HTMLTextAreaElement>(null);
 
-  const [activeField, setActiveField] = useState<"reminder" | "thank_you" | "thank_you_payment">("reminder");
+  const [activeField, setActiveField] = useState<"reminder" | "thank_you" | "thank_you_payment" | "custom">("reminder");
 
   useEffect(() => {
     fetchData();
@@ -57,6 +59,7 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
       setReminderMsg(data.reminder_message ?? "");
       setThankYouMsg(data.thank_you_message ?? "");
       setThankYouPaymentMsg(data.thank_you_payment_message ?? "");
+      setCustomMsg((data as Record<string, string | null>).custom_message ?? "");
     }
     setLoading(false);
   }
@@ -66,6 +69,7 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
       reminder: { ref: reminderRef, setter: setReminderMsg, value: reminderMsg },
       thank_you: { ref: thankYouRef, setter: setThankYouMsg, value: thankYouMsg },
       thank_you_payment: { ref: thankYouPaymentRef, setter: setThankYouPaymentMsg, value: thankYouPaymentMsg },
+      custom: { ref: customRef, setter: setCustomMsg, value: customMsg },
     };
 
     const { ref, setter, value } = refMap[activeField];
@@ -96,6 +100,7 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
           reminder_message: reminderMsg,
           thank_you_message: thankYouMsg,
           thank_you_payment_message: thankYouPaymentMsg,
+          custom_message: customMsg,
         },
         { onConflict: "lock" }
       );
@@ -123,6 +128,7 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
   if (loading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -206,6 +212,25 @@ export function TabReminders({ currentUser }: TabRemindersProps) {
             rows={6}
             placeholder="Terima kasih atas pembayaran Anda, {customer_name}..."
             className={activeField === "thank_you_payment" ? "ring-2 ring-blue-400" : ""}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Custom Message */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pesan Kustom</CardTitle>
+          <p className="text-sm text-muted-foreground">Pesan bebas untuk keperluan lainnya</p>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            ref={customRef}
+            value={customMsg}
+            onChange={(e) => setCustomMsg(e.target.value)}
+            onFocus={() => setActiveField("custom")}
+            rows={6}
+            placeholder="Pesan kustom untuk {customer_name}..."
+            className={activeField === "custom" ? "ring-2 ring-blue-400" : ""}
           />
         </CardContent>
       </Card>

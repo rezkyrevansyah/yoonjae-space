@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
+import { Plus, Minus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
 
 // Module-level singleton — stable across renders
 const supabase = createClient();
@@ -76,8 +76,9 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
 
   // Only exclude addons already added as EXTRA (allow re-adding original addons as extra)
   const availableToAdd = useMemo(() => {
-    const usedExtraIds = new Set(extraAddons.map((a) => a.addon_id));
-    return availableAddons.filter((a) => !usedExtraIds.has(a.id));
+    // Only exclude add-ons already added as EXTRA (not originals — client can re-add same addon as extra)
+    const extraIds = new Set(extraAddons.map((a) => a.addon_id));
+    return availableAddons.filter((a) => !extraIds.has(a.id));
   }, [extraAddons, availableAddons]);
 
   const packagesTotal = booking.booking_packages.reduce(
@@ -247,7 +248,8 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       });
       if (error) throw error;
 
-      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addon.price * qty;
+      const addedTotal = addon.price * qty;
+      const newExtraTotal = extraAddons.reduce((s, a) => s + a.price * (a.quantity ?? 1), 0) + addedTotal;
       const newTotal = Math.max(0, packagesTotal + originalAddonsTotal - discount) + newExtraTotal;
       const { error: updateErr } = await supabase
         .from("bookings")
@@ -283,7 +285,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
         action: "CREATE",
         entity: "booking_addons",
         entity_id: booking.id,
-        description: `Menambah extra add-on ${addon.name} ke booking ${booking.booking_number}`,
+        description: `Menambah extra add-on ${addon.name}${qty > 1 ? ` (${qty}x)` : ""} ke booking ${booking.booking_number}`,
       });
 
       toast({ title: "Add-on ditambahkan", description: addon.name });
@@ -695,19 +697,21 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 </SelectTrigger>
                 <SelectContent>
                   {(() => {
-                    // Group by category
-                    const grouped = new Map<string, typeof availableToAdd>();
+                    // Group by category preserving sort_order
+                    const groups = new Map<string, typeof availableToAdd>();
+                    const orderMap = new Map<string, number>();
+                    let idx = 0;
                     for (const a of availableToAdd) {
                       const cat = a.category ?? "";
-                      if (!grouped.has(cat)) grouped.set(cat, []);
-                      grouped.get(cat)!.push(a);
+                      if (!groups.has(cat)) { groups.set(cat, []); orderMap.set(cat, idx++); }
+                      groups.get(cat)!.push(a);
                     }
-                    const entries = Array.from(grouped.entries()).sort(([a], [b]) => {
+                    const sorted = Array.from(groups.entries()).sort(([a], [b]) => {
                       if (!a && b) return 1;
                       if (a && !b) return -1;
-                      return a.localeCompare(b);
+                      return (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999);
                     });
-                    return entries.map(([cat, items]) =>
+                    return sorted.map(([cat, items]) =>
                       cat ? (
                         <SelectGroup key={cat}>
                           <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-gray-400">{cat}</SelectLabel>
@@ -728,31 +732,34 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                   })()}
                 </SelectContent>
               </Select>
-              {selectedAddonId && selectedAddonId !== "__none__" && (
-                <div className="flex items-center border rounded-md overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setExtraQty(q => Math.max(1, q - 1))}
-                    className="px-2 h-9 hover:bg-gray-100 transition-colors text-gray-600"
-                  >−</button>
-                  <span className="px-2 text-sm font-semibold min-w-[32px] text-center">{extraQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setExtraQty(q => q + 1)}
-                    className="px-2 h-9 hover:bg-gray-100 transition-colors text-gray-600"
-                  >+</button>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                onClick={addExtraAddon}
-                disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
-                className="gap-1 shrink-0"
-              >
-                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Tambah
-              </Button>
+              {/* Quantity */}
+              <div className="flex items-center border rounded-md overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExtraQty((q) => Math.max(1, q - 1))}
+                  className="px-2 h-full text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-8 text-center text-sm font-semibold">{extraQty}</span>
+                <button
+                  type="button"
+                  onClick={() => setExtraQty((q) => q + 1)}
+                  className="px-2 h-full text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              onClick={addExtraAddon}
+              disabled={!selectedAddonId || selectedAddonId === "__none__" || adding}
+              className="w-full gap-1"
+            >
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Tambah Add-on
+            </Button>
           </div>
         )}
       </div>

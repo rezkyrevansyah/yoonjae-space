@@ -288,9 +288,9 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
             ))}
           </SelectContent>
         </Select>
-        {/* Date range — stacked labels on mobile */}
-        <div className="grid grid-cols-2 gap-2 sm:contents">
-          <div className="flex flex-col gap-0.5 sm:flex-none">
+        {/* Date range — side by side on mobile, individual on desktop */}
+        <div className="flex gap-2 sm:contents min-w-0 overflow-hidden">
+          <div className="flex-1 min-w-0 sm:flex-none flex flex-col gap-0.5">
             <label className="text-xs text-gray-500 sm:hidden px-0.5">Dari</label>
             <Input
               type="date"
@@ -299,7 +299,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
               onChange={(e) => setDateFrom(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-0.5 sm:flex-none">
+          <div className="flex-1 min-w-0 sm:flex-none flex flex-col gap-0.5">
             <label className="text-xs text-gray-500 sm:hidden px-0.5">Sampai</label>
             <Input
               type="date"
@@ -329,14 +329,14 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
-              <TableHead>Booking</TableHead>
+              <TableHead>Booking / Paket</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>
                 <button
                   onClick={() => setSortAsc((v) => !v)}
                   className="flex items-center gap-1 hover:text-gray-900 transition-colors"
                 >
-                  Tanggal & Jam
+                  Tanggal & Waktu
                   {sortAsc ? (
                     <ChevronUp className="h-3.5 w-3.5" />
                   ) : (
@@ -374,12 +374,12 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
                 <TableRow key={b.id} className="hover:bg-gray-50">
                   <TableCell>
                     <p className="font-mono text-xs text-gray-500">{b.booking_number}</p>
-                    <p className="text-sm font-medium text-gray-800">{b.packages?.name ?? "-"}</p>
+                    <p className="text-sm font-medium text-gray-800 mt-0.5">{b.packages?.name ?? "-"}</p>
                   </TableCell>
                   <TableCell className="font-medium">{b.customers?.name ?? "-"}</TableCell>
-                  <TableCell>
-                    <p className="text-sm">{formatDate(b.booking_date)}</p>
-                    <p className="text-xs text-gray-500">{formatTime(b.start_time)}</p>
+                  <TableCell className="text-sm">
+                    <p>{formatDate(b.booking_date)}</p>
+                    <p className="text-gray-500">{formatTime(b.start_time)}</p>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

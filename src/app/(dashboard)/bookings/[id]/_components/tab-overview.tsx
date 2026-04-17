@@ -11,8 +11,8 @@ interface Props {
 function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div className="flex justify-between text-sm py-1.5 border-b border-gray-50 last:border-0 gap-3">
-      <span className="text-gray-500 min-w-0 break-words">{label}</span>
-      <span className="text-gray-900 text-right flex-shrink-0 max-w-[55%] break-words">{value ?? "—"}</span>
+      <span className="text-gray-500 flex-shrink-0">{label}</span>
+      <span className="text-gray-900 text-right min-w-0 break-words">{value ?? "—"}</span>
     </div>
   );
 }
@@ -151,35 +151,50 @@ export function TabOverview({ booking }: Props) {
               Add-ons
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 space-y-1">
+          <CardContent className="pt-0 space-y-3">
             {addons.map((a) => (
-              <Row
-                key={a.addon_id}
-                label={
-                  <span>
+              <div key={a.addon_id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <span className="text-gray-900 font-medium">
                     {a.addons?.name ?? a.addon_id}
-                    {(a.quantity ?? 1) > 1 && <span className="text-gray-400 ml-1">({a.quantity}x)</span>}
                   </span>
-                }
-                value={formatRupiah(a.price * (a.quantity ?? 1))}
-              />
+                  {(a.quantity ?? 1) > 1 && (
+                    <Badge variant="secondary" className="ml-2 text-xs py-0 px-1.5">
+                      x{a.quantity}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-gray-900 font-medium ml-3 flex-shrink-0">
+                  {formatRupiah(a.price * (a.quantity ?? 1))}
+                </span>
+              </div>
             ))}
             {extraAddons.map((a) => (
-              <Row
-                key={a.addon_id}
-                label={
-                  <span className="text-amber-600">
-                    {a.addons?.name ?? a.addon_id}
-                    {(a.quantity ?? 1) > 1 && <span className="text-xs ml-1">({a.quantity}x)</span>}
-                    {" "}<span className="text-xs">(extra)</span>
-                  </span>
-                }
-                value={
-                  <span className={a.is_paid ? "text-green-600" : "text-red-500"}>
-                    {formatRupiah(a.price * (a.quantity ?? 1))} · {a.is_paid ? "Lunas" : "Belum Lunas"}
-                  </span>
-                }
-              />
+              <div key={a.addon_id} className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-amber-600 font-medium">
+                      {a.addons?.name ?? a.addon_id}
+                    </span>
+                    {(a.quantity ?? 1) > 1 && (
+                      <Badge variant="outline" className="text-xs py-0 px-1.5">
+                        x{a.quantity}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-xs py-0 px-1.5 text-amber-600 border-amber-300">
+                      extra
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Status: <span className={a.is_paid ? "text-green-600 font-medium" : "text-red-500 font-medium"}>
+                      {a.is_paid ? "Lunas" : "Belum Lunas"}
+                    </span>
+                  </div>
+                </div>
+                <span className={`font-medium ml-3 flex-shrink-0 ${a.is_paid ? "text-green-600" : "text-red-500"}`}>
+                  {formatRupiah(a.price * (a.quantity ?? 1))}
+                </span>
+              </div>
             ))}
           </CardContent>
         </Card>

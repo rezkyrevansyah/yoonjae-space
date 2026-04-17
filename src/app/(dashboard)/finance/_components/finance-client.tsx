@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Download, ChevronDown } from "lucide-react";
+import { Download, ChevronDown, Package } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import type { CurrentUser, Expense } from "@/lib/types/database";
@@ -10,6 +10,7 @@ import { IncomeTable } from "./income-table";
 import { ExpenseTable } from "./expense-table";
 import { PopularPackages } from "./popular-packages";
 import { ExpenseModal } from "./expense-modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Vendor {
   id: string;
@@ -20,6 +21,7 @@ export interface IncomeBooking {
   id: string;
   booking_number: string;
   booking_date: string;
+  transaction_date: string | null;
   created_at: string;
   status: string;
   total: number;
@@ -64,6 +66,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>(initialData.expenses);
   const [packageStats, setPackageStats] = useState<PackageStat[]>(initialData.packageStats);
   const [loading, setLoading] = useState(false);
+  const [packageFilter, setPackageFilter] = useState<string>("all");
 
   const isInitialMount = useRef(true);
 
@@ -84,7 +87,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const [{ data: bookings }, { data: expenseData }] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, booking_number, booking_date, created_at, status, total, customers(name), packages(name)")
+        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, customers(name), packages(name)")
         .gte("created_at", `${startDate}T00:00:00`)
         .lte("created_at", `${endDate}T23:59:59`)
         .in("status", PAID_STATUSES)
@@ -136,7 +139,16 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     fetchData();
   }, [fetchData]);
 
-  const totalIncome = incomeBookings.reduce((sum, b) => sum + b.total, 0);
+  // Unique packages for filter
+  const packageOptions = Array.from(
+    new Set(incomeBookings.map((b) => b.packages?.name).filter(Boolean))
+  ) as string[];
+
+  const filteredIncomeBookings = packageFilter && packageFilter !== "all"
+    ? incomeBookings.filter((b) => b.packages?.name === packageFilter)
+    : incomeBookings;
+
+  const totalIncome = filteredIncomeBookings.reduce((sum, b) => sum + b.total, 0);
   const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
   const grossProfit = totalIncome - totalExpense;
 
@@ -278,7 +290,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -325,6 +337,37 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
         </div>
       </div>
 
+      {/* Package filter */}
+      {packageOptions.length > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Filter Paket</span>
+          </div>
+          <Select value={packageFilter} onValueChange={setPackageFilter}>
+            <SelectTrigger className="w-48 h-9 bg-white border-gray-200 hover:border-gray-300 focus:border-maroon-500 focus:ring-maroon-500/20">
+              <SelectValue placeholder="Pilih paket..." />
+            </SelectTrigger>
+            <SelectContent className="bg-white border border-gray-200 shadow-lg">
+              <SelectItem value="all" className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                  <span className="font-medium">Semua Paket</span>
+                </div>
+              </SelectItem>
+              {packageOptions.map((pkg) => (
+                <SelectItem key={pkg} value={pkg} className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-maroon-500"></span>
+                    <span className="font-medium">{pkg}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {/* Summary cards */}
       <SummaryCards
         totalIncome={totalIncome}
@@ -335,7 +378,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
       />
 
       {/* Income from Bookings */}
-      <IncomeTable bookings={incomeBookings} loading={loading} />
+      <IncomeTable bookings={filteredIncomeBookings} loading={loading} />
 
       {/* Expenses */}
       <ExpenseTable

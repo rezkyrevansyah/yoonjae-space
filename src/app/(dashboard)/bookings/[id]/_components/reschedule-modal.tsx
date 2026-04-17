@@ -90,26 +90,8 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
   const interval = settingsGeneral?.time_slot_interval ?? 30;
   const timeSlots = generateTimeSlots(openTime, closeTime, interval);
 
-  // Multi-package duration: sum all packages' duration + extra_time + addon extra times
-  const durationMins = (() => {
-    const packagesMins = booking.booking_packages?.length > 0
-      ? booking.booking_packages.reduce((sum, bp) => {
-          const dur = (bp.packages?.duration_minutes ?? 0) * bp.quantity;
-          const extra = bp.packages?.need_extra_time ? (bp.packages.extra_time_minutes ?? 0) * bp.quantity : 0;
-          return sum + dur + extra;
-        }, 0)
-      : booking.packages?.duration_minutes ?? 60;
-
-    // Include addon extra times (before and after)
-    const addonsMins = (booking.booking_addons ?? []).reduce((sum, ba) => {
-      if (ba.addons?.need_extra_time && ba.addons.extra_time_minutes) {
-        return sum + ba.addons.extra_time_minutes * (ba.quantity ?? 1);
-      }
-      return sum;
-    }, 0);
-
-    return packagesMins + addonsMins;
-  })();
+  // Derive duration from actual start/end stored in the booking (includes all addon extra times)
+  const durationMins = timeToMinutes(booking.end_time) - timeToMinutes(booking.start_time);
 
   function handleMonthChange(month: Date) {
     setDisplayMonth(month);
@@ -196,9 +178,6 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
             <CalendarClock className="h-5 w-5 text-[#8B1A1A]" />
             Reschedule Booking
           </DialogTitle>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Jadwal saat ini: <span className="font-medium">{formatDate(booking.booking_date)}</span>, {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
-          </p>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -315,21 +294,25 @@ export function RescheduleModal({ open, onClose, booking, currentUser, onResched
                 </span>
               </div>
 
-              {/* Schedule comparison */}
-              {selectedTime && (
-                <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden text-sm">
-                  <div className="grid grid-cols-2 divide-x divide-gray-200">
-                    <div className="p-3 bg-gray-50">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Jadwal Saat Ini</p>
-                      <p className="font-medium text-gray-700">{formatDate(booking.booking_date)}</p>
-                      <p className="text-gray-500">{formatTime(booking.start_time)}–{formatTime(booking.end_time)}</p>
-                    </div>
-                    <div className="p-3 bg-maroon-50">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-maroon-400 mb-1">Jadwal Baru</p>
-                      <p className="font-medium text-maroon-800">{formatDate(dateStr)}</p>
-                      <p className="text-maroon-600">{formatTime(selectedTime)}–{formatTime(newEndTime)} ({durationMins} mnt)</p>
-                    </div>
+              {/* Old vs New schedule comparison */}
+              {selectedTime ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-400 font-medium mb-1">Jadwal Lama</p>
+                    <p className="text-sm font-semibold text-gray-700">{formatDate(booking.booking_date)}</p>
+                    <p className="text-xs text-gray-500">{formatTime(booking.start_time)} – {formatTime(booking.end_time)}</p>
                   </div>
+                  <div className="p-3 bg-maroon-50 rounded-lg border border-maroon-200">
+                    <p className="text-xs text-maroon-600 font-medium mb-1">Jadwal Baru</p>
+                    <p className="text-sm font-semibold text-maroon-800">{formatDate(dateStr)}</p>
+                    <p className="text-xs text-maroon-600">{formatTime(selectedTime)} – {formatTime(newEndTime)} ({durationMins} mnt)</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-xs text-gray-400 font-medium mb-1">Jadwal Saat Ini</p>
+                  <p className="text-sm font-semibold text-gray-700">{formatDate(booking.booking_date)}</p>
+                  <p className="text-xs text-gray-500">{formatTime(booking.start_time)} – {formatTime(booking.end_time)}</p>
                 </div>
               )}
 

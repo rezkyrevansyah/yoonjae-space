@@ -1,22 +1,28 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatRupiah } from "@/lib/utils";
 import type { Package, Addon } from "@/lib/types/database";
-import { Clock, Minus, Plus, PackageOpen } from "lucide-react";
+import { Clock, Minus, Plus, PackageOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Group by category, preserving DB sort order (first appearance order = category sort_order)
 function groupBy<T extends { category: string }>(items: T[]): [string, T[]][] {
   const map = new Map<string, T[]>();
+  const orderMap = new Map<string, number>();
+  let idx = 0;
   for (const item of items) {
     const key = item.category || "";
-    if (!map.has(key)) map.set(key, []);
+    if (!map.has(key)) {
+      map.set(key, []);
+      orderMap.set(key, idx++);
+    }
     map.get(key)!.push(item);
   }
   return Array.from(map.entries()).sort(([a], [b]) => {
     if (!a && b) return 1;
     if (a && !b) return -1;
-    return a.localeCompare(b);
+    return (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999);
   });
 }
 
@@ -75,6 +81,7 @@ function QuantityControl({
 export function StepPackagesAddons({ data, onChange, packages, addons }: Props) {
   const packageGroups = useMemo(() => groupBy(packages), [packages]);
   const addonGroups = useMemo(() => groupBy(addons), [addons]);
+  const [addonsExpanded, setAddonsExpanded] = useState(true);
 
   // --- Package helpers ---
   function getPackageQty(pkg_id: string): number {
@@ -211,11 +218,25 @@ export function StepPackagesAddons({ data, onChange, packages, addons }: Props) 
       {/* Add-ons Section */}
       {addons.length > 0 && (
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="h-4 w-4 text-maroon-700" />
-            <h3 className="text-sm font-semibold text-gray-700">Add-on <span className="text-gray-400 font-normal">(opsional)</span></h3>
-          </div>
-          <div className="space-y-4">
+          <button
+            type="button"
+            onClick={() => setAddonsExpanded((v) => !v)}
+            className="flex items-center gap-2 mb-3 w-full text-left"
+          >
+            <Clock className="h-4 w-4 text-maroon-700 flex-shrink-0" />
+            <h3 className="text-sm font-semibold text-gray-700 flex-1">
+              Add-on <span className="text-gray-400 font-normal">(opsional)</span>
+              {data.addons.length > 0 && (
+                <span className="ml-2 text-xs text-maroon-600 font-medium">{data.addons.length} dipilih</span>
+              )}
+            </h3>
+            {addonsExpanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+          {addonsExpanded && <div className="space-y-4">
             {addonGroups.map(([category, items]) => (
               <div key={category || "__uncategorized"}>
                 {category && (
@@ -275,7 +296,7 @@ export function StepPackagesAddons({ data, onChange, packages, addons }: Props) 
                 </div>
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       )}
 
