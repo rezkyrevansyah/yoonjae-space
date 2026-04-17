@@ -6,23 +6,25 @@ import type { Package, Addon } from "@/lib/types/database";
 import { Clock, Minus, Plus, PackageOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Group by category, preserving DB sort order (first appearance order = category sort_order)
-function groupBy<T extends { category: string }>(items: T[]): [string, T[]][] {
+// Group by category, sorted by package_categories.sort_order
+function groupByWithOrder<T extends { category: string }>(
+  items: T[],
+  categoryOrder: string[]
+): [string, T[]][] {
   const map = new Map<string, T[]>();
-  const orderMap = new Map<string, number>();
-  let idx = 0;
   for (const item of items) {
     const key = item.category || "";
-    if (!map.has(key)) {
-      map.set(key, []);
-      orderMap.set(key, idx++);
-    }
+    if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(item);
   }
   return Array.from(map.entries()).sort(([a], [b]) => {
     if (!a && b) return 1;
     if (a && !b) return -1;
-    return (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999);
+    const ai = categoryOrder.indexOf(a);
+    const bi = categoryOrder.indexOf(b);
+    const aOrder = ai === -1 ? 999 : ai;
+    const bOrder = bi === -1 ? 999 : bi;
+    return aOrder - bOrder;
   });
 }
 
@@ -46,6 +48,7 @@ interface Props {
   onChange: (data: PackagesAddonsFormData) => void;
   packages: Package[];
   addons: Addon[];
+  packageCategories: { id: string; name: string; sort_order: number }[];
 }
 
 function QuantityControl({
@@ -78,9 +81,13 @@ function QuantityControl({
   );
 }
 
-export function StepPackagesAddons({ data, onChange, packages, addons }: Props) {
-  const packageGroups = useMemo(() => groupBy(packages), [packages]);
-  const addonGroups = useMemo(() => groupBy(addons), [addons]);
+export function StepPackagesAddons({ data, onChange, packages, addons, packageCategories }: Props) {
+  const categoryOrder = useMemo(
+    () => packageCategories.map((c) => c.name),
+    [packageCategories]
+  );
+  const packageGroups = useMemo(() => groupByWithOrder(packages, categoryOrder), [packages, categoryOrder]);
+  const addonGroups = useMemo(() => groupByWithOrder(addons, categoryOrder), [addons, categoryOrder]);
   const [addonsExpanded, setAddonsExpanded] = useState(true);
 
   // --- Package helpers ---
