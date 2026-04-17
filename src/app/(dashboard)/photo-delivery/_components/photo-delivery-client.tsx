@@ -30,6 +30,7 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatTime } from "@/lib/utils";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
+import { toDateStr } from "@/lib/utils";
 import {
   Search,
   Eye,
@@ -60,9 +61,12 @@ export function PhotoDeliveryClient({ initialData }: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY">("ALL");
+  const [dateFilter, setDateFilter] = useState<string>("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  const todayStr = toDateStr(new Date());
+  const isTodayFilter = dateFilter === todayStr;
 
   const isInitialMount = useRef(true);
 
@@ -92,9 +96,8 @@ export function PhotoDeliveryClient({ initialData }: Props) {
         query = query.in("status", ["SHOOT_DONE", "PHOTOS_DELIVERED"]);
       }
 
-      if (dateFilter === "TODAY") {
-        const today = new Date().toISOString().slice(0, 10);
-        query = query.eq("booking_date", today);
+      if (dateFilter) {
+        query = query.eq("booking_date", dateFilter);
       }
 
       if (search.trim()) {
@@ -176,17 +179,19 @@ export function PhotoDeliveryClient({ initialData }: Props) {
             <SelectItem value="PHOTOS_DELIVERED">Photos Delivered</SelectItem>
           </SelectContent>
         </Select>
-        <button
-          onClick={() => setDateFilter(dateFilter === "TODAY" ? "ALL" : "TODAY")}
-          className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border transition-colors ${
-            dateFilter === "TODAY"
-              ? "bg-maroon-700 text-white border-maroon-700"
-              : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-          }`}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setDateFilter(isTodayFilter ? "" : todayStr)}
+          className={isTodayFilter ? "bg-maroon-50 border-maroon-300 text-maroon-700" : ""}
         >
-          <CalendarCheck className="h-4 w-4" />
           Hari Ini
-        </button>
+        </Button>
+        {dateFilter && !isTodayFilter && (
+          <Button variant="ghost" size="sm" onClick={() => setDateFilter("")} className="text-gray-500">
+            Reset Tanggal
+          </Button>
+        )}
         <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
           <SelectTrigger className="w-[100px]">
             <SelectValue />
