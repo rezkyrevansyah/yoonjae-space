@@ -195,9 +195,7 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   }
 
   const newBookingRange = sessionData.start_time ? getNewBookingRange(sessionData.start_time) : null;
-  const estimatedEndTime = newBookingRange
-    ? `${String(Math.floor(newBookingRange.effEnd / 60)).padStart(2, "0")}:${String(newBookingRange.effEnd % 60).padStart(2, "0")}`
-    : null;
+  const estimatedEndTime = newBookingRange ? minutesToTime(newBookingRange.effEnd) : null;
 
   return (
     <div className="space-y-6">
@@ -295,8 +293,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               // Slot falls within new booking's duration range (but not the start slot itself)
               const isInNewRange = !isSelected && newBookingRange != null &&
                 slotMins >= newBookingRange.effStart && slotMins < newBookingRange.effEnd;
-              const isEndTimeSlot = !isSelected && !isInNewRange && newBookingRange != null &&
-                slotMins === newBookingRange.effEnd;
+              const roundedEffEnd = newBookingRange
+                ? Math.round(newBookingRange.effEnd / interval) * interval
+                : null;
+              const isEndTimeSlot = !isSelected && !isInNewRange && roundedEffEnd != null &&
+                slotMins === roundedEffEnd;
               return (
                 <button
                   key={slot}
