@@ -149,15 +149,36 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
     setConflictInfo(null);
     if (!existingBookings.length) return;
 
-    // New booking: we don't know end time yet (no package selected),
-    // so check if slot overlaps with any existing booking's effective window
-    const newStart = timeToMinutes(slot);
+    const newRange = getNewBookingRange(slot);
 
+    if (!newRange) {
+      // Package not yet selected — simple check: does start time fall inside an existing booking?
+      const newStart = timeToMinutes(slot);
+      for (const b of existingBookings) {
+        const existingEffStart = getEffectiveStartMinutes(b);
+        const existingEnd = timeToMinutes(b.end_time);
+        if (newStart >= existingEffStart && newStart < existingEnd) {
+          const beforeAddons = b.booking_addons.filter(
+            ba => ba.addons?.need_extra_time && ba.addons.extra_time_position === "before"
+          );
+          setConflictInfo({
+            customerName: b.customers?.name ?? "Customer lain",
+            startTime: b.start_time,
+            endTime: b.end_time,
+            effectiveStart: minutesToTime(existingEffStart),
+            addonNames: beforeAddons.map(ba => ba.addons!.name ?? "add-on"),
+          });
+          return;
+        }
+      }
+      return;
+    }
+
+    // Package selected — check full range overlap: A.start < B.end && A.end > B.start
     for (const b of existingBookings) {
       const existingEffStart = getEffectiveStartMinutes(b);
       const existingEnd = timeToMinutes(b.end_time);
-      // New booking starts inside an existing booking's effective window
-      if (newStart >= existingEffStart && newStart < existingEnd) {
+      if (newRange.effStart < existingEnd && newRange.effEnd > existingEffStart) {
         const beforeAddons = b.booking_addons.filter(
           ba => ba.addons?.need_extra_time && ba.addons.extra_time_position === "before"
         );
