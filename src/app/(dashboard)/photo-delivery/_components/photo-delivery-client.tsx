@@ -39,7 +39,6 @@ import {
   Camera,
   Link as LinkIcon,
   Printer,
-  CalendarCheck,
 } from "lucide-react";
 import type { PhotoDeliveryRow } from "../page";
 
