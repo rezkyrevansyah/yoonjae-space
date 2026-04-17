@@ -97,6 +97,12 @@ export function ActivitiesClient({ initialData }: Props) {
     fetchLogs();
   }, [fetchLogs]);
 
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   // Reset page when filters change
   useEffect(() => { setPage(0); }, [search, filterEntity, filterAction]);
 
@@ -125,7 +131,6 @@ export function ActivitiesClient({ initialData }: Props) {
             type="text"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            onBlur={() => setSearch(searchInput)}
             placeholder="Cari deskripsi atau user..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#8B1A1A]/30 focus:border-[#8B1A1A]"
           />
