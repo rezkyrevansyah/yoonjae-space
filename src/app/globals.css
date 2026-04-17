@@ -81,3 +81,18 @@
 ::-webkit-scrollbar-thumb:hover {
   background-color: #8B1A1A;
 }
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+main {
+  animation: page-in 0.18s ease-out;
+}
