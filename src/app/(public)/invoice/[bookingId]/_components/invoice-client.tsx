@@ -443,8 +443,8 @@ export function InvoiceClient({ booking, studioInfo, currentUser }: Props) {
                 </div>
               )}
 
-              {/* LUNAS indicator — tampil jika PAID/CLOSED atau sisa tagihan = 0 */}
-              {(booking.status === "PAID" || booking.status === "CLOSED" || (sisaTagihan === 0 && booking.total > 0)) && (
+              {/* LUNAS indicator — tampil jika PAID atau CLOSED */}
+              {(booking.status === "PAID" || booking.status === "CLOSED") && (
                 <div className="flex justify-between text-sm font-semibold text-green-700 border-t border-gray-100 pt-2">
                   <span>Sisa Tagihan</span>
                   <span className="font-mono flex items-center gap-1.5">
