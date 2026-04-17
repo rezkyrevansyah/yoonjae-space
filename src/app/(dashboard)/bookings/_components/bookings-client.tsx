@@ -67,7 +67,18 @@ interface BookingRow {
   created_at: string;
   customers: { name: string } | null;
   packages: { name: string } | null;
+  booking_packages: { packages: { name: string } | null }[];
   staff: { name: string } | null;
+}
+
+function getPackageNames(b: BookingRow): string {
+  if (b.booking_packages && b.booking_packages.length > 0) {
+    const names = b.booking_packages
+      .map((bp) => bp.packages?.name)
+      .filter(Boolean) as string[];
+    if (names.length > 0) return names.join(", ");
+  }
+  return b.packages?.name ?? "-";
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -131,6 +142,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
           `id, booking_number, booking_date, start_time, end_time, status, print_order_status, is_rescheduled, total, created_at,
            customers(name),
            packages(name),
+           booking_packages(packages(name)),
            staff:users!bookings_staff_id_fkey(name)`,
           { count: "exact" }
         )
@@ -374,7 +386,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
                 <TableRow key={b.id} className="hover:bg-gray-50">
                   <TableCell>
                     <p className="font-mono text-xs text-gray-500">{b.booking_number}</p>
-                    <p className="text-sm font-medium text-gray-800 mt-0.5">{b.packages?.name ?? "-"}</p>
+                    <p className="text-sm font-medium text-gray-800 mt-0.5">{getPackageNames(b)}</p>
                   </TableCell>
                   <TableCell className="font-medium">{b.customers?.name ?? "-"}</TableCell>
                   <TableCell className="text-sm">
@@ -466,7 +478,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
               </div>
               <div className="text-sm text-gray-600 space-y-1">
                 <p>{formatDate(b.booking_date)} · {formatTime(b.start_time)} – {formatTime(b.end_time)}</p>
-                <p>{b.packages?.name ?? "-"}</p>
+                <p>{getPackageNames(b)}</p>
                 {b.print_order_status && (
                   <p className="flex items-center gap-1.5">
                     <span className="text-xs text-gray-400">Print:</span>
