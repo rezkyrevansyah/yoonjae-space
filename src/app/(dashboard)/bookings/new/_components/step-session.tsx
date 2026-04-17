@@ -195,6 +195,9 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
   }
 
   const newBookingRange = sessionData.start_time ? getNewBookingRange(sessionData.start_time) : null;
+  const estimatedEndTime = newBookingRange
+    ? `${String(Math.floor(newBookingRange.effEnd / 60)).padStart(2, "0")}:${String(newBookingRange.effEnd % 60).padStart(2, "0")}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -292,6 +295,8 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               // Slot falls within new booking's duration range (but not the start slot itself)
               const isInNewRange = !isSelected && newBookingRange != null &&
                 slotMins >= newBookingRange.effStart && slotMins < newBookingRange.effEnd;
+              const isEndTimeSlot = !isSelected && !isInNewRange && newBookingRange != null &&
+                slotMins === newBookingRange.effEnd;
               return (
                 <button
                   key={slot}
@@ -302,9 +307,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
                       ? "bg-maroon-700 text-white border-maroon-700"
                       : isInNewRange
                         ? "bg-maroon-100 text-maroon-700 border-maroon-200"
-                        : isExistingBooked
-                          ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                          : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
+                        : isEndTimeSlot
+                          ? "bg-white text-maroon-400 border-maroon-300 border-dashed"
+                          : isExistingBooked
+                            ? "bg-gray-200 text-gray-400 border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-maroon-300 hover:bg-maroon-50"
                   )}
                 >
                   {formatTime(slot)}
@@ -312,6 +319,11 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
               );
             })}
           </div>
+          {sessionData.start_time && estimatedEndTime && (
+            <p className="text-xs text-maroon-700 font-medium mt-1 text-center">
+              Estimasi sesi: {sessionData.start_time} — {estimatedEndTime}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-gray-500 mt-4">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-maroon-700 border-2 border-maroon-700 inline-block" /> Dipilih
