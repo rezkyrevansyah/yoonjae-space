@@ -33,8 +33,8 @@ export default function CalendarLoading() {
             {Array.from({ length: 7 }).map((_, day) => (
               <div key={day} className="min-h-[80px] p-2 border-r border-gray-50 space-y-1">
                 <Skeleton className="h-5 w-5 rounded-full" />
-                {Math.random() > 0.6 && <Skeleton className="h-5 w-full rounded" />}
-                {Math.random() > 0.8 && <Skeleton className="h-5 w-full rounded" />}
+                {(week * 7 + day) % 3 !== 2 && <Skeleton className="h-5 w-full rounded" />}
+                {(week * 7 + day) % 5 === 0 && <Skeleton className="h-5 w-full rounded" />}
               </div>
             ))}
           </div>
