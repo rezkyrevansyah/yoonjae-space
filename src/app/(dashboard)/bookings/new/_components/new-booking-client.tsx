@@ -32,6 +32,8 @@ import { StepSummary } from "./step-summary";
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const supabase = createClient();
+
 export interface CustomerFormData {
   isExisting: boolean;
   existingCustomerId?: string;
@@ -129,7 +131,6 @@ export function NewBookingClient({
   domicileOptions,
 }: Props) {
   const router = useRouter();
-  const supabase = createClient();
   const { toast } = useToast();
 
   const [step, setStep] = useState(1);
