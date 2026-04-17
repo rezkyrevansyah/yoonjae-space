@@ -379,7 +379,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
                   <TableCell className="font-medium">{b.customers?.name ?? "-"}</TableCell>
                   <TableCell className="text-sm">
                     <p>{formatDate(b.booking_date)}</p>
-                    <p className="text-gray-500">{formatTime(b.start_time)}</p>
+                    <p className="text-gray-500">{formatTime(b.start_time)} – {formatTime(b.end_time)}</p>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -465,7 +465,7 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
                 </div>
               </div>
               <div className="text-sm text-gray-600 space-y-1">
-                <p>{formatDate(b.booking_date)} · {formatTime(b.start_time)}</p>
+                <p>{formatDate(b.booking_date)} · {formatTime(b.start_time)} – {formatTime(b.end_time)}</p>
                 <p>{b.packages?.name ?? "-"}</p>
                 {b.print_order_status && (
                   <p className="flex items-center gap-1.5">
