@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -72,6 +74,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const originalAddons = useMemo(() => addons.filter((a) => !a.is_extra), [addons]);
   const extraAddons = useMemo(() => addons.filter((a) => a.is_extra), [addons]);
 
+  // Only exclude addons already added as EXTRA (allow re-adding original addons as extra)
   const availableToAdd = useMemo(() => {
     // Only exclude add-ons already added as EXTRA (not originals — client can re-add same addon as extra)
     const extraIds = new Set(extraAddons.map((a) => a.addon_id));
@@ -690,17 +693,16 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
             <div className="flex gap-2">
               <Select value={selectedAddonId} onValueChange={(v) => { setSelectedAddonId(v); setExtraQty(1); }}>
                 <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Tambah add-on extra..." />
+                  <SelectValue placeholder="Pilih add-on..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__" disabled>Pilih add-on...</SelectItem>
                   {(() => {
                     // Group by category preserving sort_order
                     const groups = new Map<string, typeof availableToAdd>();
                     const orderMap = new Map<string, number>();
                     let idx = 0;
                     for (const a of availableToAdd) {
-                      const cat = a.category || "";
+                      const cat = a.category ?? "";
                       if (!groups.has(cat)) { groups.set(cat, []); orderMap.set(cat, idx++); }
                       groups.get(cat)!.push(a);
                     }
@@ -709,20 +711,24 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                       if (a && !b) return -1;
                       return (orderMap.get(a) ?? 999) - (orderMap.get(b) ?? 999);
                     });
-                    return sorted.map(([cat, items]) => (
-                      <div key={cat || "__none"}>
-                        {cat && (
-                          <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">
-                            {cat}
-                          </div>
-                        )}
-                        {items.map((a) => (
+                    return sorted.map(([cat, items]) =>
+                      cat ? (
+                        <SelectGroup key={cat}>
+                          <SelectLabel className="text-xs font-semibold uppercase tracking-wide text-gray-400">{cat}</SelectLabel>
+                          {items.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name} — {formatRupiah(a.price)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ) : (
+                        items.map((a) => (
                           <SelectItem key={a.id} value={a.id}>
                             {a.name} — {formatRupiah(a.price)}
                           </SelectItem>
-                        ))}
-                      </div>
-                    ));
+                        ))
+                      )
+                    );
                   })()}
                 </SelectContent>
               </Select>
