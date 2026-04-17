@@ -116,6 +116,21 @@ const _getCachedAddons = unstable_cache(
   { tags: [CACHE_TAGS.ADDONS], revalidate: 3600 }
 );
 
+const _getCachedPackageCategories = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("package_categories")
+      .select("id, name, sort_order")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name");
+    return data ?? [];
+  },
+  ["package-categories-active"],
+  { tags: [CACHE_TAGS.PACKAGES], revalidate: 3600 }
+);
+
 const _getCachedLeads = unstable_cache(
   async () => {
     const supabase = createAdminClient();
@@ -238,6 +253,7 @@ export const getCachedReminderTemplates = cache(_getCachedReminderTemplates);
 export const getCachedPackages = cache(_getCachedPackages);
 export const getCachedBackgrounds = cache(_getCachedBackgrounds);
 export const getCachedAddons = cache(_getCachedAddons);
+export const getCachedPackageCategories = cache(_getCachedPackageCategories);
 export const getCachedLeads = cache(_getCachedLeads);
 export const getCachedDomiciles = cache(_getCachedDomiciles);
 export const getCachedPhotoFor = cache(_getCachedPhotoFor);

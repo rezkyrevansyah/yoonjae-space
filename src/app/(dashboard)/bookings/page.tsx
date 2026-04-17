@@ -26,6 +26,7 @@ interface BookingRow {
   created_at: string;
   customers: { name: string } | null;
   packages: { name: string } | null;
+  booking_packages: { packages: { name: string } | null }[];
   staff: { name: string } | null;
 }
 
@@ -43,6 +44,7 @@ export default async function BookingsPage({
       `id, booking_number, booking_date, start_time, end_time, status, print_order_status, is_rescheduled, total, created_at,
        customers(name),
        packages(name),
+       booking_packages(packages(name)),
        staff:users!bookings_staff_id_fkey(name)`,
       { count: "exact" }
     )

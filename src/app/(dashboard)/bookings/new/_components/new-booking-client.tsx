@@ -103,6 +103,7 @@ interface Props {
   holidays: StudioHoliday[];
   users: { id: string; name: string }[];
   domicileOptions: string[];
+  packageCategories: { id: string; name: string; sort_order: number }[];
 }
 
 function friendlyError(msg: string): string {
@@ -129,6 +130,7 @@ export function NewBookingClient({
   holidays,
   users,
   domicileOptions,
+  packageCategories,
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
@@ -557,6 +559,7 @@ export function NewBookingClient({
             onChange={setPackagesAddonsData}
             packages={packages}
             addons={addons}
+            packageCategories={packageCategories}
           />
         )}
         {step === 4 && (
