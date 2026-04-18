@@ -496,7 +496,7 @@ export function TabProgress({ booking, currentUser, onUpdate }: Props) {
             <p className="text-sm text-gray-500">Belum ada print order untuk booking ini.</p>
             {/* Date input for starting print */}
             <div className="flex items-end gap-2">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <Label className="text-xs text-gray-500 mb-1 block">
                   Tanggal Selection (opsional)
                 </Label>
