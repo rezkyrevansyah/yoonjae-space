@@ -14,7 +14,7 @@ export default async function InvoicePage({ params }: { params: { token: string 
     supabase
       .from("bookings")
       .select(`
-        id, booking_number, booking_date, start_time, end_time, status,
+        id, public_token, booking_number, booking_date, start_time, end_time, status,
         subtotal, total, manual_discount, dp_amount, dp_paid_at,
         customers(name, email),
         packages(name, price),
