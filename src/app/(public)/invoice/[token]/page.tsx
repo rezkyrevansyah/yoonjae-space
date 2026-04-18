@@ -1,14 +1,12 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { InvoiceClient } from "./_components/invoice-client";
 
 export default async function InvoicePage({ params }: { params: { token: string } }) {
-  const [supabase, currentUser] = await Promise.all([
-    createClient(),
-    getCurrentUser(),
-  ]);
+  const supabase = createAdminClient();
+  const currentUser = await getCurrentUser();
 
   const [{ data: booking }, studioInfo] = await Promise.all([
     supabase
