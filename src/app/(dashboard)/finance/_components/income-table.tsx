@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
@@ -36,10 +36,20 @@ export function IncomeTable({ bookings, loading }: Props) {
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const total = bookings.reduce((sum, b) => sum + b.total, 0);
+  const q = searchQuery.toLowerCase().trim();
+  const filteredBookings = q
+    ? bookings.filter(
+        (b) =>
+          b.booking_number.toLowerCase().includes(q) ||
+          (b.customers?.name ?? "").toLowerCase().includes(q)
+      )
+    : bookings;
 
-  const sorted = [...bookings].sort((a, b) => {
+  const total = filteredBookings.reduce((sum, b) => sum + b.total, 0);
+
+  const sorted = [...filteredBookings].sort((a, b) => {
     if (sortField === "created_at") {
       return sortAsc
         ? a.created_at.localeCompare(b.created_at)
@@ -67,9 +77,23 @@ export function IncomeTable({ bookings, loading }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">Income dari Booking</h2>
-        <span className="text-xs text-gray-500">{bookings.length} booking</span>
+      <div className="px-4 py-2.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="flex items-center justify-between flex-1 min-w-0">
+          <h2 className="text-sm font-semibold text-gray-900">Income dari Booking</h2>
+          <span className="text-xs text-gray-500">
+            {searchQuery ? `${filteredBookings.length} / ${bookings.length}` : `${bookings.length}`} booking
+          </span>
+        </div>
+        <div className="relative sm:w-52">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
+            placeholder="Cari customer / booking..."
+            className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] focus:border-[#8B1A1A]"
+          />
+        </div>
       </div>
 
       {loading ? (
