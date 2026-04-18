@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
@@ -37,6 +38,7 @@ export function IncomeTable({ bookings, loading }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [invoiceBookingId, setInvoiceBookingId] = useState<string | null>(null);
 
   const q = searchQuery.toLowerCase().trim();
   const filteredBookings = q
@@ -175,13 +177,23 @@ export function IncomeTable({ bookings, loading }: Props) {
                       {formatRupiah(b.total)}
                     </td>
                     <td className="px-4 py-2.5">
-                      <Link
-                        href={`/bookings/${b.id}`}
-                        target="_blank"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[#8B1A1A]"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setInvoiceBookingId(b.id)}
+                          className="text-gray-400 hover:text-[#8B1A1A] transition-colors"
+                          title="Lihat Invoice"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                        </button>
+                        <Link
+                          href={`/bookings/${b.id}`}
+                          target="_blank"
+                          className="text-gray-400 hover:text-[#8B1A1A] transition-colors"
+                          title="Lihat Detail Booking"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -203,35 +215,43 @@ export function IncomeTable({ bookings, loading }: Props) {
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-gray-50">
             {paginated.map((b) => (
-              <Link
-                key={b.id}
-                href={`/bookings/${b.id}`}
-                className="block px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {b.customers?.name ?? "-"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {b.booking_number} · {formatDate(b.transaction_date ?? b.created_at)}
-                    </p>
-                    <p className="text-xs text-gray-500">{b.packages?.name ?? "-"}</p>
-                    {b.payment_method && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        <span className="capitalize">{b.payment_method}</span>
-                        {b.payment_account_name && ` · ${b.payment_account_name}`}
+              <div key={b.id} className="relative">
+                <Link
+                  href={`/bookings/${b.id}`}
+                  className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {b.customers?.name ?? "-"}
                       </p>
-                    )}
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {b.booking_number} · {formatDate(b.transaction_date ?? b.created_at)}
+                      </p>
+                      <p className="text-xs text-gray-500">{b.packages?.name ?? "-"}</p>
+                      {b.payment_method && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          <span className="capitalize">{b.payment_method}</span>
+                          {b.payment_account_name && ` · ${b.payment_account_name}`}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-sm font-bold text-gray-900">{formatRupiah(b.total)}</p>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BOOKING_STATUS_COLOR[b.status as BookingStatus] ?? ""}`}>
+                        {BOOKING_STATUS_LABEL[b.status as BookingStatus] ?? b.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-sm font-bold text-gray-900">{formatRupiah(b.total)}</p>
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BOOKING_STATUS_COLOR[b.status as BookingStatus] ?? ""}`}>
-                      {BOOKING_STATUS_LABEL[b.status as BookingStatus] ?? b.status}
-                    </span>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setInvoiceBookingId(b.id); }}
+                  className="absolute top-3 right-4 text-gray-300 hover:text-[#8B1A1A] transition-colors"
+                  title="Lihat Invoice"
+                >
+                  <Receipt className="w-4 h-4" />
+                </button>
+              </div>
             ))}
             <div className="px-4 py-3 bg-gray-50 flex justify-between">
               <span className="text-sm font-semibold text-gray-700">Total</span>
@@ -282,6 +302,19 @@ export function IncomeTable({ bookings, loading }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {/* Invoice preview modal */}
+      {invoiceBookingId && (
+        <Dialog open onOpenChange={(open) => { if (!open) setInvoiceBookingId(null); }}>
+          <DialogContent className="max-w-3xl h-[85vh] p-0 overflow-hidden">
+            <iframe
+              src={`/invoice/${invoiceBookingId}`}
+              className="w-full h-full border-0"
+              title="Invoice Preview"
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
