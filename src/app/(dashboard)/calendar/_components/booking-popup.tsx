@@ -188,7 +188,7 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
           )}
           <InfoRow icon={<Users className="h-4 w-4" />} value={`${booking.person_count} orang`} />
           {sessionName && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
               <span className="text-gray-400 flex-shrink-0"><Tag className="h-4 w-4" /></span>
               <span className="flex-1 font-mono text-xs text-gray-600 break-all">{sessionName}</span>
               <button
