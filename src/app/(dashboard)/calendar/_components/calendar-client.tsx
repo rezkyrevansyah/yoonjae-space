@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Plus,
   ExternalLink,
   CalendarSearch,
@@ -91,6 +93,19 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
   const isInitialMount = useRef(true);
   const [selectedBooking, setSelectedBooking] = useState<CalendarBooking | null>(null);
   const [showAvailability, setShowAvailability] = useState(false);
+
+  const [showLegend, setShowLegend] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("calendar_show_legend") !== "false";
+  });
+
+  function toggleLegend() {
+    setShowLegend((prev) => {
+      const next = !prev;
+      localStorage.setItem("calendar_show_legend", String(next));
+      return next;
+    });
+  }
 
   const fetchBookings = useCallback(async (mode: ViewMode, date: Date) => {
     setLoading(true);
@@ -334,14 +349,25 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
       )}
 
       {/* Status legend */}
-      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
-        {(Object.entries(BOOKING_STATUS_LABEL) as [BookingStatus, string][])
-          .filter(([s]) => s !== "CANCELED")
-          .map(([status, label]) => (
-            <span key={status} className={`text-xs px-2 py-0.5 rounded-full ${BOOKING_STATUS_COLOR[status]}`}>
-              {label}
-            </span>
-          ))}
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <button
+          onClick={toggleLegend}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors mb-2"
+        >
+          {showLegend ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          Legend Status
+        </button>
+        {showLegend && (
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(BOOKING_STATUS_LABEL) as [BookingStatus, string][])
+              .filter(([s]) => s !== "CANCELED")
+              .map(([status, label]) => (
+                <span key={status} className={`text-xs px-2 py-0.5 rounded-full ${BOOKING_STATUS_COLOR[status]}`}>
+                  {label}
+                </span>
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );
