@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createPublicClient } from "@/utils/supabase/public";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
 
   // Create a public Supabase client using the anon/publishable key (no service role)
   // This respects RLS policies and is safe for public endpoints
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!
-  );
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("bookings")
