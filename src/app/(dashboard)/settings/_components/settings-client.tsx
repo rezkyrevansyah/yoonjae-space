@@ -4,20 +4,20 @@ import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { TabGeneral } from "./tab-general";
+import { TabGeneral } from "./tabs/tab-general";
 import type { CurrentUser } from "@/lib/types/database";
 
 // Lazy-load semua tab kecuali tab pertama (General) yang langsung visible
-const TabReminders   = dynamic(() => import("./tab-reminders").then(m => ({ default: m.TabReminders })));
-const TabStudioInfo  = dynamic(() => import("./tab-studio-info").then(m => ({ default: m.TabStudioInfo })));
-const TabPackages    = dynamic(() => import("./tab-packages").then(m => ({ default: m.TabPackages })));
-const TabBackgrounds = dynamic(() => import("./tab-backgrounds").then(m => ({ default: m.TabBackgrounds })));
-const TabAddons      = dynamic(() => import("./tab-addons").then(m => ({ default: m.TabAddons })));
-const TabVouchers    = dynamic(() => import("./tab-vouchers").then(m => ({ default: m.TabVouchers })));
-const TabCustomFields = dynamic(() => import("./tab-custom-fields").then(m => ({ default: m.TabCustomFields })));
-const TabSimpleCrud  = dynamic(() => import("./tab-simple-crud").then(m => ({ default: m.TabSimpleCrud })));
-const TabCategories  = dynamic(() => import("./tab-categories").then(m => ({ default: m.TabCategories })));
-const TabDomiciles   = dynamic(() => import("./tab-domiciles").then(m => ({ default: m.TabDomiciles })));
+const TabReminders   = dynamic(() => import("./tabs/tab-reminders").then(m => ({ default: m.TabReminders })));
+const TabStudioInfo  = dynamic(() => import("./tabs/tab-studio-info").then(m => ({ default: m.TabStudioInfo })));
+const TabPackages    = dynamic(() => import("./tabs/tab-packages").then(m => ({ default: m.TabPackages })));
+const TabBackgrounds = dynamic(() => import("./tabs/tab-backgrounds").then(m => ({ default: m.TabBackgrounds })));
+const TabAddons      = dynamic(() => import("./tabs/tab-addons").then(m => ({ default: m.TabAddons })));
+const TabVouchers    = dynamic(() => import("./tabs/tab-vouchers").then(m => ({ default: m.TabVouchers })));
+const TabCustomFields = dynamic(() => import("./tabs/tab-custom-fields").then(m => ({ default: m.TabCustomFields })));
+const TabSimpleCrud  = dynamic(() => import("./tabs/tab-simple-crud").then(m => ({ default: m.TabSimpleCrud })));
+const TabCategories  = dynamic(() => import("./tabs/tab-categories").then(m => ({ default: m.TabCategories })));
+const TabDomiciles   = dynamic(() => import("./tabs/tab-domiciles").then(m => ({ default: m.TabDomiciles })));
 
 interface SettingsClientProps {
   currentUser: CurrentUser;

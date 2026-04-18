@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs grep *)",
+      "Skill(code-review:code-review)",
+      "Skill(code-review:code-review:*)",
+      "Bash(mv \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/customer/[bookingId]\" \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/customer/[token]\")",
+      "Bash(mv \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/invoice/[bookingId]\" \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/invoice/[token]\")",
+      "Bash(grep -rn \"/customer/\\\\${booking\\\\.id}\\\\|/invoice/\\\\${booking\\\\.id}\\\\|/customer/\\\\${b\\\\.id}\\\\|/invoice/\\\\${b\\\\.id}\" src/ --include=\"*.tsx\")",
+      "Bash(gh pr create --title 'fix\\(security\\): fix 3 critical vulnerabilities - IDOR, admin key misuse, file upload' --body ' *)",
+      "Bash(winget list *)",
+      "Bash(where gh *)",
+      "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")"
     ]
   }
 }

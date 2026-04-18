@@ -6,7 +6,7 @@ import "react-day-picker/dist/style.css";
 import { Label } from "@/components/ui/label";
 import { generateTimeSlots, formatTime, toDateStr } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { SessionFormData } from "./new-booking-client";
+import type { SessionFormData } from "../new-booking-client";
 import type { SettingsGeneral, StudioHoliday } from "@/lib/types/database";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { Chevron } from "react-day-picker";

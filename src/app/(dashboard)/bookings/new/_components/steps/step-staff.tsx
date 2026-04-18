@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { StaffFormData } from "./new-booking-client";
+import type { StaffFormData } from "../new-booking-client";
 import type { CurrentUser } from "@/lib/types/database";
 
 interface Props {

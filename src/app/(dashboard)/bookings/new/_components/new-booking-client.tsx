@@ -18,17 +18,17 @@ import type {
   SettingsGeneral,
   StudioHoliday,
 } from "@/lib/types/database";
-import type { ExistingBooking } from "./step-session";
-import { StepCustomerType } from "./step-customer-type";
-import { StepCustomerData } from "./step-customer-data";
-import { StepPackagesAddons, type PackagesAddonsFormData } from "./step-packages-addons";
-import { StepSession } from "./step-session";
-import { StepDetail } from "./step-detail";
-import { StepTimeEstimate } from "./step-time-estimate";
-import { StepDiscount } from "./step-discount";
-import { StepPayment, type PaymentFormData } from "./step-payment";
-import { StepStaff } from "./step-staff";
-import { StepSummary } from "./step-summary";
+import type { ExistingBooking } from "./steps/step-session";
+import { StepCustomerType } from "./steps/step-customer-type";
+import { StepCustomerData } from "./steps/step-customer-data";
+import { StepPackagesAddons, type PackagesAddonsFormData } from "./steps/step-packages-addons";
+import { StepSession } from "./steps/step-session";
+import { StepDetail } from "./steps/step-detail";
+import { StepTimeEstimate } from "./steps/step-time-estimate";
+import { StepDiscount } from "./steps/step-discount";
+import { StepPayment, type PaymentFormData } from "./steps/step-payment";
+import { StepStaff } from "./steps/step-staff";
+import { StepSummary } from "./steps/step-summary";
 import { ArrowLeft, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

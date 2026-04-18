@@ -11,7 +11,7 @@ import type {
   DiscountFormData,
   StaffFormData,
   CustomFieldValues,
-} from "./new-booking-client";
+} from "../new-booking-client";
 import type { Package, Addon, Background, PhotoFor, CustomField } from "@/lib/types/database";
 import { User, Calendar, Package as PackageIcon, Tag, UserCheck, CreditCard } from "lucide-react";
 

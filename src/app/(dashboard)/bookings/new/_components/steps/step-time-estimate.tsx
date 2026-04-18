@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, AlertTriangle } from "lucide-react";
-import type { SessionFormData } from "./new-booking-client";
+import type { SessionFormData } from "../new-booking-client";
 import type { Package, Addon } from "@/lib/types/database";
 import { formatTime } from "@/lib/utils";
 

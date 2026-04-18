@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { DetailFormData, CustomFieldValues } from "./new-booking-client";
+import type { DetailFormData, CustomFieldValues } from "../new-booking-client";
 import type { Background, PhotoFor, CustomField } from "@/lib/types/database";
 
 interface Props {

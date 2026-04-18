@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DomicileCombobox } from "@/components/ui/domicile-combobox";
-import type { CustomerFormData } from "./new-booking-client";
+import type { CustomerFormData } from "../new-booking-client";
 import type { Lead } from "@/lib/types/database";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 

@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getCachedStudioInfo, getCachedSettingsGeneral } from "@/lib/cached-queries";
 import { CustomerPageClient } from "./_components/customer-page-client";
 
 export default async function CustomerPage({ params }: { params: { token: string } }) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [{ data: booking }, studioInfo, settings] = await Promise.all([
     supabase
