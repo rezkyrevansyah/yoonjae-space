@@ -228,6 +228,8 @@ export interface Booking {
   total: number;
   dp_amount: number | null;
   dp_paid_at: string | null;
+  payment_method: string | null;
+  payment_account_name: string | null;
   staff_id: string | null;
   commission_amount: number; // per-booking commission in Rp
   created_by: string | null;

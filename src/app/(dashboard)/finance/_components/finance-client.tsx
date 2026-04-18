@@ -25,6 +25,8 @@ export interface IncomeBooking {
   created_at: string;
   status: string;
   total: number;
+  payment_method: string | null;
+  payment_account_name: string | null;
   customers: { name: string } | null;
   packages: { name: string } | null;
 }
@@ -87,7 +89,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const [{ data: bookings }, { data: expenseData }] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, customers(name), packages(name)")
+        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, payment_method, payment_account_name, customers(name), packages(name)")
         .gte("created_at", `${startDate}T00:00:00`)
         .lte("created_at", `${endDate}T23:59:59`)
         .in("status", PAID_STATUSES)
@@ -181,6 +183,32 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     fetchData();
   }
 
+  async function handleCloseBooking(bookingId: string) {
+    if (!confirm("Tutup booking ini? Status tidak dapat dibatalkan dari halaman Finance.")) return;
+
+    const { error } = await supabase
+      .from("bookings")
+      .update({ status: "CLOSED" })
+      .eq("id", bookingId);
+
+    if (error) {
+      console.error("Failed to close booking:", error.message);
+      return;
+    }
+
+    await supabase.from("activity_log").insert({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      user_role: currentUser.role_name,
+      action: "UPDATE",
+      entity: "bookings",
+      entity_id: bookingId,
+      description: `Status booking ditutup (CLOSED) dari halaman Finance`,
+    });
+
+    fetchData();
+  }
+
   async function handleSaveExpense(data: {
     date: string;
     description: string;
@@ -258,8 +286,10 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const incomeRows = incomeBookings.map((b) => ({
       "Booking ID": b.booking_number,
       "Customer": b.customers?.name ?? "-",
-      "Tanggal": formatDate(b.created_at),
+      "Tanggal": formatDate(b.transaction_date ?? b.created_at),
       "Paket": b.packages?.name ?? "-",
+      "Metode Bayar": b.payment_method ?? "-",
+      "Rekening": b.payment_account_name ?? "-",
       "Status": b.status,
       "Total": b.total,
     }));
@@ -373,12 +403,12 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
         totalIncome={totalIncome}
         totalExpense={totalExpense}
         grossProfit={grossProfit}
-        bookingCount={incomeBookings.length}
+        bookingCount={filteredIncomeBookings.length}
         loading={loading}
       />
 
       {/* Income from Bookings */}
-      <IncomeTable bookings={filteredIncomeBookings} loading={loading} />
+      <IncomeTable bookings={filteredIncomeBookings} loading={loading} onCloseBooking={handleCloseBooking} />
 
       {/* Expenses */}
       <ExpenseTable
