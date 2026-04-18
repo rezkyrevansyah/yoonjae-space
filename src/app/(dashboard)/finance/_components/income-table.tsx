@@ -20,6 +20,8 @@ interface IncomeBooking {
   created_at: string;
   status: string;
   total: number;
+  payment_method: string | null;
+  payment_account_name: string | null;
   customers: { name: string } | null;
   packages: { name: string } | null;
 }
@@ -99,6 +101,7 @@ export function IncomeTable({ bookings, loading }: Props) {
                     </span>
                   </th>
                   <th className="px-4 py-2 text-left font-medium">Paket</th>
+                  <th className="px-4 py-2 text-left font-medium">Pembayaran</th>
                   <th className="px-4 py-2 text-left font-medium">Status</th>
                   <th
                     className="px-4 py-2 text-right font-medium cursor-pointer select-none hover:text-gray-700"
@@ -127,6 +130,18 @@ export function IncomeTable({ bookings, loading }: Props) {
                     <td className="px-4 py-2.5 text-gray-600">
                       {b.packages?.name ?? "-"}
                     </td>
+                    <td className="px-4 py-2.5 text-gray-600">
+                      {b.payment_method ? (
+                        <div>
+                          <span className="capitalize text-xs font-medium">{b.payment_method}</span>
+                          {b.payment_account_name && (
+                            <p className="text-xs text-gray-400 mt-0.5">{b.payment_account_name}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2.5">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BOOKING_STATUS_COLOR[b.status as BookingStatus] ?? ""}`}>
                         {BOOKING_STATUS_LABEL[b.status as BookingStatus] ?? b.status}
@@ -149,7 +164,7 @@ export function IncomeTable({ bookings, loading }: Props) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-gray-200 bg-gray-50">
-                  <td colSpan={5} className="px-4 py-2.5 text-sm font-semibold text-gray-700">
+                  <td colSpan={6} className="px-4 py-2.5 text-sm font-semibold text-gray-700">
                     Total
                   </td>
                   <td className="px-4 py-2.5 text-right text-sm font-bold text-green-700">
@@ -178,6 +193,12 @@ export function IncomeTable({ bookings, loading }: Props) {
                       {b.booking_number} · {formatDate(b.transaction_date ?? b.created_at)}
                     </p>
                     <p className="text-xs text-gray-500">{b.packages?.name ?? "-"}</p>
+                    {b.payment_method && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        <span className="capitalize">{b.payment_method}</span>
+                        {b.payment_account_name && ` · ${b.payment_account_name}`}
+                      </p>
+                    )}
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <p className="text-sm font-bold text-gray-900">{formatRupiah(b.total)}</p>

@@ -25,6 +25,8 @@ export interface IncomeBooking {
   created_at: string;
   status: string;
   total: number;
+  payment_method: string | null;
+  payment_account_name: string | null;
   customers: { name: string } | null;
   packages: { name: string } | null;
 }
@@ -87,7 +89,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const [{ data: bookings }, { data: expenseData }] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, customers(name), packages(name)")
+        .select("id, booking_number, booking_date, transaction_date, created_at, status, total, payment_method, payment_account_name, customers(name), packages(name)")
         .gte("created_at", `${startDate}T00:00:00`)
         .lte("created_at", `${endDate}T23:59:59`)
         .in("status", PAID_STATUSES)
