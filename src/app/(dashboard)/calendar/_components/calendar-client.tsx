@@ -234,6 +234,20 @@ export function CalendarClient({ currentUser, openTime, closeTime, timeSlotInter
             </button>
           </div>
 
+          {/* Jump to Date — day view only */}
+          {view === "day" && (
+            <input
+              type="date"
+              value={toDateStr(cursor)}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setCursor(new Date(e.target.value + "T00:00:00"));
+                }
+              }}
+              className="h-8 px-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#8B1A1A] focus:border-[#8B1A1A] flex-shrink-0"
+            />
+          )}
+
           {/* Label */}
           <span className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">
             {formatNavLabel(cursor, view)}

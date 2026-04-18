@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime, generateSessionName } from "@/lib/utils";
 import {
   BOOKING_STATUS_LABEL,
   BOOKING_STATUS_COLOR,
@@ -23,6 +23,9 @@ import {
   ArrowRight,
   Link as LinkIcon,
   Loader2,
+  Copy,
+  Check,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,8 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
   const [status, setStatus] = useState<BookingStatus>(booking.status);
   const [showDriveDialog, setShowDriveDialog] = useState(false);
   const [driveLink, setDriveLink] = useState("");
+  const [copied, setCopied] = useState(false);
+  const sessionName = generateSessionName(booking);
 
   const currentIdx = BOOKING_FLOW.indexOf(status);
   const canNext = currentIdx < BOOKING_FLOW.length - 1;
@@ -182,6 +187,27 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
             <InfoRow icon={<Package className="h-4 w-4" />} value={booking.packages?.name ?? "-"} />
           )}
           <InfoRow icon={<Users className="h-4 w-4" />} value={`${booking.person_count} orang`} />
+          {sessionName && (
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <span className="text-gray-400 flex-shrink-0"><Tag className="h-4 w-4" /></span>
+              <span className="flex-1 font-mono text-xs text-gray-600 break-all">{sessionName}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(sessionName);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    // clipboard API unavailable
+                  }
+                }}
+                className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
+                title="Salin nama sesi"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          )}
           {booking.photo_for && (
             <InfoRow icon={<User className="h-4 w-4" />} value={`Foto untuk: ${booking.photo_for.name}`} />
           )}

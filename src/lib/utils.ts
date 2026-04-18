@@ -76,3 +76,24 @@ export function generateTimeSlots(
 
   return slots;
 }
+
+export function generateSessionName(booking: {
+  booking_date: string;
+  booking_packages?: { packages: { name: string } | null }[];
+  packages?: { name: string } | null;
+  customers?: { name: string; phone: string } | null;
+}): string {
+  const dd = booking.booking_date.slice(8, 10);
+  const mm = booking.booking_date.slice(5, 7);
+  const yy = booking.booking_date.slice(2, 4);
+  const dateStr = dd + mm + yy;
+
+  const packageName =
+    booking.booking_packages?.[0]?.packages?.name ??
+    booking.packages?.name ??
+    "";
+
+  const clientName = booking.customers?.name ?? "";
+
+  return [dateStr, packageName, clientName].filter(Boolean).join("_");
+}
