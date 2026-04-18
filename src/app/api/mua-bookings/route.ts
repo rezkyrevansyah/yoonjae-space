@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { createPublicClient } from "@/utils/supabase/public";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing from/to params" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  // Create a public Supabase client using the anon/publishable key (no service role)
+  // This respects RLS policies and is safe for public endpoints
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("bookings")

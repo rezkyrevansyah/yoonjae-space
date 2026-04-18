@@ -68,6 +68,20 @@ export function TabStudioInfo({ currentUser }: TabStudioInfoProps) {
 
   async function uploadImage(file: File, path: "studio/logo" | "studio/front-photo", setter: (url: string) => void, setUploading: (v: boolean) => void) {
     setUploading(true);
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({ title: "Format tidak didukung", description: "Hanya JPG, PNG, WebP, atau GIF yang diizinkan.", variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      toast({ title: "File terlalu besar", description: "Ukuran file maksimal 5MB.", variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+
     try {
       const { error: uploadError } = await supabase.storage
         .from("images-yoonjae")

@@ -19,7 +19,7 @@ export default async function RemindersPage() {
     supabase
       .from("bookings")
       .select(`
-        id, booking_number, booking_date, start_time, end_time, status,
+        id, public_token, booking_number, booking_date, start_time, end_time, status,
         customers(name, phone),
         packages(name),
         booking_reminders(type, sent_at)

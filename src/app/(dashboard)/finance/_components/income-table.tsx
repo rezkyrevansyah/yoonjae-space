@@ -26,7 +26,7 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [invoiceBookingId, setInvoiceBookingId] = useState<string | null>(null);
+  const [invoiceBookingToken, setInvoiceBookingToken] = useState<string | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
 
   const q = searchQuery.toLowerCase().trim();
@@ -182,7 +182,7 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
                           </button>
                         )}
                         <button
-                          onClick={() => setInvoiceBookingId(b.id)}
+                          onClick={() => setInvoiceBookingToken(b.public_token)}
                           className="text-gray-400 hover:text-[#8B1A1A] transition-colors"
                           title="Lihat Invoice"
                         >
@@ -258,7 +258,7 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
                   </button>
                 )}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setInvoiceBookingId(b.id); }}
+                  onClick={(e) => { e.stopPropagation(); setInvoiceBookingToken(b.public_token); }}
                   className="absolute top-3 right-4 text-gray-300 hover:text-[#8B1A1A] transition-colors"
                   title="Lihat Invoice"
                 >
@@ -318,12 +318,12 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
       )}
 
       {/* Invoice preview modal */}
-      {invoiceBookingId && (
-        <Dialog open onOpenChange={(open) => { if (!open) setInvoiceBookingId(null); }}>
+      {invoiceBookingToken && (
+        <Dialog open onOpenChange={(open) => { if (!open) setInvoiceBookingToken(null); }}>
           <DialogContent className="max-w-3xl h-[85vh] p-0 overflow-hidden">
             <DialogTitle className="sr-only">Invoice Preview</DialogTitle>
             <iframe
-              src={`/invoice/${invoiceBookingId}`}
+              src={`/invoice/${invoiceBookingToken}`}
               className="w-full h-full border-0"
               title="Invoice Preview"
             />

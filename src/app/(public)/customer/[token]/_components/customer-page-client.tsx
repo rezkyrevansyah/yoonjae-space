@@ -26,6 +26,7 @@ import {
 // ---- Types ----
 interface BookingData {
   id: string;
+  public_token: string;
   booking_number: string;
   booking_date: string;
   start_time: string;
@@ -333,7 +334,7 @@ export function CustomerPageClient({ booking, studioInfo, settings }: Props) {
                 <p className="font-mono font-medium text-gray-800">{invoiceNumber}</p>
               </div>
               <Link
-                href={`/invoice/${booking.id}`}
+                href={`/invoice/${booking.public_token}`}
                 target="_blank"
                 className="flex items-center gap-1.5 bg-[#8B1A1A] text-white text-sm px-4 py-2 rounded-lg hover:bg-[#B22222] transition-colors"
               >

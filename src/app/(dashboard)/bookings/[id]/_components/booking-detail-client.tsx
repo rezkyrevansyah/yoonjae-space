@@ -47,6 +47,7 @@ export interface BookingPackageRow {
 
 export interface BookingDetail {
   id: string;
+  public_token: string;
   booking_number: string;
   booking_date: string;
   start_time: string;
@@ -179,13 +180,13 @@ export function BookingDetailClient({ currentUser, booking: initialBooking, avai
               </Button>
             </a>
           )}
-          <Link href={`/customer/${booking.id}`} target="_blank">
+          <Link href={`/customer/${booking.public_token}`} target="_blank">
             <Button variant="outline" size="sm" className="gap-1.5">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Customer Page</span>
             </Button>
           </Link>
-          <Link href={`/invoice/${booking.id}`} target="_blank">
+          <Link href={`/invoice/${booking.public_token}`} target="_blank">
             <Button variant="outline" size="sm" className="gap-1.5">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Invoice</span>

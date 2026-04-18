@@ -11,6 +11,7 @@ import { Bell, MessageCircle, Heart, CheckCircle, Clock, X, Sparkles } from "luc
 // ---- Types ----
 export interface ReminderBooking {
   id: string;
+  public_token: string;
   booking_number: string;
   booking_date: string;
   start_time: string;
@@ -100,7 +101,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
     const { data, error } = await supabase
       .from("bookings")
       .select(`
-        id, booking_number, booking_date, start_time, end_time, status, notes,
+        id, public_token, booking_number, booking_date, start_time, end_time, status, notes,
         customers(name, phone),
         packages(name),
         booking_reminders(type, sent_at)
@@ -243,7 +244,7 @@ export function RemindersClient({ currentUser, templates, studioName, initialBoo
       booking_time: formatTime(booking.start_time),
       package_name: booking.packages?.name ?? "",
       studio_name: studioName,
-      customer_page: `${appUrl}/customer/${booking.id}`,
+      customer_page: `${appUrl}/customer/${booking.public_token}`,
       notes: booking.notes ?? "",
     };
     return waLink(booking.customers.phone, replaceVars(templateText, vars));

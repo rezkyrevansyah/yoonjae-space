@@ -20,7 +20,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
     supabase
       .from("bookings")
       .select(`
-        id, booking_number, booking_date, start_time, end_time, status, print_order_status,
+        id, public_token, booking_number, booking_date, start_time, end_time, status, print_order_status,
         is_rescheduled, google_drive_link, person_count, notes, behind_the_scenes, subtotal, total,
         dp_amount, dp_paid_at, voucher_id, manual_discount, staff_id, created_by, created_at,
         customers(id, name, phone, email, instagram, address, domicile),
