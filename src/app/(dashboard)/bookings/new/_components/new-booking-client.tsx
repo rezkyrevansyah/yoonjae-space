@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -189,6 +189,64 @@ export function NewBookingClient({
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({});
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([]);
   const [dpAmount, setDpAmount] = useState<number>(0);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("new_booking_draft");
+    if (!saved) return;
+    try {
+      const draft = JSON.parse(saved);
+      if (draft.step > 1 || draft.customerData?.name || draft.customerData?.phone) {
+        setHasDraft(true);
+      }
+    } catch {
+      localStorage.removeItem("new_booking_draft");
+    }
+  }, []);
+
+  useEffect(() => {
+    const hasProgress = step > 1 || !!customerData.name || !!customerData.phone;
+    if (!hasProgress) return;
+    const draft = {
+      step,
+      customerData,
+      packagesAddonsData,
+      sessionData,
+      detailData,
+      discountData,
+      staffData,
+      paymentData,
+      customFieldValues,
+      dpAmount,
+    };
+    localStorage.setItem("new_booking_draft", JSON.stringify(draft));
+  }, [step, customerData, packagesAddonsData, sessionData, detailData, discountData, staffData, paymentData, customFieldValues, dpAmount]);
+
+  function restoreDraft() {
+    const saved = localStorage.getItem("new_booking_draft");
+    if (!saved) return;
+    try {
+      const d = JSON.parse(saved);
+      if (d.step)               setStep(d.step);
+      if (d.customerData)       setCustomerData(d.customerData);
+      if (d.packagesAddonsData) setPackagesAddonsData(d.packagesAddonsData);
+      if (d.sessionData)        setSessionData(d.sessionData);
+      if (d.detailData)         setDetailData(d.detailData);
+      if (d.discountData)       setDiscountData(d.discountData);
+      if (d.staffData)          setStaffData(d.staffData);
+      if (d.paymentData)        setPaymentData(d.paymentData);
+      if (d.customFieldValues)  setCustomFieldValues(d.customFieldValues);
+      if (d.dpAmount !== undefined) setDpAmount(d.dpAmount);
+    } catch {
+      localStorage.removeItem("new_booking_draft");
+    }
+    setHasDraft(false);
+  }
+
+  function clearDraft() {
+    localStorage.removeItem("new_booking_draft");
+    setHasDraft(false);
+  }
 
   // --- Computed values ---
   const selectedPackages = packagesAddonsData.packages
@@ -464,6 +522,7 @@ export function NewBookingClient({
       });
 
       toast({ title: "Booking berhasil dibuat!", description: bookingNumber });
+      localStorage.removeItem("new_booking_draft");
       router.push(`/bookings/${bookingId}`);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Terjadi kesalahan";
@@ -539,6 +598,33 @@ export function NewBookingClient({
           </button>
         ))}
       </div>
+
+      {/* Draft restore banner */}
+      {hasDraft && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-sm">
+          <span className="flex-1 text-amber-800 text-sm">
+            📋 Ada draft booking yang belum selesai. Ingin dilanjutkan?
+          </span>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={restoreDraft}
+              className="border-amber-300 text-amber-800 hover:bg-amber-100 h-8"
+            >
+              Lanjutkan
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={clearDraft}
+              className="text-amber-600 hover:bg-amber-100 h-8"
+            >
+              Mulai Baru
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Step content */}
       <div className="bg-white rounded-xl border shadow-sm p-6">
