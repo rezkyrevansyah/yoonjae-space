@@ -479,7 +479,7 @@ export function PhotoDeliveryDetailClient({ booking: initialBooking, currentUser
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div>
-              <Label className="mb-1 block">Google Drive Link</Label>
+              <Label className="mb-2 block">Google Drive Link</Label>
               <Input
                 value={driveLink}
                 onChange={(e) => setDriveLink(e.target.value)}
@@ -494,7 +494,7 @@ export function PhotoDeliveryDetailClient({ booking: initialBooking, currentUser
                   type="date"
                   value={deliverDate}
                   onChange={(e) => setDeliverDate(e.target.value)}
-                  className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                  className="flex-1 min-w-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
                 />
                 <Button
                   variant="outline"
