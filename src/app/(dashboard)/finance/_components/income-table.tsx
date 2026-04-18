@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt, CheckSquare2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
@@ -30,15 +30,17 @@ interface IncomeBooking {
 interface Props {
   bookings: IncomeBooking[];
   loading: boolean;
+  onCloseBooking?: (id: string) => Promise<void>;
 }
 
-export function IncomeTable({ bookings, loading }: Props) {
+export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
   const [sortField, setSortField] = useState<IncomeSortField>("created_at");
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<string | null>(null);
+  const [closingId, setClosingId] = useState<string | null>(null);
 
   const q = searchQuery.toLowerCase().trim();
   const filteredBookings = q
@@ -178,6 +180,20 @@ export function IncomeTable({ bookings, loading }: Props) {
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onCloseBooking && b.status !== "CLOSED" && (
+                          <button
+                            onClick={async () => {
+                              setClosingId(b.id);
+                              await onCloseBooking(b.id);
+                              setClosingId(null);
+                            }}
+                            disabled={closingId === b.id}
+                            className="text-gray-400 hover:text-green-600 transition-colors disabled:opacity-40"
+                            title="Tutup Booking"
+                          >
+                            <CheckSquare2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setInvoiceBookingId(b.id)}
                           className="text-gray-400 hover:text-[#8B1A1A] transition-colors"

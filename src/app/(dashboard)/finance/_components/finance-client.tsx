@@ -183,6 +183,25 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     fetchData();
   }
 
+  async function handleCloseBooking(bookingId: string) {
+    await supabase
+      .from("bookings")
+      .update({ status: "CLOSED" })
+      .eq("id", bookingId);
+
+    await supabase.from("activity_log").insert({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      user_role: currentUser.role_name,
+      action: "UPDATE",
+      entity: "bookings",
+      entity_id: bookingId,
+      description: `Status booking ditutup (CLOSED) dari halaman Finance`,
+    });
+
+    fetchData();
+  }
+
   async function handleSaveExpense(data: {
     date: string;
     description: string;
@@ -380,7 +399,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
       />
 
       {/* Income from Bookings */}
-      <IncomeTable bookings={filteredIncomeBookings} loading={loading} />
+      <IncomeTable bookings={filteredIncomeBookings} loading={loading} onCloseBooking={handleCloseBooking} />
 
       {/* Expenses */}
       <ExpenseTable
