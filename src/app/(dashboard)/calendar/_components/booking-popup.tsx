@@ -192,10 +192,14 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
               <span className="text-gray-400 flex-shrink-0"><Tag className="h-4 w-4" /></span>
               <span className="flex-1 font-mono text-xs text-gray-600 break-all">{sessionName}</span>
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(sessionName);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(sessionName);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    // clipboard API unavailable
+                  }
                 }}
                 className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
                 title="Salin nama sesi"
