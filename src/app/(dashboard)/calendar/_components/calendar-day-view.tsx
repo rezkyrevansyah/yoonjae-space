@@ -194,10 +194,12 @@ export function CalendarDayView({ date, bookings, onSelectBooking }: Props) {
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                    {b.packages?.name && (
+                    {(b.booking_packages?.length > 0 || b.packages?.name) && (
                       <span className="flex items-center gap-1 text-xs text-gray-500">
                         <User className="w-3 h-3" />
-                        {b.packages.name}
+                        {b.booking_packages?.length > 0
+                          ? b.booking_packages.map((bp) => bp.packages?.name).filter(Boolean).join(", ")
+                          : b.packages?.name}
                       </span>
                     )}
                     {b.booking_backgrounds.length > 0 && (

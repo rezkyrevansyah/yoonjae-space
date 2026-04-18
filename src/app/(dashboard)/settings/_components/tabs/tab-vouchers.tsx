@@ -78,7 +78,7 @@ export function TabVouchers({ currentUser }: TabVouchersProps) {
       code: form.code.toUpperCase(),
       discount_type: form.discount_type,
       discount_value: parseInt(form.discount_value.replace(/\D/g, ""), 10),
-      valid_from: form.valid_from || null,
+      valid_from: form.valid_from || new Date().toISOString().split("T")[0],
       valid_until: form.valid_until || null,
       minimum_purchase: form.minimum_purchase ? parseInt(form.minimum_purchase.replace(/\D/g, ""), 10) : 0,
       is_active: form.is_active,

@@ -67,7 +67,11 @@ export function CalendarWeekView({ weekStart, bookings, onSelectBooking }: Props
                       {formatTime(b.start_time)}
                     </p>
                     <p className="truncate">{b.customers?.name ?? "-"}</p>
-                    <p className="truncate opacity-80">{b.packages?.name}</p>
+                    <p className="truncate opacity-80">
+                      {b.booking_packages?.length > 0
+                        ? b.booking_packages.map((bp) => bp.packages?.name).filter(Boolean).join(", ")
+                        : b.packages?.name}
+                    </p>
                   </button>
                 ))
               )}

@@ -1,18 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)",
-      "mcp__Claude_Preview__preview_start",
-      "Bash(xargs grep *)",
-      "Skill(code-review:code-review)",
-      "Skill(code-review:code-review:*)",
-      "Bash(mv \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/customer/[bookingId]\" \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/customer/[token]\")",
-      "Bash(mv \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/invoice/[bookingId]\" \"D:/projects/yoonjae-space/.claude/worktrees/infallible-noyce-274b4e/src/app/\\(public\\)/invoice/[token]\")",
-      "Bash(grep -rn \"/customer/\\\\${booking\\\\.id}\\\\|/invoice/\\\\${booking\\\\.id}\\\\|/customer/\\\\${b\\\\.id}\\\\|/invoice/\\\\${b\\\\.id}\" src/ --include=\"*.tsx\")",
-      "Bash(gh pr create --title 'fix\\(security\\): fix 3 critical vulnerabilities - IDOR, admin key misuse, file upload' --body ' *)",
-      "Bash(winget list *)",
+      "Bash(ls -d .worktrees)",
+      "Bash(ls -d worktrees)",
+      "Bash(npm install *)",
+      "Bash(gh pr create --title 'fix: critical bugs from Feedback 05 \\(FB-09, FB-10, FB-13, FB-14, FB-15\\)' --body ' *)",
       "Bash(where gh *)",
-      "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")"
+      "Bash(winget list *)",
+      "Bash(cmd /c \"where gh\")",
+      "Bash(tee /tmp/lint-output.txt)",
+      "Bash(gh pr create --title 'fix: FB-01, FB-02, FB-03 — mobile bugs \\(DP date input, Progress overlap, Photo Delivery dialog\\)' --body ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(git pull *)",
+      "Bash(git worktree *)",
+      "Bash(git -C /d/projects/yoonjae-space/.worktrees/feedback-05-plan-d log main..HEAD --oneline)",
+      "Bash(git -C /d/projects/yoonjae-space/.worktrees/feedback-05-plan-d diff main..HEAD -- src/lib/utils.ts src/app/'\\(dashboard\\)'/calendar/_components/calendar-client.tsx src/app/'\\(dashboard\\)'/calendar/_components/booking-popup.tsx)",
+      "Bash(git -C /d/projects/yoonjae-space/.worktrees/feedback-05-plan-d log main..HEAD --stat)",
+      "Bash(gh pr *)"
     ]
   }
 }

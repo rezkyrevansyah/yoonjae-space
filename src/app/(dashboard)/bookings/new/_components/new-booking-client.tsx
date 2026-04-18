@@ -104,13 +104,16 @@ interface Props {
   users: { id: string; name: string }[];
   domicileOptions: string[];
   packageCategories: { id: string; name: string; sort_order: number }[];
+  addonCategories: { id: string; name: string; sort_order: number }[];
 }
 
 function friendlyError(msg: string): string {
   if (msg.includes("customers_phone_key") || (msg.includes("unique constraint") && msg.includes("phone")))
     return "Nomor WhatsApp ini sudah terdaftar di sistem. Gunakan fitur 'Customer Lama' untuk memilih customer yang sudah ada.";
   if (msg.includes("not-null constraint") || msg.includes("null value in column"))
-    return "Ada data yang wajib diisi tapi masih kosong. Periksa kembali formulir dan coba lagi.";
+    return `Ada data yang wajib diisi tapi masih kosong. Detail: ${msg}`;
+  if (msg.includes("check constraint") || msg.includes("violates check"))
+    return `Nilai tidak valid. Detail: ${msg}`;
   if (msg.includes("foreign key constraint"))
     return "Data referensi tidak ditemukan. Pastikan paket, background, dan pilihan lainnya masih aktif.";
   if (msg.includes("generate_booking_number"))
@@ -131,6 +134,7 @@ export function NewBookingClient({
   users,
   domicileOptions,
   packageCategories,
+  addonCategories,
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
@@ -431,9 +435,9 @@ export function NewBookingClient({
           total: pricing.total,
           dp_amount: dpAmount > 0 ? dpAmount : null,
           dp_paid_at: dpAmount > 0 ? new Date().toISOString() : null,
-          transaction_date: paymentData.transaction_date || null,
-          payment_method: paymentData.payment_method || null,
-          payment_account_name: paymentData.payment_account_name || null,
+          transaction_date: paymentData.transaction_date || new Date().toISOString().split("T")[0],
+          payment_method: paymentData.payment_method || "transfer",
+          payment_account_name: paymentData.payment_account_name || "",
           staff_id: staffData.staff_id || null,
           created_by: currentUser.id,
         })
@@ -646,6 +650,7 @@ export function NewBookingClient({
             packages={packages}
             addons={addons}
             packageCategories={packageCategories}
+            addonCategories={addonCategories}
           />
         )}
         {step === 4 && (

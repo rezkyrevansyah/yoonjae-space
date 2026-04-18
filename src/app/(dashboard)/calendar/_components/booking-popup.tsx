@@ -25,7 +25,6 @@ import {
   Loader2,
   Copy,
   Check,
-  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +56,18 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
   const [status, setStatus] = useState<BookingStatus>(booking.status);
   const [showDriveDialog, setShowDriveDialog] = useState(false);
   const [driveLink, setDriveLink] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const sessionName = generateSessionName(booking);
+
+  async function copyToClipboard(text: string, field: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // clipboard API unavailable
+    }
+  }
 
   const currentIdx = BOOKING_FLOW.indexOf(status);
   const canNext = currentIdx < BOOKING_FLOW.length - 1;
@@ -147,19 +156,40 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
       {/* Panel */}
       <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className={`px-5 py-4 ${BOOKING_STATUS_COLOR[status]}`}>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-xs font-mono opacity-70">{booking.booking_number}</p>
-              <h2 className="font-bold text-base">{booking.customers?.name ?? "Customer"}</h2>
+        <div className={`px-5 py-4 ${BOOKING_STATUS_COLOR[status]} relative`}>
+          <button onClick={onClose} className="absolute top-4 right-4 h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+          <div className="text-center">
+            <p className="text-xs font-mono opacity-70">{booking.booking_number}</p>
+            {/* Customer name with copy */}
+            <div className="flex items-center justify-center gap-1.5 mt-0.5">
+              <h2 className="font-bold text-base truncate">{booking.customers?.name ?? "Customer"}</h2>
+              <button
+                onClick={() => copyToClipboard(booking.customers?.name ?? "", "name")}
+                className="flex-shrink-0 p-0.5 rounded hover:bg-black/10 transition-colors"
+                title="Salin nama"
+              >
+                {copiedField === "name" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 opacity-50" />}
+              </button>
             </div>
-            <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors flex-shrink-0">
-              <X className="h-4 w-4" />
-            </button>
+            {/* Catalog name (session name) with copy */}
+            {sessionName && (
+              <div className="flex items-center justify-center gap-1.5 mt-1">
+                <span className="font-mono text-xs opacity-70 truncate">{sessionName}</span>
+                <button
+                  onClick={() => copyToClipboard(sessionName, "session")}
+                  className="flex-shrink-0 p-0.5 rounded hover:bg-black/10 transition-colors"
+                  title="Salin nama catalog"
+                >
+                  {copiedField === "session" ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5 opacity-50" />}
+                </button>
+              </div>
+            )}
+            <span className={`mt-2 inline-flex text-xs px-2 py-0.5 rounded-full font-medium ${BOOKING_STATUS_COLOR[status]}`}>
+              {BOOKING_STATUS_LABEL[status]}
+            </span>
           </div>
-          <span className={`mt-2 inline-flex text-xs px-2 py-0.5 rounded-full font-medium ${BOOKING_STATUS_COLOR[status]}`}>
-            {BOOKING_STATUS_LABEL[status]}
-          </span>
         </div>
 
         {/* Body */}
@@ -187,27 +217,6 @@ export function BookingPopup({ booking, currentUser, onClose, onStatusUpdate }: 
             <InfoRow icon={<Package className="h-4 w-4" />} value={booking.packages?.name ?? "-"} />
           )}
           <InfoRow icon={<Users className="h-4 w-4" />} value={`${booking.person_count} orang`} />
-          {sessionName && (
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <span className="text-gray-400 flex-shrink-0"><Tag className="h-4 w-4" /></span>
-              <span className="flex-1 font-mono text-xs text-gray-600 break-all">{sessionName}</span>
-              <button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(sessionName);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  } catch {
-                    // clipboard API unavailable
-                  }
-                }}
-                className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0"
-                title="Salin nama sesi"
-              >
-                {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          )}
           {booking.photo_for && (
             <InfoRow icon={<User className="h-4 w-4" />} value={`Foto untuk: ${booking.photo_for.name}`} />
           )}

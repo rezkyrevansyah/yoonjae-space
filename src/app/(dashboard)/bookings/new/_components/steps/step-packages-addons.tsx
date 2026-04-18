@@ -49,6 +49,7 @@ interface Props {
   packages: Package[];
   addons: Addon[];
   packageCategories: { id: string; name: string; sort_order: number }[];
+  addonCategories: { id: string; name: string; sort_order: number }[];
 }
 
 function QuantityControl({
@@ -81,13 +82,17 @@ function QuantityControl({
   );
 }
 
-export function StepPackagesAddons({ data, onChange, packages, addons, packageCategories }: Props) {
-  const categoryOrder = useMemo(
+export function StepPackagesAddons({ data, onChange, packages, addons, packageCategories, addonCategories }: Props) {
+  const packageCategoryOrder = useMemo(
     () => packageCategories.map((c) => c.name),
     [packageCategories]
   );
-  const packageGroups = useMemo(() => groupByWithOrder(packages, categoryOrder), [packages, categoryOrder]);
-  const addonGroups = useMemo(() => groupByWithOrder(addons, categoryOrder), [addons, categoryOrder]);
+  const addonCategoryOrder = useMemo(
+    () => addonCategories.map((c) => c.name),
+    [addonCategories]
+  );
+  const packageGroups = useMemo(() => groupByWithOrder(packages, packageCategoryOrder), [packages, packageCategoryOrder]);
+  const addonGroups = useMemo(() => groupByWithOrder(addons, addonCategoryOrder), [addons, addonCategoryOrder]);
   const [addonsExpanded, setAddonsExpanded] = useState(true);
 
   // --- Package helpers ---
