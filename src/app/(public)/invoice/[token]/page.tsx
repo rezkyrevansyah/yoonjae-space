@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { InvoiceClient } from "./_components/invoice-client";
 
-export default async function InvoicePage({ params }: { params: { bookingId: string } }) {
+export default async function InvoicePage({ params }: { params: { token: string } }) {
   const [supabase, currentUser] = await Promise.all([
     createClient(),
     getCurrentUser(),
@@ -16,14 +16,14 @@ export default async function InvoicePage({ params }: { params: { bookingId: str
       .select(`
         id, booking_number, booking_date, start_time, end_time, status,
         subtotal, total, manual_discount, dp_amount, dp_paid_at,
-        customers(name, phone, email),
+        customers(name, email),
         packages(name, price),
         vouchers(code, discount_type, discount_value),
         booking_addons(addon_id, price, quantity, is_paid, is_extra, addons(name)),
         booking_packages(package_id, quantity, price_snapshot, packages(name)),
         invoices(invoice_number, invoice_date)
       `)
-      .eq("id", params.bookingId)
+      .eq("public_token", params.token)
       .single(),
     getCachedStudioInfo(),
   ]);

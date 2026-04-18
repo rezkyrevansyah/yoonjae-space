@@ -241,7 +241,7 @@ export function PhotoDeliveryDetailClient({ booking: initialBooking, currentUser
             </Button>
           )}
           <Button asChild size="sm" variant="outline" className="gap-1.5">
-            <Link href={`/customer/${booking.id}`} target="_blank">
+            <Link href={`/customer/${booking.public_token}`} target="_blank">
               <User className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Customer</span>
               <ExternalLink className="h-3 w-3" />
