@@ -184,10 +184,17 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
   }
 
   async function handleCloseBooking(bookingId: string) {
-    await supabase
+    if (!confirm("Tutup booking ini? Status tidak dapat dibatalkan dari halaman Finance.")) return;
+
+    const { error } = await supabase
       .from("bookings")
       .update({ status: "CLOSED" })
       .eq("id", bookingId);
+
+    if (error) {
+      console.error("Failed to close booking:", error.message);
+      return;
+    }
 
     await supabase.from("activity_log").insert({
       user_id: currentUser.id,
@@ -279,8 +286,10 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
     const incomeRows = incomeBookings.map((b) => ({
       "Booking ID": b.booking_number,
       "Customer": b.customers?.name ?? "-",
-      "Tanggal": formatDate(b.created_at),
+      "Tanggal": formatDate(b.transaction_date ?? b.created_at),
       "Paket": b.packages?.name ?? "-",
+      "Metode Bayar": b.payment_method ?? "-",
+      "Rekening": b.payment_account_name ?? "-",
       "Status": b.status,
       "Total": b.total,
     }));
@@ -394,7 +403,7 @@ export function FinanceClient({ currentUser, vendors, initialData }: Props) {
         totalIncome={totalIncome}
         totalExpense={totalExpense}
         grossProfit={grossProfit}
-        bookingCount={incomeBookings.length}
+        bookingCount={filteredIncomeBookings.length}
         loading={loading}
       />
 

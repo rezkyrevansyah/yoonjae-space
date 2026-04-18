@@ -3,29 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt, CheckSquare2 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
+import type { IncomeBooking } from "./finance-client";
 
 type IncomeSortField = "created_at" | "total";
 
 const PREVIEW_SIZE = 5;
 const PAGE_SIZE = 10;
-
-interface IncomeBooking {
-  id: string;
-  booking_number: string;
-  booking_date: string;
-  transaction_date: string | null;
-  created_at: string;
-  status: string;
-  total: number;
-  payment_method: string | null;
-  payment_account_name: string | null;
-  customers: { name: string } | null;
-  packages: { name: string } | null;
-}
 
 interface Props {
   bookings: IncomeBooking[];
@@ -260,6 +247,16 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
                     </div>
                   </div>
                 </Link>
+                {onCloseBooking && b.status !== "CLOSED" && (
+                  <button
+                    onClick={async (e) => { e.stopPropagation(); setClosingId(b.id); await onCloseBooking(b.id); setClosingId(null); }}
+                    disabled={closingId === b.id}
+                    className="absolute top-3 right-12 text-gray-300 hover:text-green-600 transition-colors disabled:opacity-40"
+                    title="Tutup Booking"
+                  >
+                    <CheckSquare2 className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setInvoiceBookingId(b.id); }}
                   className="absolute top-3 right-4 text-gray-300 hover:text-[#8B1A1A] transition-colors"
@@ -324,6 +321,7 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
       {invoiceBookingId && (
         <Dialog open onOpenChange={(open) => { if (!open) setInvoiceBookingId(null); }}>
           <DialogContent className="max-w-3xl h-[85vh] p-0 overflow-hidden">
+            <DialogTitle className="sr-only">Invoice Preview</DialogTitle>
             <iframe
               src={`/invoice/${invoiceBookingId}`}
               className="w-full h-full border-0"
