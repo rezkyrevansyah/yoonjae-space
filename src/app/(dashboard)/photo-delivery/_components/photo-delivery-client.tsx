@@ -60,6 +60,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [printOrderFilter, setPrintOrderFilter] = useState<string>("ALL");
   const [dateFilter, setDateFilter] = useState<string>("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -95,6 +96,10 @@ export function PhotoDeliveryClient({ initialData }: Props) {
         query = query.in("status", ["SHOOT_DONE", "PHOTOS_DELIVERED"]);
       }
 
+      if (printOrderFilter !== "ALL") {
+        query = query.eq("print_order_status", printOrderFilter as PrintOrderStatus);
+      }
+
       if (dateFilter) {
         query = query.eq("booking_date", dateFilter);
       }
@@ -128,7 +133,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, dateFilter, search, page, pageSize, toast]);
+  }, [statusFilter, printOrderFilter, dateFilter, search, page, pageSize, toast]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -140,7 +145,7 @@ export function PhotoDeliveryClient({ initialData }: Props) {
 
   useEffect(() => {
     setPage(0);
-  }, [search, statusFilter, dateFilter, pageSize]);
+  }, [search, statusFilter, printOrderFilter, dateFilter, pageSize]);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -176,6 +181,17 @@ export function PhotoDeliveryClient({ initialData }: Props) {
             <SelectItem value="ALL">Semua Status</SelectItem>
             <SelectItem value="SHOOT_DONE">Shoot Done</SelectItem>
             <SelectItem value="PHOTOS_DELIVERED">Photos Delivered</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={printOrderFilter} onValueChange={setPrintOrderFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Print Order" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Semua Print</SelectItem>
+            {(Object.keys(PRINT_ORDER_STATUS_LABEL) as PrintOrderStatus[]).map((s) => (
+              <SelectItem key={s} value={s}>{PRINT_ORDER_STATUS_LABEL[s]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Button
