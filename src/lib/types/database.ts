@@ -208,6 +208,7 @@ export interface Vendor {
 
 export interface Booking {
   id: string;
+  public_token: string;
   booking_number: string;
   customer_id: string;
   booking_date: string;
