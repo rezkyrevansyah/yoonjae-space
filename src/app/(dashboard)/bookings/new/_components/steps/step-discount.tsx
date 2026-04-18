@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { formatRupiah } from "@/lib/utils";
-import type { DiscountFormData } from "./new-booking-client";
+import type { DiscountFormData } from "../new-booking-client";
 import { Tag, Percent, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

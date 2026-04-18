@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { CustomerFormData } from "./new-booking-client";
+import type { CustomerFormData } from "../new-booking-client";
 import { UserPlus, UserCheck, Search, Loader2 } from "lucide-react";
 
 interface CustomerResult {

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CustomFieldValues } from "./new-booking-client";
+import type { CustomFieldValues } from "../new-booking-client";
 import type { CustomField } from "@/lib/types/database";
 
 interface Props {

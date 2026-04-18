@@ -11,7 +11,8 @@
       "Bash(grep -rn \"/customer/\\\\${booking\\\\.id}\\\\|/invoice/\\\\${booking\\\\.id}\\\\|/customer/\\\\${b\\\\.id}\\\\|/invoice/\\\\${b\\\\.id}\" src/ --include=\"*.tsx\")",
       "Bash(gh pr create --title 'fix\\(security\\): fix 3 critical vulnerabilities - IDOR, admin key misuse, file upload' --body ' *)",
       "Bash(winget list *)",
-      "Bash(where gh *)"
+      "Bash(where gh *)",
+      "Bash(powershell.exe -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")"
     ]
   }
 }
