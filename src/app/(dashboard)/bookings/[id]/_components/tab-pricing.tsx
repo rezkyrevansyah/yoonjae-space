@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Minus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck } from "lucide-react";
+import { Plus, Minus, Loader2, CheckCircle2, XCircle, Trash2, Pencil, CreditCard, BadgeCheck, CalendarDays } from "lucide-react";
 
 // Module-level singleton — stable across renders
 const supabase = createClient();
@@ -58,6 +58,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
   const [dpPaidAt, setDpPaidAt] = useState<string | null>(booking.dp_paid_at ?? null);
   const [editingDp, setEditingDp] = useState(false);
   const [dpInput, setDpInput] = useState("");
+  const [dpDateInput, setDpDateInput] = useState("");
   const [savingDp, setSavingDp] = useState(false);
   const [togglingDp, setTogglingDp] = useState(false);
   const [deletingDp, setDeletingDp] = useState(false);
@@ -114,11 +115,13 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
     setSavingDp(true);
     const isNew = !hasDp;
     try {
-      const now = new Date().toISOString();
-      // New DP: default to Lunas + update status. Edit: keep existing dp_paid_at unchanged.
+      const paidAt = dpDateInput
+        ? new Date(dpDateInput + "T00:00:00").toISOString()
+        : new Date().toISOString();
+      // New DP: default to Lunas + update status. Edit: optionally update dp_paid_at if user provided a date.
       const updatePayload = isNew
-        ? { dp_amount: amount, dp_paid_at: now, status: booking.status === "BOOKED" ? "DP_PAID" : booking.status }
-        : { dp_amount: amount };
+        ? { dp_amount: amount, dp_paid_at: paidAt, status: booking.status === "BOOKED" ? "DP_PAID" : booking.status }
+        : { dp_amount: amount, ...(dpDateInput ? { dp_paid_at: paidAt } : {}) };
       const { error } = await supabase
         .from("bookings")
         .update(updatePayload)
@@ -127,10 +130,11 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
 
       setDpAmount(amount);
       if (isNew) {
-        setDpPaidAt(now);
-        onUpdate({ dp_amount: amount, dp_paid_at: now, status: updatePayload.status as typeof booking.status ?? booking.status });
+        setDpPaidAt(paidAt);
+        onUpdate({ dp_amount: amount, dp_paid_at: paidAt, status: updatePayload.status as typeof booking.status ?? booking.status });
       } else {
-        onUpdate({ dp_amount: amount });
+        if (dpDateInput) setDpPaidAt(paidAt);
+        onUpdate({ dp_amount: amount, ...(dpDateInput ? { dp_paid_at: paidAt } : {}) });
       }
 
       await supabase.from("activity_log").insert({
@@ -146,6 +150,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
       toast({ title: "DP disimpan", description: formatRupiah(amount) });
       setEditingDp(false);
       setDpInput("");
+      setDpDateInput("");
     } catch {
       toast({ title: "Gagal menyimpan DP", variant: "destructive" });
     } finally {
@@ -524,7 +529,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
               size="sm"
               variant="outline"
               className="gap-1.5 h-8 text-xs"
-              onClick={() => { setDpInput(""); setEditingDp(true); }}
+              onClick={() => { setDpInput(""); setDpDateInput(""); setEditingDp(true); }}
             >
               <Plus className="h-3.5 w-3.5" />Tambah DP
             </Button>
@@ -547,6 +552,31 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 <p className="text-xs text-gray-400 mt-1">{formatRupiah(parseInt(dpInput))}</p>
               )}
             </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Tanggal Pembayaran (opsional)</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={dpDateInput}
+                  onChange={(e) => setDpDateInput(e.target.value)}
+                  className="flex-1 min-w-0 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maroon-400"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => {
+                    const d = new Date();
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setDpDateInput(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+                  }}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Hari Ini</span>
+                </Button>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -557,15 +587,20 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 {savingDp && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Simpan
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setEditingDp(false)} className="h-8">
+              <Button size="sm" variant="outline" onClick={() => { setEditingDp(false); setDpDateInput(""); }} className="h-8">
                 Batal
               </Button>
             </div>
           </div>
         ) : hasDp ? (
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <p className="font-semibold text-sm text-gray-900">{formatRupiah(dpAmount!)}</p>
+          <div className="flex items-center justify-between rounded-lg border p-3 gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-semibold text-sm text-gray-900">{formatRupiah(dpAmount!)}</p>
+                <Badge className={dpIsLunas ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                  {dpIsLunas ? "Lunas" : "Belum Lunas"}
+                </Badge>
+              </div>
               {dpPaidAt && (
                 <p className="text-xs text-gray-500 mt-0.5">
                   Dibayar:{" "}
@@ -577,10 +612,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className={dpIsLunas ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
-                {dpIsLunas ? "Lunas" : "Belum Lunas"}
-              </Badge>
+            <div className="flex items-center gap-1 shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -600,7 +632,7 @@ export function TabPricing({ booking, currentUser, availableAddons, onUpdate }: 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setDpInput(String(dpAmount)); setEditingDp(true); }}
+                onClick={() => { setDpInput(String(dpAmount)); setDpDateInput(dpPaidAt ? new Date(dpPaidAt).toLocaleDateString("en-CA") : ""); setEditingDp(true); }}
                 className="h-8 px-2"
                 title="Edit nominal DP"
               >
