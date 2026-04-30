@@ -26,12 +26,29 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# agent/local workspace files
+.agents/
+.claude/
+.worktrees/
+
+# internal development notes
+_docs/
+docs/superpowers/
+reffs/
+AGENTS.md
+CLAUDE.md
+CODE_REVIEW.md
+FRONTEND_REVIEW.md
+FEEDBACK_05.md
+
+# generated PWA files
+public/sw.js
+public/workbox-*.js
+public/swe-worker-*.js
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# worktrees
-.worktrees/

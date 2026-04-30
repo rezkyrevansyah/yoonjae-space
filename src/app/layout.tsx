@@ -20,8 +20,8 @@ export const metadata: Metadata = {
     title: "Yoonjaespace Studio",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
