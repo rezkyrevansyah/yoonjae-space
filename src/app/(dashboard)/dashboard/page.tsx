@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   CalendarPlus, CalendarCheck, Calendar, Bell,
@@ -6,10 +5,10 @@ import {
   Clock, Package, Printer, Truck,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedStudioInfo } from "@/lib/cached-queries";
 import { formatRupiah, formatTime } from "@/lib/utils";
-import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL, MENU_ITEMS } from "@/lib/constants";
+import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
 
 export const metadata = { title: "Dashboard — Yoonjaespace" };
@@ -35,17 +34,9 @@ function toLocalDateStr(date: Date): string {
 
 export default async function DashboardPage() {
   const [currentUser, supabase] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("dashboard"),
     createClient(),
   ]);
-
-  if (!currentUser) redirect("/login");
-
-  if (!currentUser.menu_access.includes("dashboard")) {
-    const firstSlug = currentUser.menu_access[0];
-    const firstItem = firstSlug ? MENU_ITEMS.find((m) => m.slug === firstSlug) : undefined;
-    redirect(firstItem?.href ?? "/login");
-  }
 
   // WIB = UTC+7 — server runs in UTC, offset manually for correct date/time in Indonesia
   const now = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);

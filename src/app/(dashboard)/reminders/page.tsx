@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedReminderTemplates, getCachedStudioInfo } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { RemindersClient, type ReminderBooking } from "./_components/reminders-client";
@@ -13,7 +12,7 @@ export default async function RemindersPage() {
   const today = toDateStr(new Date());
 
   const [currentUser, templates, studioInfo, initialResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("reminders"),
     getCachedReminderTemplates(),
     getCachedStudioInfo(),
     supabase
@@ -30,8 +29,6 @@ export default async function RemindersPage() {
       .order("booking_date")
       .order("start_time"),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   return (
     <RemindersClient

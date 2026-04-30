@@ -77,7 +77,7 @@ const _getCachedPackages = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("packages")
-      .select("id, name, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, is_active")
+      .select("id, name, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, is_active, is_mua")
       .eq("is_active", true)
       .order("sort_order")
       .order("name");
@@ -106,7 +106,7 @@ const _getCachedAddons = unstable_cache(
     const supabase = createAdminClient();
     const { data } = await supabase
       .from("addons")
-      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active")
+      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active, is_mua")
       .eq("is_active", true)
       .order("sort_order")
       .order("name");

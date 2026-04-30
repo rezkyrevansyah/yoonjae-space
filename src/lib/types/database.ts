@@ -83,6 +83,7 @@ export interface Package {
   extra_time_position: 'before' | 'after';
   commission_bonus: number; // per-package override bonus Rp, default 0
   is_active: boolean;
+  is_mua: boolean; // surfaces in /mua public schedule when true
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,7 @@ export interface Addon {
   extra_time_minutes: number;
   extra_time_position: 'before' | 'after';
   is_active: boolean;
+  is_mua: boolean; // surfaces in /mua public schedule when true
   created_at: string;
   updated_at: string;
 }

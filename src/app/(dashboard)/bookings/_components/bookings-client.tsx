@@ -118,7 +118,12 @@ export function BookingsClient({ currentUser, initialPrint, initialData }: Props
   const [deleteNumber, setDeleteNumber] = useState<string>("");
   const [deleting, setDeleting] = useState(false);
 
-  const todayStr = toDateStr(new Date());
+  // Computed after mount so SSR/CSR agree (avoids hydration mismatch when
+  // server and client roll over midnight at slightly different moments).
+  const [todayStr, setTodayStr] = useState<string>("");
+  useEffect(() => {
+    setTodayStr(toDateStr(new Date()));
+  }, []);
 
   function resetFilters() {
     setSearchInput("");

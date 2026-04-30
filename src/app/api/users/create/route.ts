@@ -30,6 +30,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Field wajib tidak lengkap." }, { status: 400 });
   }
 
+  if (typeof password !== "string" || password.length < 8) {
+    return NextResponse.json(
+      { error: "Password minimal 8 karakter." },
+      { status: 400 }
+    );
+  }
+
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "Format email tidak valid." },
+      { status: 400 }
+    );
+  }
+
   const admin = createAdminClient();
 
   // Create auth user

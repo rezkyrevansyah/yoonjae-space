@@ -1,6 +1,6 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedPackages, getCachedBackgrounds, getCachedPhotoFor, getCachedActiveUsers, getCachedCustomFields, getCachedAddons } from "@/lib/cached-queries";
 import { BookingDetailClient } from "./_components/booking-detail-client";
 
@@ -8,13 +8,11 @@ export const metadata = { title: "Detail Booking — Yoonjaespace" };
 export const dynamic = "force-dynamic";
 
 export default async function BookingDetailPage({ params }: { params: { id: string } }) {
-  // getCurrentUser uses React.cache() — no duplicate DB hit vs layout.tsx
+  // requireMenu wraps getCurrentUser (React.cache) — no duplicate DB hit vs layout.tsx
   const [currentUser, supabase] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("bookings"),
     createClient(),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const [{ data: booking }, addons, packages, backgrounds, photoFors, users, customFields] = await Promise.all([
     supabase

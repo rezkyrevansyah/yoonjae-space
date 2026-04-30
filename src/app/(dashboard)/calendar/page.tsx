@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedSettingsGeneral } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { CalendarClient, type CalendarBooking } from "./_components/calendar-client";
@@ -13,7 +12,7 @@ export default async function CalendarPage() {
   const today = toDateStr(new Date());
 
   const [currentUser, settings, initialResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("calendar"),
     getCachedSettingsGeneral(),
     // Day view: fetch full data including backgrounds/addons
     supabase
@@ -35,8 +34,6 @@ export default async function CalendarPage() {
       .order("booking_date")
       .order("start_time"),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const initialBookings: CalendarBooking[] = (initialResult.data ?? []).map(b => {
     const raw = b as unknown as CalendarBooking;

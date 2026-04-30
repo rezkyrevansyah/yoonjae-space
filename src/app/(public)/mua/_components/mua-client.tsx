@@ -4,9 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatTime, toDateStr } from "@/lib/utils";
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
-import type { BookingStatus } from "@/lib/types/database";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Package, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Sparkles } from "lucide-react";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -15,18 +13,12 @@ interface StudioInfo {
   logo_url: string | null;
 }
 
-interface MuaBooking {
+interface MuaSlot {
   id: string;
-  booking_number: string;
   booking_date: string;
   start_time: string;
   end_time: string;
-  status: BookingStatus;
-  customers: { name: string } | null;
-  packages: { name: string } | null;
-  booking_addons: {
-    addons: { name: string } | null;
-  }[];
+  mua_service: string | null;
 }
 
 interface Props {
@@ -72,10 +64,10 @@ export function MuaClient({ studioInfo }: Props) {
   const { toast } = useToast();
   const [view, setView] = useState<ViewMode>("day");
   const [cursor, setCursor] = useState<Date>(new Date());
-  const [bookings, setBookings] = useState<MuaBooking[]>([]);
+  const [slots, setSlots] = useState<MuaSlot[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchMuaBookings = useCallback(async (mode: ViewMode, d: Date) => {
+  const fetchMuaSlots = useCallback(async (mode: ViewMode, d: Date) => {
     setLoading(true);
     let from: string;
     let to: string;
@@ -96,18 +88,18 @@ export function MuaClient({ studioInfo }: Props) {
     try {
       const res = await fetch(`/api/mua-bookings?from=${from}&to=${to}`);
       if (!res.ok) throw new Error("fetch failed");
-      const data: MuaBooking[] = await res.json();
-      setBookings(data);
+      const data: MuaSlot[] = await res.json();
+      setSlots(data);
     } catch {
-      toast({ title: "Error", description: "Gagal memuat data", variant: "destructive" });
+      toast({ title: "Error", description: "Gagal memuat jadwal", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchMuaBookings(view, cursor);
-  }, [view, cursor, fetchMuaBookings]);
+    fetchMuaSlots(view, cursor);
+  }, [view, cursor, fetchMuaSlots]);
 
   function navigate(dir: -1 | 1) {
     setCursor(prev => {
@@ -121,11 +113,11 @@ export function MuaClient({ studioInfo }: Props) {
 
   const inRange = isTodayInRange(cursor, view);
 
-  // Group bookings by date for week/month views
+  // Group slots by date for week/month views
   const groupedByDate = view !== "day"
-    ? bookings.reduce<Record<string, MuaBooking[]>>((acc, b) => {
-        if (!acc[b.booking_date]) acc[b.booking_date] = [];
-        acc[b.booking_date].push(b);
+    ? slots.reduce<Record<string, MuaSlot[]>>((acc, s) => {
+        if (!acc[s.booking_date]) acc[s.booking_date] = [];
+        acc[s.booking_date].push(s);
         return acc;
       }, {})
     : {};
@@ -154,7 +146,7 @@ export function MuaClient({ studioInfo }: Props) {
           )}
           <div>
             <h1 className="font-bold text-gray-900">{studioInfo?.studio_name ?? "Studio"}</h1>
-            <p className="text-xs text-gray-500">Jadwal MUA</p>
+            <p className="text-xs text-gray-500">Jadwal MUA — slot terbooking</p>
           </div>
         </div>
       </header>
@@ -224,15 +216,15 @@ export function MuaClient({ studioInfo }: Props) {
           </div>
         ) : view === "day" ? (
           /* Day view */
-          bookings.length === 0 ? (
+          slots.length === 0 ? (
             <div className="text-center py-12">
               <CalendarDays className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-400 text-sm">Tidak ada jadwal MUA hari ini</p>
+              <p className="text-gray-400 text-sm">Tidak ada slot MUA terbooking</p>
               <p className="text-gray-300 text-xs mt-1">{formatDate(toDateStr(cursor))}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {bookings.map(b => <BookingCard key={b.id} booking={b} />)}
+              {slots.map(s => <SlotCard key={s.id} slot={s} />)}
             </div>
           )
         ) : (
@@ -241,13 +233,13 @@ export function MuaClient({ studioInfo }: Props) {
             <div className="text-center py-12">
               <CalendarDays className="h-10 w-10 text-gray-200 mx-auto mb-3" />
               <p className="text-gray-400 text-sm">
-                Tidak ada jadwal MUA {view === "week" ? "minggu" : "bulan"} ini
+                Tidak ada slot MUA {view === "week" ? "minggu" : "bulan"} ini
               </p>
             </div>
           ) : (
             <div className="space-y-5">
               {sortedDates.map(dateStr => {
-                const dayBookings = groupedByDate[dateStr];
+                const daySlots = groupedByDate[dateStr];
                 const isToday = dateStr === toDateStr(new Date());
                 return (
                   <div key={dateStr}>
@@ -262,7 +254,7 @@ export function MuaClient({ studioInfo }: Props) {
                       )}
                     </div>
                     <div className="space-y-3">
-                      {dayBookings.map(b => <BookingCard key={b.id} booking={b} />)}
+                      {daySlots.map(s => <SlotCard key={s.id} slot={s} />)}
                     </div>
                   </div>
                 );
@@ -275,54 +267,26 @@ export function MuaClient({ studioInfo }: Props) {
   );
 }
 
-function BookingCard({ booking: b }: { booking: MuaBooking }) {
-  const muaAddons = b.booking_addons
-    .filter(ba => ba.addons?.name?.toLowerCase().includes("mua"))
-    .map(ba => ba.addons?.name)
-    .join(", ");
-
+function SlotCard({ slot: s }: { slot: MuaSlot }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      {/* Status bar */}
-      <div className={`h-1.5 w-full ${BOOKING_STATUS_COLOR[b.status].split(" ")[0]}`} />
-
-      <div className="p-4 space-y-2.5">
-        {/* Customer + status */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-gray-400" />
-              <p className="font-semibold text-gray-900">{b.customers?.name ?? "-"}</p>
-            </div>
-            <p className="text-xs text-gray-400 font-mono mt-0.5">{b.booking_number}</p>
-          </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${BOOKING_STATUS_COLOR[b.status]}`}>
-            {BOOKING_STATUS_LABEL[b.status]}
-          </span>
+      <div className="h-1.5 w-full bg-pink-200" />
+      <div className="p-4 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-pink-50 flex-shrink-0">
+          <Sparkles className="h-5 w-5 text-pink-600" />
         </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          {/* Package */}
-          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-            <Package className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-            <span className="truncate">{b.packages?.name ?? "-"}</span>
-          </div>
-
-          {/* Session time */}
-          <div className="flex items-center gap-1.5 text-sm text-gray-600">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm text-gray-700 font-medium">
             <Clock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-            <span>{formatTime(b.start_time)} — {formatTime(b.end_time)}</span>
+            <span>{formatTime(s.start_time)} — {formatTime(s.end_time)}</span>
           </div>
+          {s.mua_service && (
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{s.mua_service}</p>
+          )}
         </div>
-
-        {/* MUA addon name */}
-        {muaAddons && (
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">
-              {muaAddons}
-            </span>
-          </div>
-        )}
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600 flex-shrink-0">
+          Booked
+        </span>
       </div>
     </div>
   );

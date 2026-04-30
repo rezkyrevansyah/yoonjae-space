@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt, CheckSquare2 } from "lucide-react";
+import { ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Receipt, CheckSquare2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { formatRupiah, formatDate } from "@/lib/utils";
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR } from "@/lib/constants";
 import type { BookingStatus } from "@/lib/types/database";
 import type { IncomeBooking } from "./finance-client";
+import { getBookingInvoiceToken } from "@/lib/actions/get-booking-invoice-token";
 
 type IncomeSortField = "created_at" | "total";
 
@@ -28,6 +29,18 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [invoiceBookingToken, setInvoiceBookingToken] = useState<string | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [loadingTokenForId, setLoadingTokenForId] = useState<string | null>(null);
+
+  async function handleOpenInvoice(bookingId: string) {
+    if (loadingTokenForId) return;
+    setLoadingTokenForId(bookingId);
+    try {
+      const token = await getBookingInvoiceToken(bookingId);
+      if (token) setInvoiceBookingToken(token);
+    } finally {
+      setLoadingTokenForId(null);
+    }
+  }
 
   const q = searchQuery.toLowerCase().trim();
   const filteredBookings = q
@@ -182,11 +195,16 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
                           </button>
                         )}
                         <button
-                          onClick={() => setInvoiceBookingToken(b.public_token)}
-                          className="p-1.5 rounded-md text-gray-400 hover:text-[#8B1A1A] hover:bg-red-50 transition-colors"
+                          onClick={() => handleOpenInvoice(b.id)}
+                          disabled={loadingTokenForId === b.id}
+                          className="p-1.5 rounded-md text-gray-400 hover:text-[#8B1A1A] hover:bg-red-50 transition-colors disabled:opacity-40"
                           title="Lihat Invoice"
                         >
-                          <Receipt className="w-4 h-4" />
+                          {loadingTokenForId === b.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Receipt className="w-4 h-4" />
+                          )}
                         </button>
                         <Link
                           href={`/bookings/${b.id}`}
@@ -255,10 +273,15 @@ export function IncomeTable({ bookings, loading, onCloseBooking }: Props) {
                     </button>
                   )}
                   <button
-                    onClick={() => setInvoiceBookingToken(b.public_token)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                    onClick={() => handleOpenInvoice(b.id)}
+                    disabled={loadingTokenForId === b.id}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors disabled:opacity-40"
                   >
-                    <Receipt className="w-3.5 h-3.5" />
+                    {loadingTokenForId === b.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Receipt className="w-3.5 h-3.5" />
+                    )}
                     Invoice
                   </button>
                   <Link

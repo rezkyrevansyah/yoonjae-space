@@ -47,15 +47,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User utama tidak bisa dihapus." }, { status: 403 });
   }
 
-  // Delete from users table first
-  const { error: dbError } = await admin.from("users").delete().eq("id", userId);
-  if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+  // Revoke login first so the deleted user can no longer authenticate,
+  // even if the subsequent users-table delete fails (e.g. FK references from
+  // bookings/commissions/activity_log).
+  if (targetUser.auth_id) {
+    const { error: authDelErr } = await admin.auth.admin.deleteUser(targetUser.auth_id);
+    if (authDelErr) {
+      return NextResponse.json({ error: `Gagal hapus auth user: ${authDelErr.message}` }, { status: 500 });
+    }
   }
 
-  // Delete auth user
-  if (targetUser.auth_id) {
-    await admin.auth.admin.deleteUser(targetUser.auth_id);
+  // Then delete the profile row. May fail with FK violation if the user has
+  // historical bookings/commissions — in that case auth is already revoked
+  // (login blocked) so we surface the error but don't try to roll back.
+  const { error: dbError } = await admin.from("users").delete().eq("id", userId);
+  if (dbError) {
+    return NextResponse.json(
+      { error: `Auth dihapus, tapi gagal hapus profil user: ${dbError.message}. Hubungi admin DB.` },
+      { status: 500 }
+    );
   }
 
   // Activity log

@@ -1,6 +1,6 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import nextDynamic from "next/dynamic";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function PhotoDeliveryDetailPage({ params }: { params: { id
   const supabase = await createClient();
 
   const [currentUser, { data: booking }] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("photo-delivery"),
     supabase
       .from("bookings")
       .select(`
@@ -38,7 +38,6 @@ export default async function PhotoDeliveryDetailPage({ params }: { params: { id
       .single(),
   ]);
 
-  if (!currentUser) redirect("/login");
   if (!booking) notFound();
 
   return (

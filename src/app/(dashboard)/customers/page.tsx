@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedLeads, getCachedDomiciles } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { CustomersClient, type CustomerRow } from "./_components/customers-client";
@@ -12,7 +11,7 @@ const PAGE_SIZE = 25;
 export default async function CustomersPage() {
   const supabase = await createClient();
   const [currentUser, leads, domiciles, initialResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("customers"),
     getCachedLeads(),
     getCachedDomiciles(),
     supabase
@@ -28,8 +27,6 @@ export default async function CustomersPage() {
   ]);
 
   const domicileOptions = (domiciles as { name: string }[]).map(d => d.name);
-
-  if (!currentUser) redirect("/login");
 
   type RawCustomer = {
     id: string; name: string; phone: string; email: string | null;

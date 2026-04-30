@@ -22,10 +22,12 @@
 ### Supabase Credentials (untuk .env.local)
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://ihjjojscswntqmakacas.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_MsqOVhVVzSmEbbmT6-Yeag_OTBewYVg
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloampvanNjc3dudHFtYWthY2FzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjI4OTE5OSwiZXhwIjoyMDg3ODY1MTk5fQ.UzjbQZq_W6Y7APjYpMMGx8kIevQvq41xaL2fdC5ofi4
+NEXT_PUBLIC_SUPABASE_URL=<from Supabase dashboard → Settings → API>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=<publishable / anon key>
+SUPABASE_SERVICE_ROLE_KEY=<service role key — server-side only, NEVER expose to browser>
 ```
+
+⚠️  Do not commit real key values. Rotate any key that has ever been committed (Supabase dashboard → Settings → API → Reset).
 
 ---
 

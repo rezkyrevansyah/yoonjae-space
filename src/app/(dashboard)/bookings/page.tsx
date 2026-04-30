@@ -1,14 +1,7 @@
-import nextDynamic from "next/dynamic";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { createClient } from "@/utils/supabase/server";
 import type { BookingStatus } from "@/lib/types/database";
-
-// Load as client-only to avoid SSR hydration mismatch with Radix UI Select
-const BookingsClient = nextDynamic(
-  () => import("./_components/bookings-client").then((m) => ({ default: m.BookingsClient })),
-  { ssr: false }
-);
+import { BookingsClient } from "./_components/bookings-client";
 
 export const metadata = { title: "Bookings — Yoonjaespace" };
 export const dynamic = "force-dynamic";
@@ -56,11 +49,9 @@ export default async function BookingsPage({
   }
 
   const [currentUser, initialResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("bookings"),
     initialQuery.range(0, 9),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   return (
     <BookingsClient

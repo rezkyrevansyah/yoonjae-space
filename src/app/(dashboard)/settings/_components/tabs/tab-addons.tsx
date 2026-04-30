@@ -31,6 +31,7 @@ const emptyForm = {
   extra_time_minutes: "30",
   extra_time_position: "after" as "before" | "after",
   is_active: true,
+  is_mua: false,
 };
 
 export function TabAddons({ currentUser }: TabAddonsProps) {
@@ -57,7 +58,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
     setLoading(true);
     const { data } = await supabase
       .from("addons")
-      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active, created_at, updated_at")
+      .select("id, name, price, category, sort_order, need_extra_time, extra_time_minutes, extra_time_position, is_active, is_mua, created_at, updated_at")
       .order("sort_order")
       .order("name");
     if (data) setItems(data);
@@ -97,6 +98,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       extra_time_minutes: String(item.extra_time_minutes),
       extra_time_position: item.extra_time_position ?? "after",
       is_active: item.is_active,
+      is_mua: item.is_mua ?? false,
     });
     setModalOpen(true);
   }
@@ -113,6 +115,7 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
       extra_time_minutes: form.need_extra_time ? parseInt(form.extra_time_minutes, 10) : 0,
       extra_time_position: form.need_extra_time ? form.extra_time_position : "after",
       is_active: form.is_active,
+      is_mua: form.is_mua,
     };
     try {
       if (editingId) {
@@ -271,6 +274,13 @@ export function TabAddons({ currentUser }: TabAddonsProps) {
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} /><Label>Aktif</Label>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border border-pink-100 bg-pink-50/50 p-3">
+              <Switch checked={form.is_mua} onCheckedChange={(v) => setForm({ ...form, is_mua: v })} />
+              <div className="space-y-0.5">
+                <Label className="cursor-pointer">Tampilkan di Jadwal MUA Publik</Label>
+                <p className="text-xs text-gray-500">Booking dengan add-on ini akan muncul di halaman <code className="text-[10px]">/mua</code> sebagai slot terbooking.</p>
+              </div>
             </div>
           </div>
           <DialogFooter>

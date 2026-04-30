@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedActiveUsers } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { CommissionsClient, type InitialCommissionData } from "./_components/commissions-client";
@@ -36,7 +35,7 @@ export default async function CommissionsPage() {
   const period = getPeriodRange(month, year, cutoffDay);
 
   const [currentUser, staffUsers, bookingsResult, commissionsResult, packagesResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("commissions"),
     getCachedActiveUsers(),
     supabase
       .from("bookings")
@@ -57,8 +56,6 @@ export default async function CommissionsPage() {
       .order("sort_order")
       .order("name"),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const initialData: InitialCommissionData = {
     month,

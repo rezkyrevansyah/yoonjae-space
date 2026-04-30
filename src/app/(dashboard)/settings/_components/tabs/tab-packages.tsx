@@ -36,6 +36,7 @@ const emptyForm = {
   extra_time_position: "after" as "before" | "after",
   commission_bonus: "0",
   is_active: true,
+  is_mua: false,
 };
 
 export function TabPackages({ currentUser }: TabPackagesProps) {
@@ -62,7 +63,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
     setLoading(true);
     const { data } = await supabase
       .from("packages")
-      .select("id, name, description, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, commission_bonus, is_active, created_at, updated_at")
+      .select("id, name, description, price, duration_minutes, category, sort_order, include_print, need_extra_time, extra_time_minutes, extra_time_position, commission_bonus, is_active, is_mua, created_at, updated_at")
       .order("sort_order")
       .order("name");
     if (data) setPackages(data);
@@ -107,6 +108,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       extra_time_position: pkg.extra_time_position ?? "after",
       commission_bonus: String(pkg.commission_bonus ?? 0),
       is_active: pkg.is_active,
+      is_mua: pkg.is_mua ?? false,
     });
     setModalOpen(true);
   }
@@ -134,6 +136,7 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
       extra_time_position: form.need_extra_time ? form.extra_time_position : "after",
       commission_bonus: Math.max(0, parseInt(form.commission_bonus.replace(/\D/g, ""), 10) || 0),
       is_active: form.is_active,
+      is_mua: form.is_mua,
     };
 
     try {
@@ -347,6 +350,13 @@ export function TabPackages({ currentUser }: TabPackagesProps) {
             <div className="flex items-center gap-3">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
               <Label>Aktif</Label>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border border-pink-100 bg-pink-50/50 p-3">
+              <Switch checked={form.is_mua} onCheckedChange={(v) => setForm({ ...form, is_mua: v })} />
+              <div className="space-y-0.5">
+                <Label className="cursor-pointer">Tampilkan di Jadwal MUA Publik</Label>
+                <p className="text-xs text-gray-500">Booking dengan paket ini akan muncul di halaman <code className="text-[10px]">/mua</code> sebagai slot terbooking.</p>
+              </div>
             </div>
           </div>
           <DialogFooter>

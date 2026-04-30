@@ -1,6 +1,6 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { CustomerDetailClient } from "./_components/customer-detail-client";
 
 export const metadata = { title: "Detail Customer — Yoonjaespace" };
@@ -8,11 +8,9 @@ export const dynamic = "force-dynamic";
 
 export default async function CustomerDetailPage({ params }: { params: { id: string } }) {
   const [currentUser, supabase] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("customers"),
     createClient(),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const [{ data: customer }, { data: leads }, { data: domiciles }] = await Promise.all([
     supabase

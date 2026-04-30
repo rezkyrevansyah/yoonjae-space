@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { getCachedActiveVendors } from "@/lib/cached-queries";
 import { createClient } from "@/utils/supabase/server";
 import { FinanceClient, type IncomeBooking, type PackageStat } from "./_components/finance-client";
@@ -20,11 +19,11 @@ export default async function FinancePage() {
   const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const [currentUser, vendors, bookingsResult, expensesResult] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("finance"),
     getCachedActiveVendors(),
     supabase
       .from("bookings")
-      .select("id, public_token, booking_number, booking_date, transaction_date, created_at, status, total, payment_method, payment_account_name, customers(name), packages(name)")
+      .select("id, booking_number, booking_date, transaction_date, created_at, status, total, payment_method, payment_account_name, customers(name), packages(name)")
       .gte("created_at", `${startDate}T00:00:00`)
       .lte("created_at", `${endDate}T23:59:59`)
       .in("status", PAID_STATUSES)
@@ -36,8 +35,6 @@ export default async function FinancePage() {
       .lte("date", endDate)
       .order("date"),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const incomeBookings = (bookingsResult.data ?? []) as unknown as IncomeBooking[];
   const expenses = (expensesResult.data ?? []) as unknown as Expense[];

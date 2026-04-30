@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { NewBookingClient } from "./_components/new-booking-client";
 import {
   getCachedPackages,
@@ -36,7 +35,7 @@ export default async function NewBookingPage() {
     packageCategories,
     addonCategories,
   ] = await Promise.all([
-    getCurrentUser(),
+    requireMenu("bookings"),
     getCachedPackages(),
     getCachedBackgrounds(),
     getCachedAddons(),
@@ -50,8 +49,6 @@ export default async function NewBookingPage() {
     getCachedPackageCategories(),
     getCachedAddonCategories(),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   return (
     <NewBookingClient

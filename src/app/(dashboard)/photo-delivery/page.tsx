@@ -1,6 +1,5 @@
 import nextDynamic from "next/dynamic";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/get-current-user";
+import { requireMenu } from "@/lib/require-menu";
 import { createClient } from "@/utils/supabase/server";
 import type { BookingStatus, PrintOrderStatus } from "@/lib/types/database";
 
@@ -27,12 +26,10 @@ export interface PhotoDeliveryRow {
 }
 
 export default async function PhotoDeliveryPage() {
-  const [currentUser, supabase] = await Promise.all([
-    getCurrentUser(),
+  const [, supabase] = await Promise.all([
+    requireMenu("photo-delivery"),
     createClient(),
   ]);
-
-  if (!currentUser) redirect("/login");
 
   const initialResult = await supabase
     .from("bookings")

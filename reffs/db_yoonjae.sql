@@ -89,7 +89,7 @@ CREATE TABLE public.booking_packages (
 CREATE TABLE public.booking_reminders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL,
-  type text NOT NULL CHECK (type = ANY (ARRAY['reminder'::text, 'thank_you'::text, 'thank_you_payment'::text])),
+  type text NOT NULL CHECK (type = ANY (ARRAY['reminder'::text, 'thank_you'::text, 'thank_you_payment'::text, 'custom'::text])),
   sent_at timestamp with time zone NOT NULL DEFAULT now(),
   sent_by uuid,
   CONSTRAINT booking_reminders_pkey PRIMARY KEY (id),
@@ -132,6 +132,10 @@ CREATE TABLE public.bookings (
   commission_amount bigint NOT NULL DEFAULT 0,
   dp_amount bigint,
   dp_paid_at timestamp with time zone,
+  transaction_date date,
+  payment_method text NOT NULL DEFAULT 'transfer'::text CHECK (payment_method = ANY (ARRAY['transfer'::text, 'tunai'::text, 'qris'::text, 'other'::text])),
+  payment_account_name text NOT NULL DEFAULT ''::text,
+  public_token uuid NOT NULL DEFAULT gen_random_uuid(),
   CONSTRAINT bookings_pkey PRIMARY KEY (id),
   CONSTRAINT bookings_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT bookings_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.packages(id),
@@ -238,7 +242,7 @@ CREATE TABLE public.packages (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   include_print boolean DEFAULT false,
-  extra_time_position character varying DEFAULT 'after'::character varying,
+  extra_time_position character varying DEFAULT 'after'::character varying CHECK (extra_time_position::text = ANY (ARRAY['before'::character varying, 'after'::character varying]::text[])),
   category text DEFAULT ''::text,
   sort_order integer DEFAULT 0,
   commission_bonus bigint NOT NULL DEFAULT 0,
@@ -280,6 +284,7 @@ CREATE TABLE public.settings_reminder_templates (
   thank_you_payment_message text NOT NULL DEFAULT ''::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  custom_message text NOT NULL DEFAULT ''::text,
   CONSTRAINT settings_reminder_templates_pkey PRIMARY KEY (lock)
 );
 CREATE TABLE public.settings_studio_info (
@@ -337,8 +342,8 @@ CREATE TABLE public.vouchers (
   code text NOT NULL UNIQUE,
   discount_type USER-DEFINED NOT NULL DEFAULT 'percentage'::discount_type,
   discount_value bigint NOT NULL DEFAULT 0,
-  valid_from date NOT NULL DEFAULT CURRENT_DATE,
-  valid_until date NOT NULL DEFAULT CURRENT_DATE,
+  valid_from date DEFAULT CURRENT_DATE,
+  valid_until date DEFAULT CURRENT_DATE,
   minimum_purchase bigint NOT NULL DEFAULT 0,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
