@@ -282,6 +282,12 @@ export function StepSession({ sessionData, onChange, settingsGeneral, holidays, 
             disabled={isDisabled}
             components={{ Chevron }}
             classNames={{
+              months: "relative",
+              nav: "absolute top-0 left-0 right-0 flex justify-between items-center pointer-events-none px-1 z-10",
+              button_previous: "h-7 w-7 inline-flex items-center justify-center rounded-md border border-gray-200 bg-white pointer-events-auto opacity-70 hover:opacity-100",
+              button_next: "h-7 w-7 inline-flex items-center justify-center rounded-md border border-gray-200 bg-white pointer-events-auto opacity-70 hover:opacity-100",
+              month_caption: "flex items-center justify-center py-1 px-10",
+              dropdowns: "flex items-center gap-1 text-sm font-medium",
               selected: "bg-maroon-700 text-white rounded-md",
               today: "font-bold text-maroon-700",
             }}

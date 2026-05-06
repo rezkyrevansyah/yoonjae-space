@@ -144,18 +144,13 @@ export function StepCustomerData({ customerData, onChange, leads, domicileOption
 
         <div>
           <Label>Domisili</Label>
-          {domicileOptions.length > 0 ? (
-            <DomicileCombobox
-              options={domicileOptions}
-              value={customerData.domicile}
-              onChange={(v) => set("domicile", v)}
-            />
-          ) : (
-            <Input
-              value={customerData.domicile}
-              onChange={(e) => set("domicile", e.target.value)}
-              placeholder="Kota domisili"
-            />
+          <DomicileCombobox
+            options={domicileOptions}
+            value={customerData.domicile}
+            onChange={(v) => set("domicile", v)}
+          />
+          {domicileOptions.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">Belum ada opsi domisili. Tambahkan di Settings → Domisili.</p>
           )}
         </div>
 
